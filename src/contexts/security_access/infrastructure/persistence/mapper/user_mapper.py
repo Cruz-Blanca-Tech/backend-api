@@ -1,7 +1,7 @@
 # src/contexts/security_access/infrastructure/mappers/user_mapper.py
 
 from src.contexts.security_access.domain.entities.user import User
-from src.contexts.security_access.infrastructure.models.user_model import UserModel
+from src.contexts.security_access.infrastructure.persistence.models.user_model import UserModel
 from src.contexts.security_access.domain.value_objects.email import Email
 from src.contexts.security_access.domain.value_objects.role import Role
 

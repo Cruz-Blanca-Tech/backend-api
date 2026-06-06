@@ -4,7 +4,7 @@ from sqlalchemy import Column, String, DateTime, ForeignKey, UUID
 from sqlalchemy.orm import relationship
 from src.core.database import Base
 # src/contexts/security_access/infrastructure/models/__init__.py
-from src.contexts.security_access.infrastructure.models.user_model import UserModel
+from src.contexts.security_access.infrastructure.persistence.models.user_model import UserModel
 
 class RefreshTokenModel(Base):
     __tablename__ = "refresh_tokens"

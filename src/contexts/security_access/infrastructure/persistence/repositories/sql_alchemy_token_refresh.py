@@ -8,7 +8,7 @@ from sqlalchemy import UUID, delete
 
 from src.contexts.security_access.domain.repositories.refresh_token_repository import RefreshTokenRepository
 from src.contexts.security_access.domain.value_objects.active_session import ActiveSession
-from src.contexts.security_access.infrastructure.models.refresh_token_model import RefreshTokenModel
+from src.contexts.security_access.infrastructure.persistence.models.refresh_token_model import RefreshTokenModel
 
 class SqlRefreshTokenRepository(RefreshTokenRepository):
     def __init__(self, session: AsyncSession):
