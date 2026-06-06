@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
-from src.contexts.security_access.api.routes import router as security_router
+from src.contexts.security_access.presentation.routes import router as security_router
 from src.contexts.document_intake_ocr.api.routes import router as intake_router
 from src.contexts.data_quality_triage.api.routes import router as triage_router
 from src.contexts.reporting_analytics.api.routes import router as reporting_router
