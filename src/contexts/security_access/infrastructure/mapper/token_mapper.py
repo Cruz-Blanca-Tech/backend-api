@@ -1,5 +1,6 @@
 import jwt
 from datetime import datetime, timedelta
+from src.contexts.security_access.domain.entities.user import User
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 
 class TokenMapper:

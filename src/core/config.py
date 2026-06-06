@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # OAuth Google (Security & Access)
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+    ALLOWED_DOMAIN: str ="cruz-blanca.org"
 
     # Document Intake & OCR (Azure Document Intelligence)
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: str = ""

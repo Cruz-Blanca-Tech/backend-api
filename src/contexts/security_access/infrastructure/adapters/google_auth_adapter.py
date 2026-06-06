@@ -1,29 +1,27 @@
+# src/contexts/security_access/infrastructure/adapters/google_identity_adapter.py
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from google.auth.exceptions import GoogleAuthError 
-from src.contexts.security_access.domain.ports.auth_provider import AuthProvider
-from src.contexts.security_access.domain.entities.authenticated_user import AuthenticatedUser
-from src.contexts.security_access.domain.value_objects.email import Email
+from src.contexts.security_access.domain.ports.identity_provider import IdentityProvider
+from src.contexts.security_access.domain.entities.external_user_identity import ExternalUserIdentity
+from src.core.config import settings 
 
-class GoogleAuthAdapter(AuthProvider):
+class GoogleIdentityAdapter(IdentityProvider):
     def __init__(self, client_id: str):
         self.client_id = client_id
 
-    def verify_token(self, token: str) -> AuthenticatedUser:
-        # Esta librería de Google verifica la firma y fecha del token
-        try:
-            id_info = id_token.verify_oauth2_token(
-                token, requests.Request(), self.client_id
+    def verify_token(self, google_token: str) -> ExternalUserIdentity:
+        # Aquí usas el SDK de Google
+        if settings.ENVIRONMENT == "development" and google_token == "test-token":
+            return ExternalUserIdentity(
+                email="operativo@cruz-blanca.org",
+                full_name="Rimbow Test",
+                picture_url="https://example.com/pic.jpg"
             )
-        except (ValueError, GoogleAuthError) as e:
-            # Si cae acá, es que Google dijo "este token no sirve"
-            raise PermissionError("Token de autenticación inválido o expirado.") from e
         
-        if id_info.get("hd") != "cruz-blanca.org":
-            raise PermissionError("Dominio no autorizado. Solo miembros de Cruz Blanca.")
-
-        return AuthenticatedUser(
-                email=Email(id_info["email"]),
-                full_name=id_info.get("name", ""),
-                picture_url=id_info.get("picture", "")
-            )
+        id_info = id_token.verify_oauth2_token(google_token, requests.Request(), self.client_id)
+        
+        return ExternalUserIdentity(
+            email=id_info["email"],
+            full_name=id_info.get("name", ""),
+            picture_url=id_info.get("picture", "")
+        )
