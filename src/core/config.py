@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "cruz_blanca"
-
+    FRONTEND_URL: str = "http://localhost:3000"
     @computed_field
     @property
     def ASYNC_DATABASE_URI(self) -> str:
