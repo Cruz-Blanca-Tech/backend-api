@@ -34,7 +34,8 @@ class JwtTokenProvider(TokenProvider):
     
     async def create_internal_token_pair(self, user: User) -> TokenPair:
         # 1. Generar Access Token
-        claims = TokenClaims(email=user.email, role=user.role)
+        print(user)
+        claims = TokenClaims(email=user.email, role=user.role, full_name=user.full_name)
         payload = self._build_payload(claims)
         access_token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         

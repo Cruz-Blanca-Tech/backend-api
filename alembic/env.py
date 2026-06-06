@@ -8,8 +8,8 @@ from alembic import context
 
 from src.core.database import Base
 from src.core.config import settings 
-from src.contexts.security_access.infrastructure.models.user_model import UserModel
-from src.contexts.security_access.infrastructure.models.refresh_token_model import RefreshTokenModel  
+from src.contexts.security_access.infrastructure.persistence.models.user_model import UserModel
+from src.contexts.security_access.infrastructure.persistence.models.refresh_token_model import RefreshTokenModel  
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

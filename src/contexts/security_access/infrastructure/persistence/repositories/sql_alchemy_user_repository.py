@@ -3,8 +3,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.contexts.security_access.domain.entities.user import User
-from src.contexts.security_access.infrastructure.mapper.user_mapper import UserMapper
-from src.contexts.security_access.infrastructure.models.user_model import UserModel
+from src.contexts.security_access.infrastructure.persistence.mapper.user_mapper import UserMapper
+from src.contexts.security_access.infrastructure.persistence.models.user_model import UserModel
 
 class SqlAlchemyUserRepository:
     def __init__(self, session: AsyncSession):
