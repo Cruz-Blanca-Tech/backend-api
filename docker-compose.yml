@@ -6,8 +6,9 @@ services:
     container_name: cruz_blanca_db
     restart: always
     environment:
+      # ESTA ES LA LÍNEA QUE TE FALTA
+      POSTGRES_PASSWORD: postgres 
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cruz_blanca
     ports:
       - "5432:5432"
