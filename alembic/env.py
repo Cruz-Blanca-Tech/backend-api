@@ -10,11 +10,14 @@ from src.core.database import Base
 from src.core.config import settings 
 from src.contexts.security_access.infrastructure.persistence.models.user_model import UserModel
 from src.contexts.security_access.infrastructure.persistence.models.refresh_token_model import RefreshTokenModel  
+from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_model import ActivityModel
+from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_requirement_model import ActivityRequirementModel 
+from src.contexts.document_intake_ocr.infrastructure.persistence.model.document_type_config import DocumentTypeConfigModel
+from src.contexts.document_intake_ocr.infrastructure.persistence.model.program_model import ProgramModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

@@ -7,12 +7,12 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from src.contexts.security_access.domain.ports.token_provider import TokenProvider, TokenPair
+from src.contexts.security_access.domain.ports.token_provider_port import TokenProviderPort, TokenPair
 from src.contexts.security_access.domain.entities.user import User
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 from src.contexts.security_access.domain.repositories.refresh_token_repository import RefreshTokenRepository
 
-class JwtTokenProvider(TokenProvider):
+class JwtTokenProvider(TokenProviderPort):
     def __init__(
         self, 
         secret_key: str, 
@@ -34,8 +34,7 @@ class JwtTokenProvider(TokenProvider):
     
     async def create_internal_token_pair(self, user: User) -> TokenPair:
         # 1. Generar Access Token
-        print(user)
-        claims = TokenClaims(email=user.email, role=user.role, full_name=user.full_name)
+        claims = TokenClaims(user_id=user.id, email=user.email, role=user.role, full_name=user.full_name)
         payload = self._build_payload(claims)
         access_token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         

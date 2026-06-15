@@ -2,8 +2,8 @@
 
 from datetime import datetime, timedelta
 from typing import Optional
-from src.contexts.security_access.domain.ports.identity_provider import IdentityProvider
-from src.contexts.security_access.domain.ports.token_provider import TokenProvider, TokenPair
+from src.contexts.security_access.domain.ports.identity_provider_port import IdentityProviderPort
+from src.contexts.security_access.domain.ports.token_provider_port import TokenProviderPort, TokenPair
 from src.contexts.security_access.domain.entities.user import User
 from src.contexts.security_access.domain.repositories.user_repository import UserRepository
 from src.contexts.security_access.domain.repositories.refresh_token_repository import RefreshTokenRepository
@@ -12,10 +12,10 @@ from src.contexts.security_access.application.policies.auth_policies import Doma
 class AuthService:
     def __init__(
         self, 
-        external_auth_provider: IdentityProvider, 
+        external_auth_provider: IdentityProviderPort, 
         user_repo: UserRepository, 
         refresh_token_repo: RefreshTokenRepository,
-        token_provider: TokenProvider,
+        token_provider: TokenProviderPort,
         policy: DomainRestrictionPolicy
     ):
         self.external_auth_provider = external_auth_provider

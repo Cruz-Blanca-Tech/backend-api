@@ -1,16 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 from src.contexts.security_access.domain.value_objects.email import Email
 from src.contexts.security_access.domain.value_objects.role import Role
 from src.contexts.security_access.domain.entities.external_user_identity import ExternalUserIdentity
 
 @dataclass
 class User:
+    id: UUID
     email: Email
     full_name: str
     role: Role
-    id: Optional[int] = None
     picture_url: Optional[str] = None
     is_active: bool = True
     last_login: datetime = datetime.utcnow()
