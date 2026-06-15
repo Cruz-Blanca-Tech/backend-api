@@ -3,10 +3,10 @@
 from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from src.contexts.security_access.domain.ports.token_provider import TokenProvider
+from src.contexts.security_access.domain.ports.token_provider_port import TokenProviderPort
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, token_provider: TokenProvider):
+    def __init__(self, app, token_provider: TokenProviderPort):
         super().__init__(app)
         self.token_provider = token_provider
         # Lista de rutas públicas que no requieren autenticación
@@ -15,8 +15,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/redoc", 
             "/openapi.json", 
             "/api/v1/openapi.json", 
-            "/api/v1/security/login",
-            "/"
+            "/auth/openapi.json",
+            "/auth/login",
+            "/auth/docs",
+            "/api/v1/intake/docs",
+            "/api/v1/intake/docs",
+            "/api/v1/intake/openapi.json"
         ]
 
     async def dispatch(self, request: Request, call_next):
@@ -39,7 +43,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         try:
             # Decodificamos el token usando el provider del dominio
             claims = self.token_provider.decode_internal_token(token)
-            
             # 4. Inyección de identidad en el estado de la petición
             # Esto permite que tus endpoints accedan a request.state.user
             request.state.user = claims

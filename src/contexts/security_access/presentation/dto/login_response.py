@@ -1,9 +1,6 @@
 from pydantic import BaseModel
 
-class UserResponse(BaseModel):
-    email: str
-    full_name: str
-    role: str
+from src.contexts.security_access.presentation.dto.user_dto import UserResponse
 
 class LoginResponse(BaseModel):
     access_token: str

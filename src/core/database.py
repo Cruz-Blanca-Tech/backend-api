@@ -2,7 +2,9 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from src.core.config import settings
+from sqlalchemy.orm import declarative_base
 
+Base = declarative_base()
 # 1. Crear el motor asíncrono (SQLAlchemy 2.0)
 engine = create_async_engine(
     settings.ASYNC_DATABASE_URI,

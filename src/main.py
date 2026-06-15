@@ -3,13 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 from src.contexts.security_access.infrastructure.api.middleware.auth_middleware import AuthMiddleware
-from src.contexts.security_access.infrastructure.di.auth_container import AuthContainer
+from src.contexts.security_access.infrastructure.di.security_container import SecurityAccessContainer
 from src.core.config import settings
-from src.contexts.security_access.presentation.routes import router as security_router
-from src.contexts.document_intake_ocr.api.routes import router as intake_router
+from src.contexts.security_access.presentation.routes import security_app
+from src.contexts.document_intake_ocr.presentation.api.routes import intake_app
 from src.contexts.data_quality_triage.api.routes import router as triage_router
 from src.contexts.reporting_analytics.api.routes import router as reporting_router
 from fastapi.openapi.utils import get_openapi
+
+from src.core.handlers.exception_handler import configure_exception_handlers
+from src.core.validators.exceptions import DomainValidationError, EntityNotFoundException
 
 # Aquí tendrías tu instancia de provider (o contenedor)
 # 1. Instancias la app
@@ -21,7 +24,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
-auth_container = AuthContainer()
+auth_container = SecurityAccessContainer()
 app.add_middleware(AuthMiddleware, token_provider=auth_container.token_provider)
 
 
@@ -57,19 +60,16 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    # Aquí es buena práctica loguear el error real para ti (el desarrollador)
-    print(f"Error detectado: {exc}") 
-    return JSONResponse(
-        status_code=500,
-        content={"message": "Error interno del sistema", "detail": "Contacte a soporte"},
-    )
+
+configure_exception_handlers(app)          # Para la app raíz
+configure_exception_handlers(intake_app)   # Para el contexto de Ingesta
+configure_exception_handlers(security_app) # Para el contexto de Seguridad
 
 
 # Registrar routers de cada Bounded Context bajo el prefijo común
-app.include_router(security_router, prefix=settings.API_V1_STR)
-app.include_router(intake_router, prefix=settings.API_V1_STR)
+app.mount(f"{settings.API_V1_STR}/intake", intake_app)
+app.mount("/auth", security_app)
+
 app.include_router(triage_router, prefix=settings.API_V1_STR)
 app.include_router(reporting_router, prefix=settings.API_V1_STR)
 
