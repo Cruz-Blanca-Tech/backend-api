@@ -1,11 +1,11 @@
 # src/contexts/security_access/infrastructure/adapters/google_identity_adapter.py
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from src.contexts.security_access.domain.ports.identity_provider import IdentityProvider
+from src.contexts.security_access.domain.ports.identity_provider_port import IdentityProviderPort
 from src.contexts.security_access.domain.entities.external_user_identity import ExternalUserIdentity
 from src.core.config import settings 
 
-class GoogleIdentityAdapter(IdentityProvider):
+class GoogleIdentityAdapter(IdentityProviderPort):
     def __init__(self, client_id: str):
         self.client_id = client_id
 
