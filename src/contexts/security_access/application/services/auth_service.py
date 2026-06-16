@@ -39,18 +39,9 @@ class AuthService:
             user.update_profile(external_identity)
             await self.user_repo.save(user)
             
+        # El provider ya genera, hashea y persiste el refresh token internamente.
         token_pair: TokenPair = await self.token_provider.create_internal_token_pair(user)
-        
-        # Hasheo de seguridad antes de persistir
-        token_hash = self.token_provider.hash_token(token_pair.refresh_token)
-        absolute_expiration = datetime.utcnow() + timedelta(days=14)
-        
-        await self.refresh_token_repo.save(
-            user_id=user.id, 
-            token_hash=token_hash, 
-            expires_at=absolute_expiration
-        )
-        
+
         return token_pair
 
     async def refresh_user_session(self, old_refresh_token: str) -> TokenPair:
