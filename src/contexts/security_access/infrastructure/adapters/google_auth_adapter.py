@@ -13,7 +13,7 @@ class GoogleIdentityAdapter(IdentityProviderPort):
         # Aquí usas el SDK de Google
         if settings.ENVIRONMENT == "development" and google_token == "test-token":
             return ExternalUserIdentity(
-                email="operativo@cruz-blanca.org",
+                email="enzo.trujillo@cruz-blanca.org",
                 full_name="Rimbow Test",
                 picture_url="https://example.com/pic.jpg"
             )

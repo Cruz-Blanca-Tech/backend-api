@@ -14,6 +14,8 @@ from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_requirement_model import ActivityRequirementModel 
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.document_type_config import DocumentTypeConfigModel
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.program_model import ProgramModel
+from src.contexts.document_intake_ocr.infrastructure.persistence.model.extraction_batch_model import ExtractionBatchModel
+from src.contexts.document_intake_ocr.infrastructure.persistence.model.document_item_model import DocumentItemModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

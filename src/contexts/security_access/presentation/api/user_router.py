@@ -3,8 +3,9 @@ from typing import List
 from uuid import UUID
 
 # 1. Importamos nuestros DTOs
+from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_ADMIN_ONLY, ALLOW_ANY_STAFF
-from src.contexts.security_access.infrastructure.dependencies import get_user_service
+from src.contexts.security_access.infrastructure.dependencies import get_current_user, get_user_service
 from src.contexts.security_access.presentation.dto.user_dto import UpdateRoleRequest, UserResponse
 
 # 2. Importamos el Application Service y su inyector
@@ -15,7 +16,7 @@ from src.contexts.security_access.application.services.user_service import UserS
 
 router = APIRouter(prefix="/users", tags=["User Management"])
 
-@router.get("/", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ADMIN_ONLY)])
+@router.get("/", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
 async def list_users(
     user_service: UserService = Depends(get_user_service)
 ):
@@ -31,7 +32,7 @@ async def list_users(
     return users_list
 
 
-@router.patch("/{user_id}/role", response_model=UserResponse, dependencies=[Depends(ALLOW_ADMIN_ONLY)])
+@router.patch("/{user_id}/role", response_model=UserResponse, dependencies=[Depends(ALLOW_ANY_STAFF)])
 async def update_user_role(
     user_id: UUID,
     request: UpdateRoleRequest,
@@ -63,3 +64,15 @@ async def update_user_role(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ocurrió un error al intentar actualizar el rol del usuario."
         )
+    
+@router.get("/me", tags=["User Profile"])
+async def get_me(current_user: TokenClaims = Depends(get_current_user)):
+    """
+    Devuelve la información del perfil del usuario autenticado.
+    """
+    return UserResponse(
+        id=current_user.user_id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        role=current_user.role.value
+    )

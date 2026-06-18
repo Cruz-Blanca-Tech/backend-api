@@ -36,6 +36,8 @@ class SqlBatchRepository(BatchRepository):
         
         # Opcional pero recomendado para atrapar errores de integridad antes del commit final
         await self.session.flush()
+        await self.session.commit()
+        
 
     async def get_by_id(self, batch_id: uuid.UUID) -> Optional[ExtractionBatch]:
         """

@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from src.contexts.document_intake_ocr.presentation.api.routers.program_router import router as program_router
 from src.contexts.document_intake_ocr.presentation.api.routers.document_catalog_router import router as catalog_router
 from src.contexts.document_intake_ocr.presentation.api.routers.activity_router import router as activity_router
+from src.contexts.document_intake_ocr.presentation.api.routers.batch_router import router as batch_router
+
 from fastapi.openapi.utils import get_openapi
+
 
 # Creamos una instancia de FastAPI, no un APIRouter
 intake_app = FastAPI(
@@ -42,3 +45,4 @@ async def health_check():
 intake_app.include_router(program_router)
 intake_app.include_router(catalog_router)
 intake_app.include_router(activity_router)
+intake_app.include_router(batch_router)

@@ -34,8 +34,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 días
     
     # OAuth Google (Security & Access)
-    GOOGLE_CLIENT_ID: str = ""
-    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_CLIENT_ID: str =""
+    GOOGLE_CLIENT_SECRET: str=""
+    GOOGLE_DRIVE_TEMPORARY_CUSTODY_ID: str=""
+    GOOGLE_DRIVE_CONSOLIDATED_DOSSIERS_ID: str=""
+
     ALLOWED_DOMAIN: str ="cruz-blanca.org"
 
     # Document Intake & OCR (Azure Document Intelligence)

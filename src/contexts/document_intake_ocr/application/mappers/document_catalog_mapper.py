@@ -25,7 +25,7 @@ class DocumentCatalogMapper:
     def to_response(entity: DocumentTypeConfig) -> DocumentTypeConfigResponse:
         return DocumentTypeConfigResponse(
             id=entity.id,
-            code=str(entity.code),
+            code=str(entity.code.code),
             name=entity.name,
             year=entity.year,
             model_id=entity.model_id,
