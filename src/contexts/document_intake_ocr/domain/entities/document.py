@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
+from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
 from src.contexts.document_intake_ocr.domain.value_objects.document_code import DocumentTypeCode
 
 class DocumentStatus(str, Enum):
@@ -21,24 +22,26 @@ class DocumentItem:
     def __init__(
         self, 
         id: UUID,
-        source_uri: str,                     # URI de origen (Ej: storage temporal de subida)
+        document_code: DocumentTypeCode, # Recibe el Value Object Code
+        source_id: str,                     # URI de origen (Ej: storage temporal de subida)
         file_name: str,                      # Ej: "71223344_FINS.pdf"
-        dni_reference: str,                  # Ej: "71223344"
+        dni_reference: DNI,                  # Ej: "71223344"
         document_type_config_id: Optional[UUID] = None, # <-- Hazlo opcional
         status: DocumentStatus = DocumentStatus.PENDING,
-        custody_uri: Optional[str] = None,   # URI del almacenamiento definitivo y seguro
+        custody_id: Optional[str] = None,   # URI del almacenamiento definitivo y seguro
         extracted_data: Optional[Dict[str, Any]] = None,
         confidence_score: Optional[float] = None,
         failure_reason: Optional[str] = None,
         processed_at: Optional[datetime] = None
     ):
         self.id = id
-        self.source_uri = source_uri
+        self.document_code = document_code
+        self.source_id = source_id
         self.file_name = file_name
         self.dni_reference = dni_reference
         self.document_type_config_id = document_type_config_id
         self.status = status
-        self.custody_uri = custody_uri
+        self.custody_id = custody_id
         self.extracted_data = extracted_data or {}
         self.confidence_score = confidence_score
         self.failure_reason = failure_reason
@@ -48,12 +51,12 @@ class DocumentItem:
     # COMPORTAMIENTOS DEL DOMINIO (Rich Domain Model)
     # =========================================================
     
-    def secure_in_custody(self, custody_uri: str) -> None:
+    def secure_in_custody(self, custody_id: str) -> None:
         """
         Registra la ubicación final del archivo tras ser convertido 
         y almacenado en el repositorio de custodia definitivo.
         """
-        self.custody_uri = custody_uri
+        self.custody_id = custody_id
 
     def mark_as_processing(self) -> None:
         """
@@ -90,11 +93,12 @@ class DocumentItem:
         self.status = DocumentStatus.APPROVED
 
     @classmethod
-    def create_valid(cls, source_uri: str, file_name: str, dni_ref: str, config_id: UUID) -> 'DocumentItem':
+    def create_valid(cls, source_id: str, document_code: DocumentTypeCode, file_name: str, dni_ref: DNI, config_id: UUID) -> 'DocumentItem':
         """Constructor para documentos que pasaron el filtro."""
         return cls(
             id=uuid4(),
-            source_uri=source_uri,
+            source_id=source_id,
+            document_code = document_code,
             file_name=file_name,
             dni_reference=dni_ref,
             document_type_config_id=config_id,
@@ -102,11 +106,11 @@ class DocumentItem:
         )
 
     @classmethod
-    def create_failed(cls, source_uri: str, file_name: str, dni_ref: str, reason: str) -> 'DocumentItem':
+    def create_failed(cls, source_id: str, file_name: str, dni_ref: DNI, reason: str) -> 'DocumentItem':
         """Constructor para documentos rechazados por el filtro."""
         item = cls(
             id=uuid4(),
-            source_uri=source_uri,
+            source_id=source_id,
             file_name=file_name,
             dni_reference=dni_ref,
             status=DocumentStatus.FAILED

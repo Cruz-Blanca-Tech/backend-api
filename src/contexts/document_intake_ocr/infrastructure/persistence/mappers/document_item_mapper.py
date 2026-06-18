@@ -1,6 +1,8 @@
 from uuid import UUID
 
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentItem, DocumentStatus
+from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
+from src.contexts.document_intake_ocr.domain.value_objects.document_code import DocumentTypeCode
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.document_item_model import DocumentItemModel
 
 
@@ -18,11 +20,12 @@ class DocumentItemMapper:
         """
         return DocumentItemModel(
             id=entity.id,
-            batch_id=batch_id,  # Llave foránea inyectada
-            source_uri=entity.source_uri,       # <-- CAMBIO: Enlace de origen
-            custody_uri=entity.custody_uri,     # <-- NUEVO: Enlace de custodia final
+            batch_id=batch_id,
+            code = entity.document_code.code,  # Llave foránea inyectada
+            source_id=entity.source_id,       # <-- CAMBIO: Enlace de origen
+            custody_id=entity.custody_id,     # <-- NUEVO: Enlace de custodia final
             file_name=entity.file_name,
-            dni_reference=entity.dni_reference,
+            dni_reference=entity.dni_reference.value,
             document_type_config_id=entity.document_type_config_id,
             status=entity.status.value,
             extracted_data=entity.extracted_data,
@@ -35,10 +38,11 @@ class DocumentItemMapper:
     def to_domain(model: DocumentItemModel) -> DocumentItem:
         return DocumentItem(
             id=model.id,
-            source_uri=model.source_uri,        # <-- CAMBIO
-            custody_uri=model.custody_uri,      # <-- NUEVO
+            source_id=model.source_id,
+            document_code= DocumentTypeCode(model.code),      # <-- CAMBIO
+            custody_id=model.custody_id,      # <-- NUEVO
             file_name=model.file_name,
-            dni_reference=model.dni_reference,
+            dni_reference=DNI(model.dni_reference),
             document_type_config_id=model.document_type_config_id,
             status=DocumentStatus(model.status),
             extracted_data=model.extracted_data,

@@ -1,74 +1,66 @@
 # src/contexts/document_intake_ocr/application/use_cases/batch/process_batch_use_case.py
 
-from uuid import UUID, uuid4
+from uuid import UUID
 from fastapi import BackgroundTasks
-from typing import List
 
-from src.contexts.document_intake_ocr.domain.entities.extraction_batch import ExtractionBatch
-from src.contexts.document_intake_ocr.domain.entities.document import DocumentItem
+from src.contexts.document_intake_ocr.application.mappers.process_batch_mapper import BatchExtractorMapper
+from src.contexts.document_intake_ocr.application.use_cases.process_batch.batch_processing_orchestrator import BatchProcessingOrchestrator
 from src.contexts.document_intake_ocr.domain.repositories.activity_repository import ActivityRepository
 from src.contexts.document_intake_ocr.domain.repositories.batch_repository import BatchRepository
-from src.contexts.document_intake_ocr.domain.services.document_filter_service import DocumentFilterService
-from src.contexts.document_intake_ocr.domain.services.document_grouper_service import DocumentGrouperService
-from src.contexts.document_intake_ocr.domain.factories.dossier_factory import DossierFactory
+from src.contexts.document_intake_ocr.domain.factories.extraction_batch_factory import ExtractionBatchFactory
 from src.contexts.document_intake_ocr.application.mappers.raw_file_mapper import RawFileMapper
-from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse
+from src.core.validators.exceptions import EntityNotFoundException
 
 class ProcessBatchUseCase:
     """
-    Orquestador definitivo: Coordina el flujo de ingesta documental, 
-    asegurando la integridad del dominio y la persistencia de resultados.
+    Orquestador síncrono: Delega la creación al dominio, persiste el estado
+    inicial y dispara el procesamiento en segundo plano.
     """
-    def __init__(self, activity_repo: ActivityRepository, batch_repo: BatchRepository):
+    def __init__(
+        self, 
+        activity_repo: ActivityRepository, 
+        batch_repo: BatchRepository,
+        batch_orchestrator: BatchProcessingOrchestrator
+    ):
         self.activity_repo = activity_repo
         self.batch_repo = batch_repo
+        self.batch_orchestrator = batch_orchestrator
 
-    async def execute(self, request: ProcessBatchRequest, user_id: UUID, background_tasks: BackgroundTasks):
+    async def execute(
+        self, 
+        request: ProcessBatchRequest, 
+        user_id: UUID, 
+        user_email: str, 
+        background_tasks: BackgroundTasks
+    ) -> ProcessBatchResponse:
         
-        # 1. Recuperar contexto (Actividad como Experto en Información)
+        # 1. Recuperar contexto de BD
         activity = await self.activity_repo.get_by_id(request.activity_id)
         if not activity:
-            raise ValueError("Activity not found")
+            raise EntityNotFoundException("Activity not found")
 
-        # 2. Transformación a Value Objects
+        # 2. Mapeo a Value Objects (Infraestructura -> Dominio)
         raw_files = [RawFileMapper.to_domain(f) for f in request.files]
         
-        # 3. FILTRO GLOBAL: Clasificación inmediata (Válidos vs Rechazados)
-        clean_files, rejected_files = DocumentFilterService.filter_batch(raw_files)
+        # 3. DELEGACIÓN AL DOMINIO: La Fábrica construye el Agregado complejo
+        # Aquí encapsulamos todo el filtro, agrupación y creación de dossiers
+        batch = ExtractionBatchFactory.create_from_raw_files(
+            raw_files=raw_files, 
+            activity=activity, 
+            user_id=user_id
+        )
 
-        # 4. AGRUPACIÓN: Solo procesamos archivos garantizados
-        proposals = DocumentGrouperService.group_valid_files(clean_files)
-
-        # 5. Creación del Agregado Raíz (Batch)
-        batch = ExtractionBatch(id=uuid4(), activity_id=activity.id, created_by=user_id)
-        
-        # 6. Ensamblaje de Expedientes (Dossiers)
-        for prop in proposals:
-            dossier = DossierFactory.create_from_proposal(
-                clean_proposal=prop,
-                activity=activity, 
-                batch_id=batch.id
-            )
-            batch.add_dossier(dossier)
-
-        # 7. Persistencia de Rechazados
-        for f in rejected_files:
-            dni_ref = str(f.file.extracted_dni.value) if f.file.extracted_dni else "UNKNOWN"            
-            rejected_doc = DocumentItem.create_failed(
-                source_uri=f.file.source_uri,
-                file_name=f.file.file_name,
-                dni_ref=dni_ref,
-                reason=f.reason
-            )
-            batch.add_rejected_document(rejected_doc)
-
+        # 4. Persistencia transaccional inicial
+        # Marcamos el lote como "En proceso" antes de disparar el worker
+        batch.mark_as_processing()
         await self.batch_repo.save(batch)
         
-        # 9. Disparo de pipeline asíncrono
-        background_tasks.add_task(self._run_async_pipeline, batch.id)
+        # 5. Disparo del pipeline de infraestructura asíncrono
+        background_tasks.add_task(self.batch_orchestrator.run_pipeline, batch.id, user_email)
 
-        return batch
-
-    async def _run_async_pipeline(self, batch_id: UUID) -> None:
-        """Entrada del Worker para procesamiento OCR asíncrono."""
-        pass
+        # 6. MAPEADO Y RETORNO (Dominio -> DTO de Respuesta)
+        return BatchExtractorMapper.to_response(
+            batch=batch, 
+            message="Validación inicial completada. El OCR se está ejecutando en segundo plano."
+        )

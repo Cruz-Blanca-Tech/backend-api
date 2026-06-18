@@ -17,7 +17,9 @@ from src.core.validators.exceptions import DomainValidationError, EntityNotFound
 # Aquí tendrías tu instancia de provider (o contenedor)
 # 1. Instancias la app
 security = HTTPBearer()
-
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("uvicorn.error")
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",

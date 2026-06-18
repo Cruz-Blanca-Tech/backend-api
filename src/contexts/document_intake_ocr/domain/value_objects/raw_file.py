@@ -8,7 +8,7 @@ from src.contexts.document_intake_ocr.domain.value_objects.document_code import 
 @dataclass(frozen=True)
 class RawFile:
     file_name: str
-    source_uri: str
+    source_id: str
 
     @property
     def extracted_dni(self) -> Optional[DNI]:

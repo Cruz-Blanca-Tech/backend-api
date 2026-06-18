@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from typing import List
 from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
+from src.contexts.document_intake_ocr.domain.value_objects.document_code import DocumentTypeCode
 from src.contexts.document_intake_ocr.domain.value_objects.raw_file import RawFile
 
 @dataclass(frozen=True)

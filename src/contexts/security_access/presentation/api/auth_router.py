@@ -103,12 +103,6 @@ async def get_refresh_token(request: Request):
     
     return refresh_token
 
-@router.post("/refreshs")
-async def refresh_access_token(token: str = Depends(get_refresh_token)):
-    # 2. Aquí validas el token (ej. verificando en la BD si existe el hash)
-    # 3. Generas un nuevo Access Token
-    
-    return {"message": "Token renovado con éxito"}
 
 # src/contexts/security_access/presentation/api/auth_router.py
 
