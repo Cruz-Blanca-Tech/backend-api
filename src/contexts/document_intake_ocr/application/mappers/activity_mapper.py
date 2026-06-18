@@ -40,7 +40,7 @@ class ActivityMapper:
             is_active=entity.is_active,
             requirements=[
                 ActivityRequirementResponse(
-                    catalog_id=req.document_config.id,
+                    document_type_config_id=req.document_config.id,
                     is_required=req.is_required,
                     confidence_threshold=req.confidence_threshold
                 ) for req in entity.required_documents

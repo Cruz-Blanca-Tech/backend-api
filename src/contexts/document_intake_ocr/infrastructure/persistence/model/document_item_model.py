@@ -19,9 +19,10 @@ class DocumentItemModel(Base):
     # NUEVOS CAMPOS DE TRAZABILIDAD (Agnósticos)
     # =========================================================
     # Aumentamos a 500 caracteres porque los URIs/URLs pueden ser muy largos
-    source_uri: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    custody_uri: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    source_id: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    custody_id: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     
+    code: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
     dni_reference: Mapped[str] = mapped_column(String(20), nullable=False)
     document_type_config_id: Mapped[PyUUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("document_type_configs.id"), nullable=True)

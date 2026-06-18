@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 from src.contexts.security_access.domain.value_objects.email import Email
 from src.contexts.security_access.domain.value_objects.role import Role
 from src.contexts.security_access.domain.entities.external_user_identity import ExternalUserIdentity
@@ -19,6 +19,7 @@ class User:
     @classmethod
     def create_new_user(cls, auth_data: ExternalUserIdentity) -> 'User':
         return cls(
+            id = uuid4(),
             email=Email(auth_data.email),
             full_name=auth_data.full_name,
             picture_url=auth_data.picture_url,

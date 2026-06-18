@@ -14,7 +14,7 @@ class ExtractionBatchModel(Base):
     activity_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("activities.id"), nullable=False)
     created_by: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False) # ID del usuario
     status: Mapped[str] = mapped_column(String(50), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))    
     
     documents: Mapped[List["DocumentItemModel"]] = relationship( # type: ignore
         "DocumentItemModel", 

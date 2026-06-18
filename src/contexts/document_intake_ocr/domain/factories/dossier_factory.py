@@ -14,18 +14,19 @@ class DossierFactory:
         batch_id: UUID
     ) -> Dossier:
         
-        dossier = Dossier(str(clean_proposal.dni), activity.id, batch_id)
+        dossier = Dossier(clean_proposal.dni, activity.id, batch_id)
         
         for f in clean_proposal.files: 
             # El filtrado previo nos asegura que el código existe
             code_vo = f.extracted_code
-            config_id = activity.get_config_id_by_code(str(code_vo.value))
+            config_id = activity.get_config_id_by_code(str(code_vo))
             
             # Usamos el constructor semántico de la Entidad
             doc = DocumentItem.create_valid(
-                source_uri=f.source_uri,
+                source_id=f.source_id,
+                document_code= f.extracted_code,
                 file_name=f.file_name,
-                dni_ref=str(clean_proposal.dni),
+                dni_ref=clean_proposal.dni,
                 config_id=config_id
             )
             

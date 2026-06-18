@@ -8,5 +8,5 @@ class RawFileMapper:
     def to_domain(schema: FileItemSchema) -> RawFile:
         return RawFile(
             file_name=schema.file_name,
-            source_uri=schema.source_uri
+            source_id=schema.source_id
         )

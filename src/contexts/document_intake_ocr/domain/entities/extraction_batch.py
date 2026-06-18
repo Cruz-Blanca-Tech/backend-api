@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentItem, DocumentStatus
 from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier
 from src.core.validators.exceptions import DomainValidationError
+now_utc = datetime.now(timezone.utc)
 
 class BatchStatus(str, Enum):
     PENDING = "PENDING"
@@ -24,8 +25,8 @@ class ExtractionBatch:
     activity_id: UUID
     created_by: UUID
     status: BatchStatus = BatchStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    
+    created_at: datetime = now_utc.replace(tzinfo=None)
+    failure_reason: Optional[str] = None
     # Listas protegidas para evitar manipulación externa directa
     _dossiers: List[Dossier] = field(default_factory=list)
     _rejected_documents: List[DocumentItem] = field(default_factory=list)
@@ -37,6 +38,18 @@ class ExtractionBatch:
     @property
     def rejected_documents(self) -> List[DocumentItem]:
         return list(self._rejected_documents)
+    
+    # --- NUEVOS MÉTODOS PARA ACTUALIZAR ESTADO ---
+    def mark_as_processing(self) -> None:
+        self.status = BatchStatus.PROCESSING
+
+    def mark_as_completed(self) -> None:
+        self.status = BatchStatus.COMPLETED
+
+    def mark_as_failed(self, reason: str) -> None: # <--- Agregamos 'reason'
+        self.status = BatchStatus.FAILED
+        self.failure_reason = reason # <--- Guardamos el motivo
+    # ---------------------------------------------
 
     def add_dossier(self, dossier: Dossier) -> None:
         """Agrega un expediente validado al lote."""
