@@ -11,16 +11,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.token_provider = token_provider
         # Lista de rutas públicas que no requieren autenticación
         self.excluded_paths = [
-            "/docs", 
-            "/redoc", 
-            "/openapi.json", 
-            "/api/v1/openapi.json", 
-            "/auth/openapi.json",
+            "/",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/api/v1/openapi.json",
             "/auth/login",
+            "/auth/refresh",
             "/auth/docs",
-            "/api/v1/intake/docs",
-            "/api/v1/intake/docs",
-            "/api/v1/intake/openapi.json"
+            "/auth/openapi.json",
         ]
 
     async def dispatch(self, request: Request, call_next):
