@@ -1,10 +1,14 @@
+import asyncio
+
+from sqlalchemy import engine
+
+# IMPORTA AQUÍ TUS MODELOS (Fundamental)
+from src.core.database import Base
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from src.core.config import settings
-from sqlalchemy.orm import declarative_base
 
-Base = declarative_base()
 # 1. Crear el motor asíncrono (SQLAlchemy 2.0)
 engine = create_async_engine(
     settings.ASYNC_DATABASE_URI,
@@ -28,3 +32,13 @@ class Base(DeclarativeBase):
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
+
+
+async def init_db():
+    async with engine.begin() as conn:
+        print("Creando tablas...")
+        await conn.run_sync(Base.metadata.create_all)
+        print("Tablas creadas.")
+
+if __name__ == "__main__":
+    asyncio.run(init_db())
