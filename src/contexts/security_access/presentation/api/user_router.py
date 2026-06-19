@@ -72,7 +72,7 @@ async def get_me(current_user: TokenClaims = Depends(get_current_user)):
     """
     return UserResponse(
         id=current_user.user_id,
-        email=current_user.email,
+        email=current_user.email.value,
         full_name=current_user.full_name,
-        role=current_user.role.value
+        role=current_user.role
     )

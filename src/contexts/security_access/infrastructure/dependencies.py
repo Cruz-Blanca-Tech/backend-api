@@ -1,5 +1,4 @@
 # src/contexts/auth/infrastructure/dependencies.py
-from alembic.util import status
 from fastapi import Depends, HTTPException, Request
 from src.contexts.security_access.application.services.auth_service import AuthService
 from src.contexts.security_access.application.services.user_service import UserService
@@ -27,8 +26,5 @@ def get_current_user(request: Request) -> TokenClaims:
     """
     user = getattr(request.state, "user", None)
     if not user:
-        raise UnauthorizedException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no autenticado o sesión expirada"
-        )
+        raise UnauthorizedException("Usuario no autenticado o sesión expirada")
     return user
