@@ -14,7 +14,7 @@ from src.contexts.security_access.application.services.user_service import UserS
 
 # 3. Importamos las Políticas de Seguridad (RBAC centralizado)
 
-router = APIRouter(prefix="/users", tags=["User Management"])
+router = APIRouter(prefix="/users")
 
 @router.get("/", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
 async def list_users(
@@ -24,7 +24,7 @@ async def list_users(
     Lista todos los usuarios del sistema. 
     Protección: Solo administradores y revisores pueden ver esta lista.
     """
-    # El Application Service orquesta la llamada al repositorio
+    # El Application Service orquesta la    llamada al repositorio
     users = await user_service.list_users()
 
     users_list = [UserResponse(id=user.id, email=user.email.value, role=user.role, full_name=user.full_name) for user in users]
