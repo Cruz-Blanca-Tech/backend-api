@@ -43,23 +43,3 @@ security_app.openapi = custom_openapi
 # 3. Incluimos los routers internos del contexto
 security_app.include_router(auth_router_instance, tags=["Authentication"])
 security_app.include_router(user_router_instance, tags=["Users"])
-
-# 4. Endpoint directo de la sub-aplicación
-@security_app.get(
-    "/me", 
-    tags=["User Profile"],
-    # 1. Aplicamos el guardia de seguridad. Solo ADMIN u OPERATIVO pueden entrar.
-    dependencies=[Depends(RoleChecker([Role.ADMIN, Role.OPERATIVO, Role.VISUALIZADOR]))]
-)
-async def get_me(request: Request):
-    # 2. Como el AuthMiddleware ya validó el token, el usuario está en el request.state
-    # Sabemos que es de tipo TokenClaims gracias al tipado estricto que definimos
-    usuario_actual: TokenClaims = request.state.user
-    
-    # 3. Devolvemos la data real del token (adiós al mock)
-    return UserResponse(
-        id= usuario_actual.user_id,
-        email= usuario_actual.email,
-        full_name= usuario_actual.full_name,
-        role= usuario_actual.role.value
-    )
