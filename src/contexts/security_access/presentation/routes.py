@@ -59,7 +59,7 @@ async def get_me(request: Request):
     # 3. Devolvemos la data real del token (adiós al mock)
     return UserResponse(
         id= usuario_actual.user_id,
-        email= usuario_actual.email,
+        email= str(usuario_actual.email),
         full_name= usuario_actual.full_name,
         role= usuario_actual.role.value
     )
