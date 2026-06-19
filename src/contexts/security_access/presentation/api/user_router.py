@@ -65,7 +65,7 @@ async def update_user_role(
             detail="Ocurrió un error al intentar actualizar el rol del usuario."
         )
     
-@router.get("/me", tags=["User Profile"])
+@router.get("/me")
 async def get_me(current_user: TokenClaims = Depends(get_current_user)):
     """
     Devuelve la información del perfil del usuario autenticado.
