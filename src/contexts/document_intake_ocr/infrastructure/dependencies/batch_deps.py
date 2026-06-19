@@ -3,7 +3,7 @@
 import json
 import os
 from fastapi import Depends
-from asd import get_async_db  # Tu generador de sesión de base de datos
+from src.core.database import get_async_db  # Tu generador de sesión de base de datos
 
 # 1. Repositorios (Asumiendo que ya tienes las clases SQL creadas)
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.batch_processing_orchestrator import BatchProcessingOrchestrator
