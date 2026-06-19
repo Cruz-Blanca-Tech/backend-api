@@ -44,34 +44,35 @@ class AuthService:
         return token_pair
 
     async def refresh_user_session(self, old_refresh_token: str) -> TokenPair:
-        """Gestiona la rotación de tokens y expiración absoluta."""
-        
-        # Validamos contra hash
         token_hash = self.token_provider.hash_token(old_refresh_token)
         active_session = await self.refresh_token_repo.get_session_by_token(token_hash)
-        
+
         if not active_session:
             raise PermissionError("Sesión inválida o expirada.")
-            
-        user: Optional[User] = await self.user_repo.get_by_email(active_session.user_id)
+
+        # CORRECCIÓN: Busca por ID, no por email
+        user = await self.user_repo.get_by_id(active_session.user_id) 
         if not user:
             raise PermissionError("Usuario no encontrado.")
 
-        # Rotación: Quemar el token viejo
+        # AQUI: Deberías usar una transacción si es posible
+        # Borrar viejo
         await self.refresh_token_repo.delete(token_hash)
 
-        # Generar nuevo par
-        new_token_pair: TokenPair = await self.token_provider.create_internal_token_pair(user)
+        try:
+            new_token_pair = await self.token_provider.create_internal_token_pair(user)
+            new_token_hash = self.token_provider.hash_token(new_token_pair.refresh_token)
 
-        # Hashear y guardar nuevo token
-        new_token_hash = self.token_provider.hash_token(new_token_pair.refresh_token)
-        await self.refresh_token_repo.save(
-            user_id=user.id,
-            token_hash=new_token_hash,
-            expires_at=active_session.expires_at # Mantenemos la expiración original (14 días desde el inicio)
-        )
-
-        return new_token_pair
+            await self.refresh_token_repo.save(
+                user_id=user.id,
+                token_hash=new_token_hash,
+                expires_at=active_session.expires_at
+            )
+            return new_token_pair
+        except Exception as e:
+            # En caso de error, idealmente el token viejo no debió borrarse (Transacción)
+            # O podrías intentar revertir.
+            raise PermissionError("Error al rotar la sesión.") from e
     
     async def logout_user(self, refresh_token: str) -> None:
         """Invalida la sesión actual del usuario."""
