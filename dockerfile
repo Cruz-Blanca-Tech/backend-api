@@ -11,4 +11,5 @@ COPY . .
 
 # AJUSTE: Si tu main.py está en /src, debes ejecutarlo desde ahí
 # Cambia 'main:app' por 'src.main:app'
-CMD alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port 8000
+# Solo el servidor, nada de migraciones aquí
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
