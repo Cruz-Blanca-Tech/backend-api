@@ -29,7 +29,7 @@ jobs:
         with:
           appSourcePath: ${{ github.workspace }}
           dockerfilePath: './Dockerfile'
-          registryUrl: 'stocrcruzblanca2026.azurecr.io' # Puse el nombre que vimos antes
+          registryUrl: 'cruzblanca2026.azurecr.io' # Puse el nombre que vimos antes
           registryUsername: ${{ secrets.CACRUZBLANCABACKEND_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.CACRUZBLANCABACKEND_REGISTRY_PASSWORD }}
           containerAppName: ca-cruzblanca-backend
