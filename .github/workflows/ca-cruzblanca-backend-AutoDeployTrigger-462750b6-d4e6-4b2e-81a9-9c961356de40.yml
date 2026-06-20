@@ -34,4 +34,4 @@ jobs:
           registryPassword: ${{ secrets.CACRUZBLANCABACKEND_REGISTRY_PASSWORD }}
           containerAppName: ca-cruzblanca-backend
           resourceGroup: rg-ocr-cruzblanca
-          imageToBuild: stocrcruzblanca2026.azurecr.io/ca-cruzblanca-backend:${{ github.sha }}
+          imageToBuild: cruzblanca2026.azurecr.io/ca-cruzblanca-backend:${{ github.sha }}
