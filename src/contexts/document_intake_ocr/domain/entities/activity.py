@@ -57,6 +57,17 @@ class Activity:
         Permite al Caso de Uso y a la Fábrica encontrar el ID técnico sin esfuerzo.
         """
         return self._config_map.get(code_str)
+    
+    def get_model_id_for_document(self, code_str: str) -> str:
+        """
+        Busca en los requerimientos de la actividad el modelo de IA 
+        que corresponde a un código de documento específico.
+        """
+        for req in self.required_documents:
+            if req.code_str == code_str:
+                return req.model_id  # Usa la propiedad que creamos antes
+                
+        raise ValueError(f"El código {code_str} no es un requerimiento válido para esta actividad.")
 
     def get_policy(self) -> ActivityPolicy:
         """
