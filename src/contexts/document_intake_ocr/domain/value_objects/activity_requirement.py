@@ -15,7 +15,11 @@ class ActivityRequirement:
     document_config: DocumentTypeConfig              
     is_required: bool            
     confidence_threshold: float  
-
+    
+    @property
+    def model_id(self) -> str:
+        return self.document_config.model_id
+    
     @property
     def config_id(self) -> UUID:
         """Expone el ID técnico encapsulando el acceso al config interno."""
