@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout to the branch
-        uses: actions/actions/checkout@v4
+        uses: actions/checkout@v4 # Corregido: antes decía actions/actions/checkout
 
       - name: Azure Login
         uses: azure/login@v2
@@ -29,11 +29,9 @@ jobs:
         with:
           appSourcePath: ${{ github.workspace }}
           dockerfilePath: './Dockerfile'
-          # DEBES RELLENAR ESTAS DOS LÍNEAS CON TUS DATOS DE AZURE:
-          registryUrl: 'TU_REGISTRO.azurecr.io' 
+          registryUrl: 'stocrcruzblanca2026.azurecr.io' # Puse el nombre que vimos antes
           registryUsername: ${{ secrets.CACRUZBLANCABACKEND_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.CACRUZBLANCABACKEND_REGISTRY_PASSWORD }}
           containerAppName: ca-cruzblanca-backend
           resourceGroup: rg-ocr-cruzblanca
-          # La imagen debe incluir la URL del registro para que el 'push' funcione
-          imageToBuild: TU_REGISTRO.azurecr.io/ca-cruzblanca-backend:${{ github.sha }}
+          imageToBuild: stocrcruzblanca2026.azurecr.io/ca-cruzblanca-backend:${{ github.sha }}
