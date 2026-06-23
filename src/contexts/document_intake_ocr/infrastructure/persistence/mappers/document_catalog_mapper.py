@@ -26,8 +26,7 @@ class DocumentCatalogMapper:
         # El id no se pasa al instanciar si es None, Postgres lo auto-incrementará.
         return DocumentTypeConfigModel(
             id=entity.id,
-            code=str(entity.code),
-            name=entity.name,
+            code=entity.code.code, 
             year=entity.year,
             model_id=entity.model_id,
             version=entity.version,
