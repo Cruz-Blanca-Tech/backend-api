@@ -1,7 +1,7 @@
 from fastapi import Depends
 
 # 1. Infraestructura (Repositorio)
-from asd import get_async_db
+from src.core.database import get_async_db
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_catalog_repository import SqlDocumentCatalogRepository
 
 # 2. Aplicación (Casos de Uso)
