@@ -1,13 +1,13 @@
 from fastapi import Depends
 
 # 1. Infraestructura (Repositorio)
-from src.core.database import get_async_db
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_catalog_repository import SqlDocumentCatalogRepository
 
 # 2. Aplicación (Casos de Uso)
 from src.contexts.document_intake_ocr.application.use_cases.document_catalog.create_document_config import CreateDocumentConfigUseCase
 from src.contexts.document_intake_ocr.application.use_cases.document_catalog.update_document_config import UpdateDocumentConfigUseCase
 from src.contexts.document_intake_ocr.application.use_cases.document_catalog.list_document_catalog import ListDocumentCatalogUseCase
+from src.core.database import get_async_db
 
 # --- PROVEEDOR BASE ---
 def get_document_catalog_repository(db= Depends(get_async_db))  -> SqlDocumentCatalogRepository:

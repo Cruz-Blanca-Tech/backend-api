@@ -1,6 +1,7 @@
 # src/contexts/document_intake_ocr/application/services/single_dossier_processor.py
 
 import logging
+from src.contexts.document_intake_ocr.domain.entities.activity import Activity
 from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentStatus
 from src.contexts.document_intake_ocr.application.services.single_document_processor import SingleDocumentProcessor
@@ -16,7 +17,7 @@ class SingleDossierProcessor:
         # Inyectamos el procesador de documentos individuales
         self.single_doc_processor = single_doc_processor
 
-    async def execute(self, dossier: Dossier, target_folder_id: str, user_email: str) -> int:
+    async def execute(self, dossier: Dossier, activity: Activity, target_folder_id: str, user_email: str) -> int:
         """
         Ejecuta el pipeline para todos los archivos del expediente.
         Retorna la cantidad de documentos procesados.
@@ -29,8 +30,14 @@ class SingleDossierProcessor:
                 logger.debug(f"    Saltando documento {doc.file_name} (Fallo previo).")
                 continue
             
+            try:
+                model_id = activity.get_model_id_for_document(str(doc.document_code))
+            except ValueError as e:
+                doc.mark_as_failed(reason=str(e))
+                continue
+            
             # Delegamos la I/O pesada al servicio que ya construimos
-            await self.single_doc_processor.execute(doc, target_folder_id, user_email)
+            await self.single_doc_processor.execute(doc, model_id, target_folder_id, user_email)
             procesados += 1
             
         # AQUÍ PODRÍAS AGREGAR LÓGICA DE DOSSIER:
