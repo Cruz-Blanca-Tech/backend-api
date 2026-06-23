@@ -19,7 +19,7 @@ class SingleDocumentProcessor:
         self.storage = storage_adapter
         self.extractor = extractor_adapter
 
-    async def execute(self, doc: DocumentItem, target_folder_id: str, user_email: str) -> None:
+    async def execute(self, doc: DocumentItem, model_id: str, target_folder_id: str, user_email: str) -> None:
         """
         Ejecuta el pipeline completo mutando el estado de la entidad DocumentItem.
         """
@@ -43,12 +43,12 @@ class SingleDocumentProcessor:
                 "DNI": doc.dni_reference
             }
             ## --- FASE 3: EXTRACCIÓN OCR ---
-            #logger.debug(f"     [3/3] Enviando a motor OCR de Azure...")
-            #ocr_result = await self.extractor.extract_data(file_bytes, "prebuilt-document")
+            logger.debug(f"     [3/3] Enviando a motor OCR de Azure...")
+            ocr_result = await self.extractor.extract_data(file_bytes, model_id)
             #
             ## Registrar éxito
             doc.mark_as_processed_successfully(
-                data= mock_data,#ocr_result.get("fields", {}), 
+                data= ocr_result.get("fields", {}), 
                 confidence=0.95
             )
             logger.info(f"  -> [OK] Documento {doc.file_name} extraído correctamente.")

@@ -11,7 +11,7 @@ class DocumentCatalogMapper:
     @staticmethod
     def to_domain(request: DocumentTypeConfigCreateRequest) -> DocumentTypeConfig:
         return DocumentTypeConfig(
-            id=uuid4(),
+            id=uuid4(), 
             code=DocumentTypeCode(request.code),
             name=request.name,
             year=request.year,
@@ -23,9 +23,11 @@ class DocumentCatalogMapper:
 
     @staticmethod
     def to_response(entity: DocumentTypeConfig) -> DocumentTypeConfigResponse:
+        print(entity.code)
+        print(" ", entity.code.code)
         return DocumentTypeConfigResponse(
             id=entity.id,
-            code=str(entity.code.code),
+            code=entity.code.code,
             name=entity.name,
             year=entity.year,
             model_id=entity.model_id,
@@ -40,5 +42,9 @@ class DocumentCatalogMapper:
         
         for key, value in update_data.items():
             if hasattr(entity, key):
-                setattr(entity, key, value)
+                # Validamos si la propiedad a actualizar es nuestro Value Object
+                if key == "code" and value is not None:
+                    setattr(entity, key, DocumentTypeCode(value))
+                else:
+                    setattr(entity, key, value)
         return entity
