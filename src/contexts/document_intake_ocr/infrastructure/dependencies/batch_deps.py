@@ -3,6 +3,7 @@
 import json
 import os
 from fastapi import Depends
+from src.contexts.document_intake_ocr.infrastructure.adapters.azure_document_extractor import AzureDocumentExtractor
 from src.core.database import get_async_db  # Tu generador de sesión de base de datos
 
 # 1. Repositorios (Asumiendo que ya tienes las clases SQL creadas)
@@ -46,8 +47,13 @@ def get_storage_adapter() -> GoogleDriveStorageAdapter:
         scopes=['https://www.googleapis.com/auth/drive'],
         base_folder_id= settings.GOOGLE_DRIVE_TEMPORARY_CUSTODY_ID
     )
+
+
 def get_extractor_adapter():
-    return None 
+    return AzureDocumentExtractor(
+        endpoint=settings.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT,
+        key=settings.AZURE_DOCUMENT_INTELLIGENCE_KEY
+    )
 
 
 # ==========================================
