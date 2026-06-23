@@ -3,7 +3,6 @@ from fastapi import Depends
 # 1. Infraestructura (Repositorio)
 
 # 2. Aplicación (Casos de Uso)
-from src.core.database import get_async_db
 from src.contexts.document_intake_ocr.application.use_cases.activities.create_activity import CreateActivityUseCase
 from src.contexts.document_intake_ocr.application.use_cases.activities.get_activity_by_id import GetActivityByIdUseCase
 from src.contexts.document_intake_ocr.application.use_cases.activities.update_activity import UpdateActivityUseCase
@@ -14,6 +13,7 @@ from src.contexts.document_intake_ocr.infrastructure.dependencies.program_deps i
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_activity_repository import SqlActivityRepository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_catalog_repository import SqlDocumentCatalogRepository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_program_repository import SqlProgramRepository
+from src.core.database import get_async_db
 
 # --- PROVEEDOR BASE ---
 def get_activity_repository(db= Depends(get_async_db)) -> SqlActivityRepository:

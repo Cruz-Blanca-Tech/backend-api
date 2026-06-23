@@ -45,7 +45,8 @@ class BatchProcessingOrchestrator:
             total_procesados = 0
             for dossier in batch.dossiers:
                 procesados_en_dossier = await self.single_dossier_processor.execute(
-                    dossier=dossier, 
+                    dossier=dossier,
+                    activity=activity, # <--- Súper limpio 
                     target_folder_id=batch_target_folder_id, 
                     user_email=user_email
                 )

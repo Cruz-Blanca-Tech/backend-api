@@ -22,10 +22,10 @@ class DocumentItem:
     def __init__(
         self, 
         id: UUID,
-        document_code: DocumentTypeCode, # Recibe el Value Object Code
         source_id: str,                     # URI de origen (Ej: storage temporal de subida)
         file_name: str,                      # Ej: "71223344_FINS.pdf"
         dni_reference: DNI,                  # Ej: "71223344"
+        document_code:Optional[DocumentTypeCode]= None, # Recibe el Value Object Code   
         document_type_config_id: Optional[UUID] = None, # <-- Hazlo opcional
         status: DocumentStatus = DocumentStatus.PENDING,
         custody_id: Optional[str] = None,   # URI del almacenamiento definitivo y seguro

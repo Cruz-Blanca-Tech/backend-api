@@ -10,3 +10,10 @@ class DocumentTypeCode:
         if not self.code or len(self.code) < 2:
             raise ValueError("El código de documento debe tener al menos 2 caracteres.")
             # src/contexts/document_intake_ocr/domain/entities/document_type.py
+
+    def __str__(self) -> str:
+        """
+        Si alguien hace str(DocumentTypeCode), devuelve 'FINS' 
+        en lugar de 'DocumentTypeCode(code=FINS)'.
+        """
+        return self.code
