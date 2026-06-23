@@ -65,10 +65,9 @@ class Activity:
         """
         for req in self.required_documents:
             if req.code_str == code_str:
-                return req.model_id  # Usa la propiedad que creamos antes
-                
+                return req.document_config.model_id  # Usa la propiedad que creamos antes
         raise ValueError(f"El código {code_str} no es un requerimiento válido para esta actividad.")
-
+                
     def get_policy(self) -> ActivityPolicy:
         """
         La Entidad genera su propia Estrategia de validación (Policy)

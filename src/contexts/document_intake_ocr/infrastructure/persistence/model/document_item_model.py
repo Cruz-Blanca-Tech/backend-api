@@ -24,7 +24,7 @@ class DocumentItemModel(Base):
     
     code: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    dni_reference: Mapped[str] = mapped_column(String(20), nullable=False)
+    dni_reference: Mapped[str] = mapped_column(String(20), nullable=True)
     document_type_config_id: Mapped[PyUUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("document_type_configs.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     
