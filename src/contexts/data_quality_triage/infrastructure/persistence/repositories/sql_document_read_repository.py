@@ -3,10 +3,9 @@
 from typing import List
 from uuid import UUID
 
-from sqlalchemy.orm import Session
 
-from src.contexts.data_quality_triage.domain.dtos.document_dto import DocumentDTO
-from src.contexts.data_quality_triage.domain.repositories.document_read_repository import DocumentReadRepository
+from src.contexts.data_quality_triage.domain.shared.dtos.document_dto import DocumentDTO
+from src.contexts.data_quality_triage.domain.shared.repositories.document_read_repository import DocumentReadRepository
 from src.contexts.shared.infrastructure.persistence.models.document_item_model import DocumentItemModel
 
 

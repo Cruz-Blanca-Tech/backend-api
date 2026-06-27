@@ -70,19 +70,25 @@ def get_single_dossier_processor(
 ) -> SingleDossierProcessor:
     return SingleDossierProcessor(single_doc_processor=doc_processor)
 
+from src.contexts.document_intake_ocr.application.event_publishers.dossier_event_publisher import DossierEventPublisher
+
+def get_dossier_event_publisher() -> DossierEventPublisher:
+    return DossierEventPublisher()
+
 def get_batch_orchestrator(
     activity_repo: SqlActivityRepository = Depends(get_activity_repository),
     batch_repo: SqlBatchRepository = Depends(get_batch_repository),
     # Aquí obtenemos el storage que YA viene configurado con el ID
     storage: GoogleDriveStorageAdapter = Depends(get_storage_adapter),
-    dossier_processor: SingleDossierProcessor = Depends(get_single_dossier_processor)
+    dossier_processor: SingleDossierProcessor = Depends(get_single_dossier_processor),
+    event_publisher: DossierEventPublisher = Depends(get_dossier_event_publisher)
 ) -> BatchProcessingOrchestrator:
     return BatchProcessingOrchestrator(
         activity_repo=activity_repo,
         batch_repo=batch_repo,
         storage_adapter=storage,
         single_dossier_processor=dossier_processor,
-        # Importante: El ID ya está en el 'storage' que inyectamos arriba
+        event_publisher=event_publisher
     )
 
 # ==========================================
