@@ -5,8 +5,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.contexts.data_quality_triage.domain.dtos.document_dto import DocumentDTO
-from src.contexts.data_quality_triage.domain.ports.document_provider import DocumentProvider
+from src.contexts.data_quality_triage.domain.shared.dtos.document_dto import DocumentDTO
+from src.contexts.data_quality_triage.domain.shared.ports.document_provider import DocumentProvider
 from src.contexts.shared.infrastructure.persistence.models.document_item_model import DocumentItemModel
 
 

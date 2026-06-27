@@ -1,27 +1,25 @@
-# src/core/bootstrap.py
-from src.contexts.data_quality_triage.application.handlers.triage_event_handler import TriageEventHandler
-from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import get_triage_service
-from src.contexts.shared.events.activity_requirements_configured_event import ActivityCreatedEvent
+import logging
+from src.core.events.event_dispatcher import EventDispatcher
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierApprovedEvent, DossierRejectedEvent, BatchRejectedEvent
 from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
-from src.contexts.shared.infrastructure.bus.event_bus import EventBus
-from src.core.database import async_session_maker # Tu objeto sessionmaker de SQLAlchemy
-from src.contexts.data_quality_triage.application.handlers.activity_created_handler import ActivityCreatedHandler
+from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import (
+    handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected
+)
+from src.contexts.data_quality_triage.application.shared.handlers.triage_event_handler import handle_documents_extracted
 
-def bootstrap_event_subscribers(event_bus: EventBus) -> None:
+logger = logging.getLogger(__name__)
+
+def bootstrap_event_subscribers() -> None:
     """
     Componente central de inicialización. 
-    Registra todos los interceptores y manejadores de eventos del sistema.
+    Registra todos los interceptores y manejadores de eventos del sistema (Coreography).
     """
-    # 1. Instanciamos el Handler de Triaje pasándole la fábrica de conexiones
-    triage_service = get_triage_service()
-    triage_handler = TriageEventHandler(triage_service)
-    # 2. Suscribimos al nuevo evento
-    event_bus.subscribe(DocumentsExtractedEvent, triage_handler.handle)
+    # 1. Eventos desde Triage hacia OCR
+    EventDispatcher.register(DossierApprovedEvent, handle_dossier_approved)
+    EventDispatcher.register(DossierRejectedEvent, handle_dossier_rejected)
+    EventDispatcher.register(BatchRejectedEvent, handle_batch_rejected)
     
-    triage_handler = ActivityCreatedHandler(async_session_maker)
+    # 2. Eventos desde OCR hacia Triage
+    EventDispatcher.register(DocumentsExtractedEvent, handle_documents_extracted)
     
-    # 2. Realizamos la suscripción en el bus
-    event_bus.subscribe(ActivityCreatedEvent, triage_handler.handle)
-    
-    # Nota: Si mañana creas más contextos que escuchen eventos, los registras AQUÍ,
-    # manteniendo tu main.py intacto.
+    logger.info("[Bootstrap] Todos los suscriptores de eventos han sido registrados exitosamente.")
