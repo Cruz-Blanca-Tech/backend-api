@@ -5,9 +5,9 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.contexts.data_quality_triage.domain.entities.triage_case import TriageCase
-from src.contexts.data_quality_triage.domain.repositories.triage_repository import TriageRepository
-from src.contexts.data_quality_triage.domain.value_objects.triage_status import TriageStatus
+from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
+from src.contexts.data_quality_triage.domain.shared.repositories.triage_repository import TriageRepository
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
 from src.contexts.data_quality_triage.infrastructure.persistence.mappers.triage_case_mapper import TriageCaseMapper
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_case_model import TriageCaseModel
 

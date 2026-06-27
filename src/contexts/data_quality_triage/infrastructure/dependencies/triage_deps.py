@@ -3,10 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_async_db
 from src.contexts.data_quality_triage.infrastructure.acl.intake_acl import IntakeACL
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
-from src.contexts.data_quality_triage.domain.strategies.strategy_factory import DossierStrategyFactory
-from src.contexts.data_quality_triage.application.services.dossier_processor import DossierProcessor
-from src.contexts.data_quality_triage.application.services.triage_correction_service import TriageCorrectionService
-from src.contexts.data_quality_triage.application.services.triage_query_service import TriageQueryService
+from src.contexts.data_quality_triage.domain.shared.strategies.strategy_factory import DossierStrategyFactory
+from src.contexts.data_quality_triage.application.shared.services.dossier_processor import DossierProcessor
+from src.contexts.data_quality_triage.application.shared.services.triage_correction_service import TriageCorrectionService
+from src.contexts.data_quality_triage.application.shared.services.triage_query_service import TriageQueryService
 
 def get_intake_acl(session: AsyncSession = Depends(get_async_db)) -> IntakeACL:
     return IntakeACL(session=session)
