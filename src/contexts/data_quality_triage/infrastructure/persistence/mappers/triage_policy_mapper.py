@@ -1,6 +1,6 @@
 # src/contexts/data_quality_triage/application/mappers/triage_policy_mapper.py
 from uuid import UUID, uuid4
-from src.contexts.data_quality_triage.domain.entities.triage_policy import TriagePolicy
+from src.contexts.data_quality_triage.domain.shared.entities.triage_policy import TriagePolicy
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_policy_model import TriagePolicyModel
 
 class TriagePolicyMapper:

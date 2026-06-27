@@ -1,5 +1,5 @@
 import pytest
-from src.contexts.data_quality_triage.application.factories.dossier_factory import DossierFactory
+from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
 
 RAW_DATA = {
     "FINS": {
