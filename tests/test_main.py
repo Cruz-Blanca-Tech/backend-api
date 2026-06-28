@@ -11,7 +11,7 @@ def test_read_root():
     assert response.json()["status"] == "active"
 
 def test_security_health():
-    response = client.get("/api/v1/security/health")
+    response = client.get("/auth/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "context": "Security & Access"}
 
