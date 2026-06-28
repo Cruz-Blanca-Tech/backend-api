@@ -19,8 +19,8 @@ class ExtractionBatchFactory:
     """
     @staticmethod
     def create_from_raw_files(raw_files: List[RawFile], activity: Activity, user_id: UUID) -> ExtractionBatch:
-        # 1. Clasificación inmediata
-        clean_files, rejected_files = DocumentFilterService.filter_batch(raw_files)
+        # 1. Clasificación inmediata (incluye validación del código contra el catálogo de la actividad)
+        clean_files, rejected_files = DocumentFilterService.filter_batch(raw_files, activity)
         # 2. Agrupación
         proposals = DocumentGrouperService.group_valid_files(clean_files)
 
