@@ -20,7 +20,7 @@ class SubmitCorrectionUseCase:
         self.triage_repo = triage_repo
         self.session = session
 
-    async def execute(self, case_id: UUID, user_id: UUID, corrected_data: Dict[str, Dict[str, Any]]) -> TriageCase:
+    async def execute(self, case_id: UUID, user_id: UUID, corrected_data: Dict[str, Any]) -> TriageCase:
         case = await self.triage_repo.get_by_id(case_id)
         if not case:
             raise EntityNotFoundException(f"No se encontró el caso de triaje con ID: {case_id}")
@@ -30,7 +30,7 @@ class SubmitCorrectionUseCase:
         
         try:
             activity_type = ActivityType(case.activity_type)
-            domain_entity = DossierFactory.reconstitute(case.corrected_data, activity_type)
+            domain_entity = DossierFactory.reconstitute(case.dossier_data, activity_type)
             is_complete, domain_issues = domain_entity.validate_completeness()
         except Exception as e:
             logger.error(f"Error reconstituting domain entity for correction validation: {str(e)}")

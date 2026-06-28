@@ -32,3 +32,16 @@ class AgeCoherenceRule(DomainRule):
             except Exception:
                 pass
         return issues
+
+class GenderCoherenceRule(DomainRule):
+    def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
+        issues = []
+        if domain_entity.beneficiary.gender:
+            if domain_entity.beneficiary.gender not in ["M", "F"]:
+                issues.append(FieldDiscrepancy(
+                    field_name="beneficiary.gender", expected_pattern="M o F", 
+                    actual_value=str(domain_entity.beneficiary.gender),
+                    rule_description=f"El sexo debe ser 'M' (Masculino) o 'F' (Femenino). Valor recibido: {domain_entity.beneficiary.gender}", 
+                    severity="ERROR", document_code="DOMINIO"
+                ))
+        return issues

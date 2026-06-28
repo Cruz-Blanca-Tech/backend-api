@@ -9,10 +9,8 @@ class MedicalSchema(BaseModel):
     operation_reason: Optional[str] = None
     has_been_hospitalized: bool = False
     hospitalization_reason: Optional[str] = None
-    has_complete_vaccines: bool = False
-    received_tetanus_vaccine: bool = False
-    is_taking_medication: bool = False
-    medication_name: Optional[str] = None
+    vaccines: List[str] = Field(default_factory=list)
+    medications: List[str] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

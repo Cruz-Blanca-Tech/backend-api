@@ -15,10 +15,9 @@ class TriageCaseModel(Base):
     activity_type: Mapped[str] = mapped_column(String(50), nullable=False, server_default="UNKNOWN")
     dni_reference: Mapped[str] = mapped_column(String(20), nullable=False)
 
-    documents_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    dossier_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
     document_ids: Mapped[dict] = mapped_column(JSONB, nullable=False)
     confidence_scores: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    corrected_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     verdict: Mapped[str] = mapped_column(String(50), nullable=False)
