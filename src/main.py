@@ -7,12 +7,19 @@ from src.contexts.security_access.infrastructure.di.security_container import Se
 from src.core.config import settings
 from src.contexts.security_access.presentation.routes import security_app
 from src.contexts.document_intake_ocr.presentation.api.routes import intake_app
-from src.contexts.data_quality_triage.api.routes import router as triage_router
+from src.contexts.data_quality_triage.presentation.api.routes import triage_app
 from src.contexts.reporting_analytics.api.routes import router as reporting_router
+
+from src.core.events.event_dispatcher import EventDispatcher
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierApprovedEvent, DossierRejectedEvent, BatchRejectedEvent
+from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
+from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import (
+    handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected
+)
+from src.contexts.data_quality_triage.application.shared.handlers.triage_event_handler import handle_documents_extracted
 from fastapi.openapi.utils import get_openapi
 
 from src.core.handlers.exception_handler import configure_exception_handlers
-from src.core.validators.exceptions import DomainValidationError, EntityNotFoundException
 
 # Aquí tendrías tu instancia de provider (o contenedor)
 # 1. Instancias la app
@@ -29,6 +36,17 @@ app = FastAPI(
 auth_container = SecurityAccessContainer()
 app.add_middleware(AuthMiddleware, token_provider=auth_container.token_provider)
 
+@app.on_event("startup")
+async def startup_event():
+    # Registrar handlers de eventos de dominio
+    EventDispatcher.register(DossierApprovedEvent, handle_dossier_approved)
+    EventDispatcher.register(DossierRejectedEvent, handle_dossier_rejected)
+    EventDispatcher.register(BatchRejectedEvent, handle_batch_rejected)
+    
+    # Evento de OCR (Intake) hacia Triage
+    EventDispatcher.register(DocumentsExtractedEvent, handle_documents_extracted)
+    
+    logger.info("Event handlers registrados exitosamente.")
 
 # 2. Registras AuthMiddleware primero (se ejecutará al final, lo cual es correcto)
 
@@ -66,13 +84,14 @@ app.openapi = custom_openapi
 configure_exception_handlers(app)          # Para la app raíz
 configure_exception_handlers(intake_app)   # Para el contexto de Ingesta
 configure_exception_handlers(security_app) # Para el contexto de Seguridad
+configure_exception_handlers(triage_app)   # Para el contexto de Triage
 
 
 # Registrar routers de cada Bounded Context bajo el prefijo común
 app.mount(f"{settings.API_V1_STR}/intake", intake_app)
 app.mount("/auth", security_app)
+app.mount(f"{settings.API_V1_STR}/triage", triage_app)
 
-app.include_router(triage_router, prefix=settings.API_V1_STR)
 app.include_router(reporting_router, prefix=settings.API_V1_STR)
 
 @app.get("/", tags=["General"])
