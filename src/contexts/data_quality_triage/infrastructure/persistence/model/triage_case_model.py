@@ -12,12 +12,12 @@ class TriageCaseModel(Base):
 
     id: Mapped[PyUUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     batch_id: Mapped[PyUUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("extraction_batches.id"), nullable=False)
+    activity_type: Mapped[str] = mapped_column(String(50), nullable=False, server_default="UNKNOWN")
     dni_reference: Mapped[str] = mapped_column(String(20), nullable=False)
 
     documents_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
     document_ids: Mapped[dict] = mapped_column(JSONB, nullable=False)
     confidence_scores: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    confidence_threshold: Mapped[float] = mapped_column(Float, nullable=False)
     corrected_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     status: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -32,7 +32,7 @@ class TriageCaseModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
-    audit_logs: Mapped[List["TriageAuditLogModel"]] = relationship(
+    audit_logs: Mapped[List["TriageAuditLogModel"]] = relationship(  # type: ignore
         "TriageAuditLogModel",
         back_populates="triage_case",
         cascade="all, delete-orphan",

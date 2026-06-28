@@ -1,17 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Dict, Any
 from src.contexts.data_quality_triage.domain.shared.value_objects.quality_rule_result import QualityRuleResult
+from src.contexts.data_quality_triage.domain.shared.dtos.document_dto import DocumentDTO
+from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
+from typing import List
+from uuid import UUID
 
-class DossierValidationStrategy(ABC):
+class TriageStrategy(ABC):
     @abstractmethod
-    def validate(
+    def execute(
         self,
-        dossier_documents: Dict[str, Dict[str, Any]],
-        confidence_scores: Dict[str, float],
-        confidence_threshold: float,
-    ) -> QualityRuleResult:
-        pass
-
-    @abstractmethod
-    def get_field_definitions(self) -> List[dict]:
+        batch_id: UUID,
+        activity_type: str,
+        dni_reference: str,
+        documents: List[DocumentDTO]
+    ) -> TriageCase:
         pass

@@ -9,10 +9,17 @@ from src.contexts.security_access.presentation.routes import security_app
 from src.contexts.document_intake_ocr.presentation.api.routes import intake_app
 from src.contexts.data_quality_triage.presentation.api.routes import triage_app
 from src.contexts.reporting_analytics.api.routes import router as reporting_router
+
+from src.core.events.event_dispatcher import EventDispatcher
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierApprovedEvent, DossierRejectedEvent, BatchRejectedEvent
+from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
+from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import (
+    handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected
+)
+from src.contexts.data_quality_triage.application.shared.handlers.triage_event_handler import handle_documents_extracted
 from fastapi.openapi.utils import get_openapi
 
 from src.core.handlers.exception_handler import configure_exception_handlers
-from src.core.validators.exceptions import DomainValidationError, EntityNotFoundException
 
 # Aquí tendrías tu instancia de provider (o contenedor)
 # 1. Instancias la app
@@ -29,12 +36,17 @@ app = FastAPI(
 auth_container = SecurityAccessContainer()
 app.add_middleware(AuthMiddleware, token_provider=auth_container.token_provider)
 
-from src.core.bootstrap import bootstrap_event_subscribers
-
 @app.on_event("startup")
 async def startup_event():
-    # Delegamos todo el registro de eventos al Bootstrapper
-    bootstrap_event_subscribers()
+    # Registrar handlers de eventos de dominio
+    EventDispatcher.register(DossierApprovedEvent, handle_dossier_approved)
+    EventDispatcher.register(DossierRejectedEvent, handle_dossier_rejected)
+    EventDispatcher.register(BatchRejectedEvent, handle_batch_rejected)
+    
+    # Evento de OCR (Intake) hacia Triage
+    EventDispatcher.register(DocumentsExtractedEvent, handle_documents_extracted)
+    
+    logger.info("Event handlers registrados exitosamente.")
 
 # 2. Registras AuthMiddleware primero (se ejecutará al final, lo cual es correcto)
 

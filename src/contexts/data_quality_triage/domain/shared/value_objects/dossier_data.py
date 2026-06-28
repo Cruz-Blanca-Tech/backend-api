@@ -16,10 +16,3 @@ class DossierData(ABC):
             - List[str]: Lista de errores encontrados.
         """
         pass
-
-    @abstractmethod
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Retorna la representación canónica en formato diccionario.
-        """
-        pass

@@ -1,13 +1,14 @@
 from uuid import UUID
-from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageStatus
 from src.contexts.data_quality_triage.domain.shared.repositories.triage_repository import TriageRepository
-from src.contexts.data_quality_triage.application.educa.schemas.educa_schemas import EducaInscriptionRequest, EducaInscriptionResponse
-from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription import EducaInscription
-from src.contexts.data_quality_triage.domain.educa.value_objects.beneficiary_data import BeneficiaryData
-from src.contexts.data_quality_triage.domain.educa.value_objects.parents_data import ParentsData
-from src.contexts.data_quality_triage.domain.educa.value_objects.parent_detail import ParentDetail
-from src.contexts.data_quality_triage.domain.educa.value_objects.education_data import EducationData
-from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data import MedicalData
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
+from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+from src.contexts.data_quality_triage.application.educa.schemas.educa_inscription_schemas import (
+    EducaInscriptionRequest, EducaInscriptionResponse, EducaInscriptionData
+)
+from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
+from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
+
+HARDCODED_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 class UpdateDossierUseCase:
     def __init__(self, case_repo: TriageRepository):
@@ -15,58 +16,40 @@ class UpdateDossierUseCase:
 
     async def execute(self, case_id: UUID, request: EducaInscriptionRequest) -> EducaInscriptionResponse:
         """
-        Fase 2: Edición y Validación Final de Completitud.
+        Fase 2: El operador envía correcciones manuales.
+        Se reconstruye el dominio desde el request, se valida completitud y se actualiza el caso.
         """
         case = await self.case_repo.get_by_id(case_id)
         if not case:
             raise ValueError(f"Triage Case {case_id} not found")
 
-        # Reconstruct Domain Entity from Request
-        beneficiary = BeneficiaryData(**request.beneficiary)
-        
-        parents_data = request.parents
-        father = ParentDetail(**parents_data.get("father", {})) if parents_data.get("father") else None
-        mother = ParentDetail(**parents_data.get("mother", {})) if parents_data.get("mother") else None
-        guardian = ParentDetail(**parents_data.get("guardian", {})) if parents_data.get("guardian") else None
-        
-        parents = ParentsData(
-            father=father,
-            mother=mother,
-            guardian=guardian,
-            apoderado_type=parents_data.get("apoderado_type")
-        )
-        
-        education = EducationData(**request.education)
-        medical = MedicalData(**request.medical)
+        # Persistir la corrección del operador en el caso
+        case.corrected_data = request.model_dump(exclude_unset=True)
 
-        inscription = EducaInscription(
-            beneficiary=beneficiary,
-            parents=parents,
-            education=education,
-            medical=medical
-        )
-
-        # Fase 2: Validación Final (Completitud)
+        # Reconstituir el dominio desde la corrección y validar
+        inscription = DossierFactory.reconstitute(case.corrected_data, ActivityType.EDUCA_INSCRIPTION)
         is_valid, issues = inscription.validate_completeness()
 
-        # Update case
-        case.is_valid = is_valid
         if is_valid:
-            case.status = TriageStatus.VALID.value
-            case.issues = []
+            case.approve(HARDCODED_USER_ID)
+            case.discrepancies = []
         else:
-            # Keeps it in INVALID state or PENDING_CORRECTION
-            case.status = TriageStatus.INVALID.value
-            case.issues = [{"description": issue} for issue in issues]
-
-        case.canonical_data = [inscription.to_dict()]
+            case.status = TriageStatus.PENDING_REVIEW
+            case.discrepancies = [
+                FieldDiscrepancy(
+                    field_name="completeness", expected_pattern="Completitud de datos",
+                    actual_value="Falta información", rule_description=issue,
+                    severity="ERROR", document_code="GLOBAL"
+                ) for issue in issues
+            ]
 
         await self.case_repo.save(case)
 
+        domain_schema = EducaInscriptionData.model_validate(inscription, from_attributes=True)
         return EducaInscriptionResponse(
             case_id=str(case.id),
-            status=case.status,
-            is_valid=case.is_valid,
+            status=case.status.value,
+            is_valid=is_valid,
             issues=issues,
-            canonical_data=inscription.to_dict()
+            domain_data=domain_schema
         )

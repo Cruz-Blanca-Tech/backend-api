@@ -1,60 +1,67 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
+from src.contexts.data_quality_triage.domain.shared.value_objects.dossier_data import DossierData
+from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
+from src.contexts.data_quality_triage.domain.educa.mappers.educa_inscription_domain_mapper import EducaInscriptionDomainMapper
+from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins, EnrichedDj
+from src.contexts.data_quality_triage.application.educa.schemas.educa_inscription_schemas import EducaInscriptionRequest
+from src.contexts.data_quality_triage.domain.educa.value_objects.beneficiary_data import BeneficiaryData
+from src.contexts.data_quality_triage.domain.educa.value_objects.family_data import FamilyData
+from src.contexts.data_quality_triage.domain.educa.value_objects.related_adult import RelatedAdult
+from src.contexts.data_quality_triage.domain.educa.value_objects.education_data import EducationData
+from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data import MedicalData
 
-from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription import EducaInscription
-from src.contexts.data_quality_triage.application.shared.services.normalize_registry import NormalizerRegistry
-from src.contexts.data_quality_triage.domain.shared.value_objects.field_mapping import DataType
-from src.contexts.data_quality_triage.application.educa.mappers.educa_inscription_mapper import EducaInscriptionMapper
-
-from src.contexts.data_quality_triage.domain.educa.value_objects.raw_data.fins_raw import FichaInscripcionRaw
-from src.contexts.data_quality_triage.domain.educa.value_objects.raw_data.dj_raw import DeclaracionJuradaRaw
-from src.contexts.data_quality_triage.domain.educa.value_objects.raw_data.dni_raw import DniRaw
 
 class DossierFactory:
     
     @staticmethod
-    def from_data(raw_docs: Dict[str, Dict[str, Any]]) -> EducaInscription:
+    def reconstitute(raw_data: dict, activity_type: ActivityType) -> DossierData:
         """
-        Crea un DossierData (EducaInscription) a partir de los documentos en crudo.
-        raw_docs debe ser un diccionario con los códigos de documento como claves.
+        Toma los datos crudos de la BD (el request payload guardado) y los convierte en tu entidad estricta de dominio.
         """
-        registry = NormalizerRegistry()
-        mapper = EducaInscriptionMapper(registry)
-        
-        # Instantiate strictly typed schemas
-        fins_raw = FichaInscripcionRaw(**(raw_docs.get("FINS") or {}))
-        dj_raw = DeclaracionJuradaRaw(**(raw_docs.get("DJ") or {}))
-        dnibef_raw = DniRaw(**(raw_docs.get("DNIBE") or {}))
-        dniap_raw = DniRaw(**(raw_docs.get("DNIAP") or {}))
-
-        # Mapeo de sub-objetos
-        beneficiary = mapper.map_beneficiary(fins_raw)
-        related_adults = mapper.map_parents(fins_raw)
-        education = mapper.map_education(fins_raw)
-        medical = mapper.map_medical(fins_raw)
-
-        dni_norm = registry.get(DataType.DNI)
-        name_norm = registry.get(DataType.NAME)
-
-        # Fallback Apoderado logic: If FINS has no guardian_dni, use DNIAP document.
-        if not related_adults.guardian_dni and dniap_raw.DocumentNumber:
-            dni_val = dni_norm.normalize(dniap_raw.DocumentNumber)
-            related_adults.guardian_dni = dni_val
+        if activity_type == ActivityType.EDUCA_INSCRIPTION:
+            # Validamos con el schema de Pydantic para asegurar que la estructura es correcta
+            validated_schema = EducaInscriptionRequest.model_validate(raw_data)
             
-            # Verificar si este DNI ya existe en la lista
-            if not any(a.dni == dni_val for a in related_adults.adults):
-                from src.contexts.data_quality_triage.domain.educa.value_objects.related_adult import RelatedAdult
-                related_adults.adults.append(RelatedAdult(
-                    relationship="OTHER",
-                    dni=dni_val,
-                    full_name=name_norm.normalize(f"{dniap_raw.FirstName or ''} {dniap_raw.LastName or ''}".strip())
-                ))
+            # Mapeamos desde el schema validado a la entidad de dominio (dataclass)
+            ben_dict = validated_schema.beneficiary.model_dump()
+            edu_dict = validated_schema.education.model_dump()
+            med_dict = validated_schema.medical.model_dump()
+            fam_dict = validated_schema.related_adults.model_dump()
+            
+            adults_list = [RelatedAdult(**ad_data) for ad_data in fam_dict.get("adults", [])]
+            family_obj = FamilyData(
+                adults=adults_list,
+                guardian_dni=fam_dict.get("guardian_dni")
+            )
+            
+            # Creamos la entidad de dominio estricta
+            return EducaInscriptionDossier(
+                beneficiary=BeneficiaryData(**ben_dict),
+                related_adults=family_obj,
+                education=EducationData(**edu_dict),
+                medical=MedicalData(**med_dict)
+            )
+            
+        raise ValueError(f"ActivityType '{activity_type}' no está soportado para reconstituir un dossier.")
 
-        # Construir y validar el objeto principal
-        inscription = EducaInscription(
-            beneficiary=beneficiary,
-            related_adults=related_adults,
-            education=education,
-            medical=medical
-        )
+    @staticmethod
+    def create_from_enriched(
+        activity_type: ActivityType,
+        **kwargs
+    ) -> DossierData:
+        """
+        Crea un DossierData a partir de los documentos ENRIQUECIDOS.
+        Delega toda la responsabilidad de consolidación al Mapper correspondiente según la actividad.
+        """
+        if activity_type == ActivityType.EDUCA_INSCRIPTION:
+            enriched_fins = kwargs.get("FINS")
+            enriched_dj = kwargs.get("DJ")
+            enriched_dniap = kwargs.get("DNIAP")
+            
+            if not enriched_fins:
+                raise ValueError("No se puede construir un Dossier Educa sin el documento principal FINS.")
+            mapper = EducaInscriptionDomainMapper()
+            return mapper.map(enriched_fins, enriched_dj, enriched_dniap)
 
-        return inscription
+        raise ValueError(f"ActivityType '{activity_type}' no está soportado en la creación desde enriquecidos.")

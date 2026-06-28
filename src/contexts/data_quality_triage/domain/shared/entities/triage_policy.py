@@ -11,11 +11,7 @@ class TriagePolicy:
     required_document_codes: List[str]
 
     def evaluate(self, case: TriageCase) -> ValidationResult:
-        present = {
-            doc.get("document_code")
-            for doc in case.canonical_data
-            if doc.get("document_code")
-        }
+        present = set(case.documents_snapshot.keys())
 
         missing = [
             code for code in self.required_document_codes
