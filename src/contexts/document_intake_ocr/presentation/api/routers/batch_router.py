@@ -1,9 +1,8 @@
 # src/contexts/document_intake_ocr/presentation/api/batch_router.py
 
 from fastapi import APIRouter, BackgroundTasks, Depends
-from typing import Dict, Any
 
-from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
@@ -16,7 +15,7 @@ from src.contexts.security_access.infrastructure.dependencies import get_current
 
 router = APIRouter(prefix="/api/v1/batches", tags=["Batch Extractor Process"])
 
-@router.post("/", summary="Inicia el procesamiento masivo de un lote documental")
+@router.post("/", response_model=ProcessBatchResponse, summary="Inicia el procesamiento masivo de un lote documental")
 async def create_batch(
     request: ProcessBatchRequest,
     background_tasks: BackgroundTasks,
@@ -29,7 +28,7 @@ async def create_batch(
     response = await use_case.execute(
         request=request,
         user_id=current_user.user_id,
-        user_email=current_user.email.value, 
+        user_email=current_user.email.value,
         background_tasks=background_tasks
     )
     return response

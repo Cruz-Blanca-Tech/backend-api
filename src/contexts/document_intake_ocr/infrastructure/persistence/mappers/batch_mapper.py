@@ -1,7 +1,13 @@
+import logging
+
+from src.contexts.document_intake_ocr.domain.entities.document import DocumentStatus
 from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import ExtractionBatch, BatchStatus
 from src.contexts.document_intake_ocr.infrastructure.persistence.mappers.document_item_mapper import DocumentItemMapper
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.extraction_batch_model import ExtractionBatchModel
+
+logger = logging.getLogger(__name__)
+
 
 class BatchMapper:
     @staticmethod
@@ -35,29 +41,39 @@ class BatchMapper:
             created_at=model.created_at
         )
         
-        # 2. AGRUPAR documentos por DNI para formar los Dossiers
+        # 2. CLASIFICAR documentos: los FALLIDOS son rechazados del lote,
+        #    el resto se AGRUPA por DNI para reconstruir los Dossiers.
+        #    (Sin esta separación, los documentos FAILED quedaban enterrados
+        #     dentro de un dossier y batch.rejected_documents salía vacío, por lo
+        #     que el GET de estado devolvía failed_files = []).
         dossiers_dict = {}
 
         for doc_model in model.documents:
+            domain_doc = DocumentItemMapper.to_domain(doc_model)
+
+            if domain_doc.status == DocumentStatus.FAILED:
+                batch.add_rejected_document(domain_doc)
+                continue
+
             # Protegemos por si algún documento no tiene DNI
-            dni = doc_model.dni_reference or "SIN_DNI" 
-            
+            dni = doc_model.dni_reference or "SIN_DNI"
+
             if dni not in dossiers_dict:
                 dossiers_dict[dni] = Dossier(
-                    dni=dni, 
-                    activity_id=model.activity_id, 
+                    dni=dni,
+                    activity_id=model.activity_id,
                     batch_id=model.id
                 )
-            
-            # Convertir documento a dominio y añadirlo al dossier
-            domain_doc = DocumentItemMapper.to_domain(doc_model)
+
             dossiers_dict[dni].add_document(domain_doc)
-            
+
         # 3. Registrar los dossiers en el Batch de dominio
         for dossier in dossiers_dict.values():
             batch.add_dossier(dossier)
-            
-        # SI ESTE LOG APARECE, EL ORQUESTADOR ENCONTRARÁ LOS ARCHIVOS
-        print(f"DEBUG MAPPER: Agrupados {len(dossiers_dict)} expedientes (dossiers).")
-        
+
+        logger.debug(
+            "BatchMapper.to_domain: %d expedientes (dossiers), %d documentos rechazados.",
+            len(dossiers_dict), len(batch.rejected_documents)
+        )
+
         return batch
