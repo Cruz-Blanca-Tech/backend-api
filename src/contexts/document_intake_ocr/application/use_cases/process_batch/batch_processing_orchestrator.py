@@ -8,6 +8,7 @@ from src.contexts.document_intake_ocr.domain.repositories.batch_repository impor
 from src.contexts.document_intake_ocr.domain.ports.document_storage import DocumentStorage
 from src.contexts.document_intake_ocr.application.services.single_dossier_processor import SingleDossierProcessor
 from src.core.validators.exceptions import ExternalServiceException
+from src.contexts.document_intake_ocr.application.event_publishers.dossier_event_publisher import DossierEventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +18,14 @@ class BatchProcessingOrchestrator:
         activity_repo: ActivityRepository, 
         batch_repo: BatchRepository,
         storage_adapter: DocumentStorage,
-        single_dossier_processor: SingleDossierProcessor, # <-- Cambiamos la inyección
+        single_dossier_processor: SingleDossierProcessor,
+        event_publisher: DossierEventPublisher,
     ):
         self.activity_repo = activity_repo
         self.batch_repo = batch_repo
         self.storage_adapter = storage_adapter
         self.single_dossier_processor = single_dossier_processor
+        self.event_publisher = event_publisher
 
     async def run_pipeline(self, batch_id: UUID, user_email: str) -> None:
         logger.info(f"[BATCH START] Iniciando pipeline asíncrono para Lote: {batch_id}")
@@ -52,6 +55,10 @@ class BatchProcessingOrchestrator:
                 )
                 print(f"DEBUG: Expediente {dossier.dni} tiene {len(dossier.documents)} documentos.")
                 total_procesados += procesados_en_dossier   
+                
+                # ¡Detonamos el evento usando el Publisher oficial!
+                await self.event_publisher.publish_created(dossier, activity)
+
             
             # 3. Guardar estado
             await self.batch_repo.save(batch)
