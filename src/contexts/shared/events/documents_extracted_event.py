@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 class DocumentsExtractedEvent:
     event_id: UUID = field(default_factory=uuid4)
     batch_id: UUID = None
-    activity_id: UUID = None
+    activity_type: str = None
     dni_reference: str = None
     version: str = "v1"
     event_name: str = "documents_extracted"

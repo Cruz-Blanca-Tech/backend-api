@@ -14,11 +14,11 @@ class TriageCase:
         self,
         id: UUID,
         batch_id: UUID,
+        activity_type: str,
         dni_reference: str,
         documents_snapshot: Dict[str, Dict[str, Any]],
         document_ids: Dict[str, UUID],
         confidence_scores: Dict[str, float],
-        confidence_threshold: float,
         status: TriageStatus,
         verdict: TriageVerdict,
         discrepancies: List[FieldDiscrepancy],
@@ -31,11 +31,11 @@ class TriageCase:
     ):
         self.id = id
         self.batch_id = batch_id
+        self.activity_type = activity_type
         self.dni_reference = dni_reference
         self.documents_snapshot = documents_snapshot
         self.document_ids = document_ids
         self.confidence_scores = confidence_scores
-        self.confidence_threshold = confidence_threshold
         self.status = status
         self.verdict = verdict
         self.discrepancies = list(discrepancies)
@@ -51,13 +51,19 @@ class TriageCase:
     def create_from_quality_result(
         cls,
         batch_id: UUID,
+        activity_type: str,
         dni_reference: str,
-        documents_snapshot: Dict[str, Dict[str, Any]],
-        document_ids: Dict[str, UUID],
-        confidence_scores: Dict[str, float],
-        confidence_threshold: float,
+        documents: List[Any],
         quality_result: QualityRuleResult,
     ) -> "TriageCase":
+        documents_snapshot = {}
+        document_ids = {}
+        confidence_scores = {}
+        for doc in documents:
+            documents_snapshot[doc.document_code] = doc.extracted_data
+            document_ids[doc.document_code] = doc.id
+            confidence_scores[doc.document_code] = doc.confidence_score or 0.0
+
         if quality_result.is_valid:
             status = TriageStatus.APPROVED
             verdict = TriageVerdict.AUTO_APPROVED
@@ -68,11 +74,11 @@ class TriageCase:
         case = cls(
             id=uuid4(),
             batch_id=batch_id,
+            activity_type=activity_type,
             dni_reference=dni_reference,
             documents_snapshot=documents_snapshot,
             document_ids=document_ids,
             confidence_scores=confidence_scores,
-            confidence_threshold=confidence_threshold,
             status=status,
             verdict=verdict,
             discrepancies=quality_result.discrepancies,
@@ -145,12 +151,10 @@ class TriageCase:
 
     @property
     def effective_data(self) -> Dict[str, Dict[str, Any]]:
+        # Si hay correcciones (el payload final), esa es la fuente de verdad.
+        # Si no, devolvemos el snapshot original de documentos.
         if self.corrected_data:
-            merged = {}
-            for doc_code, original_data in self.documents_snapshot.items():
-                corrections = self.corrected_data.get(doc_code, {})
-                merged[doc_code] = {**original_data, **corrections}
-            return merged
+            return self.corrected_data
         return self.documents_snapshot
 
     @property

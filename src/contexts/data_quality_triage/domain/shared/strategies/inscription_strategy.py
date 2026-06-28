@@ -1,152 +1,78 @@
-import re
-from typing import Dict, Any, List
-
-from src.contexts.data_quality_triage.domain.shared.strategies.base_strategy import DossierValidationStrategy
-from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+from typing import List
+from src.contexts.data_quality_triage.domain.shared.dtos.document_dto import DocumentDTO
+from src.contexts.data_quality_triage.domain.shared.strategies.base_strategy import TriageStrategy
 from src.contexts.data_quality_triage.domain.shared.value_objects.quality_rule_result import QualityRuleResult
+from src.contexts.data_quality_triage.domain.educa.value_objects.document_code import EducaDocumentCode
+from src.contexts.data_quality_triage.domain.educa.rules.document.educa_document_rules_validator import EducaDocumentRulesValidator
+from src.contexts.data_quality_triage.application.educa.mappers.enriched.educa_raw_to_enriched_mapper import EducaRawToEnrichedMapper
+from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
+from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
+from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
+from uuid import UUID
 
 
-DNI_PATTERN = re.compile(r"^\d{8}$")
-PHONE_PATTERN = re.compile(r"^\d{9}$")
+class InscriptionTriageStrategy(TriageStrategy):
+    """
+    Estrategia de validación para el flujo de Inscripción Educa.
+    Orquesta dos pasos:
+      1. Raw → Enriched  (EducaRawToEnrichedMapper)
+      2. Validación de documentos  (EducaDocumentRulesValidator)
+    """
 
+    def __init__(self):
+        self._mapper    = EducaRawToEnrichedMapper()
+        self._validator = EducaDocumentRulesValidator()
 
-class InscriptionStrategy(DossierValidationStrategy):
-    REQUIRED_FIELDS = [
-        "child_dni", "child_first_name", "child_last_name", "child_birth_date",
-    ]
-
-    def validate(
+    def execute(
         self,
-        dossier_documents: Dict[str, Dict[str, Any]],
-        confidence_scores: Dict[str, float],
-        confidence_threshold: float,
-    ) -> QualityRuleResult:
-        discrepancies: List[FieldDiscrepancy] = []
-        confidence_passed = True
+        batch_id: UUID,
+        activity_type: str,
+        dni_reference: str,
+        documents: List[DocumentDTO]
+    ) -> TriageCase:
 
-        for doc_code, score in confidence_scores.items():
-            if score is not None and score < confidence_threshold:
-                confidence_passed = False
-                discrepancies.append(FieldDiscrepancy(
-                    field_name="confidence_score",
-                    expected_pattern=f">= {confidence_threshold}",
-                    actual_value=str(score),
-                    rule_description=f"El score de confianza de {doc_code} ({score:.2f}) est? por debajo del umbral ({confidence_threshold})",
-                    severity="WARNING",
-                    document_code=doc_code,
-                ))
+        enriched_docs = self._mapper.map(documents)
 
-        fins_data = dossier_documents.get("FINS", {})
-        if fins_data:
-            for field_name in self.REQUIRED_FIELDS:
-                value = fins_data.get(field_name)
-                if not value or (isinstance(value, str) and not value.strip()):
-                    discrepancies.append(FieldDiscrepancy(
-                        field_name=field_name,
-                        expected_pattern="No vac?o",
-                        actual_value=str(value) if value else "(vac?o)",
-                        rule_description=f"El campo '{field_name}' es obligatorio",
-                        severity="ERROR",
-                        document_code="FINS",
-                    ))
-
-            child_dni = fins_data.get("child_dni", "")
-            if child_dni and not DNI_PATTERN.match(str(child_dni)):
-                discrepancies.append(FieldDiscrepancy(
-                    field_name="child_dni",
-                    expected_pattern="8 d?gitos num?ricos",
-                    actual_value=str(child_dni),
-                    rule_description=f"El DNI del ni?o '{child_dni}' no es v?lido",
-                    severity="ERROR",
-                    document_code="FINS",
-                ))
-
-            for dni_field in ["parents_father_dni", "parents_mother_dni", "parents_guardian_dni"]:
-                dni_value = fins_data.get(dni_field)
-                if dni_value and isinstance(dni_value, str) and dni_value.strip() and not DNI_PATTERN.match(dni_value):
-                    discrepancies.append(FieldDiscrepancy(
-                        field_name=dni_field,
-                        expected_pattern="8 d?gitos num?ricos",
-                        actual_value=dni_value,
-                        rule_description=f"DNI '{dni_value}' no es v?lido",
-                        severity="ERROR",
-                        document_code="FINS",
-                    ))
-
-            child_gender = fins_data.get("child_gender")
-            if child_gender and child_gender not in ("M", "F"):
-                discrepancies.append(FieldDiscrepancy(
-                    field_name="child_gender",
-                    expected_pattern="M o F",
-                    actual_value=str(child_gender),
-                    rule_description=f"El g?nero '{child_gender}' no es v?lido",
-                    severity="ERROR",
-                    document_code="FINS",
-                ))
-
-        dj_data = dossier_documents.get("DJ", {})
-        if fins_data and dj_data:
-            fins_child_dni = str(fins_data.get("child_dni", "")).strip()
-            dj_child_dni = str(dj_data.get("child_dni", dj_data.get("dni_nino", ""))).strip()
-            
-            if fins_child_dni and dj_child_dni and fins_child_dni != dj_child_dni:
-                discrepancies.append(FieldDiscrepancy(
-                    field_name="child_dni",
-                    expected_pattern=f"Coincidir con DJ ({dj_child_dni})",
-                    actual_value=f"FINS: {fins_child_dni}, DJ: {dj_child_dni}",
-                    rule_description=f"El DNI del ni?o en FINS no coincide con DJ",
-                    severity="ERROR",
-                    document_code="FINS",
-                ))
-
-            fins_guardian_dnis = set()
-            for dni_field in ["parents_father_dni", "parents_mother_dni", "parents_guardian_dni"]:
-                v = fins_data.get(dni_field)
-                if v and isinstance(v, str) and v.strip():
-                    fins_guardian_dnis.add(v.strip())
-
-            dj_guardian_dni = str(dj_data.get("guardian_dni", dj_data.get("dni_apoderado", ""))).strip()
-            
-            if dj_guardian_dni and fins_guardian_dnis and dj_guardian_dni not in fins_guardian_dnis:
-                discrepancies.append(FieldDiscrepancy(
-                    field_name="guardian_dni",
-                    expected_pattern=f"Coincidir con FINS",
-                    actual_value=f"DJ: {dj_guardian_dni}",
-                    rule_description=f"El DNI del apoderado en DJ no coincide con los padres en FINS",
-                    severity="ERROR",
-                    document_code="DJ",
-                ))
+        discrepancies = self._validator.validate(
+            enriched_docs=enriched_docs
+        )
+        
+        # Validación de Dominio (Fase adicional requerida por la arquitectura actual)
+        try:
+            domain_entity = DossierFactory.create_from_enriched(
+                activity_type=ActivityType(activity_type),
+                **enriched_docs
+            )
+            is_complete, domain_issues = domain_entity.validate_completeness()
+            if not is_complete:
+                discrepancies.extend(domain_issues)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error construyendo entidad de dominio para batch {batch_id}, dni {dni_reference}: {e}")
+            from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+            discrepancies.append(FieldDiscrepancy(
+                field_name="domain_entity",
+                expected_pattern="Entidad válida",
+                actual_value="Error",
+                rule_description=f"Excepción al crear la entidad de dominio: {str(e)}",
+                severity="ERROR"
+            ))
 
         has_errors = any(d.severity == "ERROR" for d in discrepancies)
-        is_valid = not has_errors and confidence_passed
 
-        return QualityRuleResult(
-            is_valid=is_valid,
+        result = QualityRuleResult(
+            is_valid=not has_errors,
             discrepancies=discrepancies,
-            confidence_passed=confidence_passed,
+            confidence_passed=True,
+            enriched_docs=enriched_docs,
+        )
+        
+        return TriageCase.create_from_quality_result(
+            batch_id=batch_id,
+            activity_type=activity_type,
+            dni_reference=dni_reference,
+            documents=documents,
+            quality_result=result,
         )
 
-    def get_field_definitions(self) -> List[dict]:
-        return [
-            {"name": "child_dni", "type": "text", "label": "DNI del Ni?o/a", "is_editable": True, "group": "datos_nino"},
-            {"name": "child_first_name", "type": "text", "label": "Nombres", "is_editable": True, "group": "datos_nino"},
-            {"name": "child_last_name", "type": "text", "label": "Apellidos", "is_editable": True, "group": "datos_nino"},
-            {"name": "child_age", "type": "text", "label": "Edad", "is_editable": True, "group": "datos_nino"},
-            {"name": "child_birth_date", "type": "date", "label": "Fecha de Nacimiento", "is_editable": True, "group": "datos_nino"},
-            {"name": "child_gender", "type": "select", "label": "Sexo", "is_editable": True, "group": "datos_nino", "options": ["M", "F"]},
-            {"name": "child_school", "type": "text", "label": "Colegio", "is_editable": True, "group": "datos_nino"},
-            {"name": "child_grade", "type": "text", "label": "Grado", "is_editable": True, "group": "datos_nino"},
-
-            {"name": "address_lot", "type": "text", "label": "Lote", "is_editable": True, "group": "direccion"},
-            {"name": "address_block", "type": "text", "label": "Manzana", "is_editable": True, "group": "direccion"},
-            {"name": "address_city", "type": "text", "label": "Ciudad", "is_editable": True, "group": "direccion"},
-            {"name": "address_district", "type": "text", "label": "Distrito", "is_editable": True, "group": "direccion"},
-            {"name": "address_neighborhood", "type": "text", "label": "Urbanizaci?n", "is_editable": True, "group": "direccion"},
-
-            {"name": "parents_father_full_name", "type": "text", "label": "Padre", "is_editable": True, "group": "padres"},
-            {"name": "parents_father_dni", "type": "text", "label": "DNI Padre", "is_editable": True, "group": "padres"},
-            {"name": "parents_mother_full_name", "type": "text", "label": "Madre", "is_editable": True, "group": "padres"},
-            {"name": "parents_mother_dni", "type": "text", "label": "DNI Madre", "is_editable": True, "group": "padres"},
-            {"name": "parents_guardian_full_name", "type": "text", "label": "Apoderado", "is_editable": True, "group": "padres"},
-            {"name": "parents_guardian_dni", "type": "text", "label": "DNI Apoderado", "is_editable": True, "group": "padres"},
-        ]

@@ -8,9 +8,4 @@ class FamilyData:
     guardian_dni: Optional[str] = None
     validation_issues: List[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
-        return {
-            "adults": [adult.to_dict() for adult in self.adults],
-            "guardian_dni": self.guardian_dni,
-            "validation_issues": self.validation_issues
-        }
+

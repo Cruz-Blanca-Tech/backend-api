@@ -11,10 +11,7 @@ class ActivityPolicy:
     required_document_codes: list[str]
 
     def evaluate(self, case):
-        present = {
-            doc["document_code"]
-            for doc in case.canonical_data
-        }
+        present = set(case.documents_snapshot.keys())
 
         missing = [
             code for code in self.required_document_codes

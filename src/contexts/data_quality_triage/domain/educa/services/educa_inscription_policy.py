@@ -1,8 +1,8 @@
 from typing import Dict, Any, List
 from src.contexts.data_quality_triage.domain.shared.services.dossier_policy import DossierPolicy
-from src.contexts.data_quality_triage.domain.educa.value_objects.raw_data.fins_raw import FichaInscripcionRaw
-from src.contexts.data_quality_triage.domain.educa.value_objects.raw_data.dj_raw import DeclaracionJuradaRaw
-from src.contexts.data_quality_triage.domain.educa.value_objects.raw_data.dni_raw import DniRaw
+from src.contexts.data_quality_triage.application.educa.dtos.raw.fins_raw import FinsRaw
+from src.contexts.data_quality_triage.application.educa.dtos.raw.dj_raw import DjRaw
+from src.contexts.data_quality_triage.application.educa.dtos.raw.dni_raw import DniRaw
 
 class EducaInscriptionPolicy(DossierPolicy):
     """
@@ -18,8 +18,8 @@ class EducaInscriptionPolicy(DossierPolicy):
         dj_dict = raw_docs.get("DJ") or {}
         dnibef_dict = raw_docs.get("DNIBE") or {} # Corregido a DNIBE
         
-        fins_raw = FichaInscripcionRaw(**fins_dict)
-        dj_raw = DeclaracionJuradaRaw(**dj_dict)
+        fins_raw = FinsRaw(**fins_dict)
+        dj_raw = DjRaw(**dj_dict)
         dnibef_raw = DniRaw(**dnibef_dict)
         
         # Validación cruzada de DNI de Beneficiario usando tipado estricto

@@ -9,10 +9,8 @@ from src.contexts.data_quality_triage.domain.shared.dtos.document_dto import Doc
 
 class DocumentReadRepository(Protocol):
 
-    async def get_by_context(
+    async def get_by_dni(
         self,
-        batch_id: UUID,
-        activity_id: UUID,
         dni_reference: str
     ) -> List[DocumentDTO]:
         ...
