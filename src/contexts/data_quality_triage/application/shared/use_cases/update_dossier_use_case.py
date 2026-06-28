@@ -24,10 +24,10 @@ class UpdateDossierUseCase:
             raise ValueError(f"Triage Case {case_id} not found")
 
         # Persistir la corrección del operador en el caso
-        case.corrected_data = request.model_dump(exclude_unset=True)
+        case.dossier_data = request.model_dump(exclude_unset=True)
 
         # Reconstituir el dominio desde la corrección y validar
-        inscription = DossierFactory.reconstitute(case.corrected_data, ActivityType.EDUCA_INSCRIPTION)
+        inscription = DossierFactory.reconstitute(case.dossier_data, ActivityType.EDUCA_INSCRIPTION)
         is_valid, issues = inscription.validate_completeness()
 
         if is_valid:

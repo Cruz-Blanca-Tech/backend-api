@@ -39,8 +39,11 @@ class ProcessDossierUseCase:
             activity_type_str=activity_type_str
         )
         
+        from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
+        activity_type = ActivityType(activity_type_str)
+        
         # 3. Ejecutar la validación cruzada y construir el caso
-        case = strategy.execute(batch_id=batch_id, activity_type_str=activity_type_str, dni_reference=dni, documents=docs)
+        case = strategy.execute(batch_id=batch_id, activity_type=activity_type, dni_reference=dni, documents=docs)
 
         # 4. Persistencia y Eventos
         await self.triage_repo.save(case)

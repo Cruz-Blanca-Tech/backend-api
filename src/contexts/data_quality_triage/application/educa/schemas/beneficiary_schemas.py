@@ -7,7 +7,6 @@ class BeneficiarySchema(BaseModel):
     last_name: Optional[str] = None
     birth_date: Optional[str] = None
     gender: Optional[str] = None
-    age: Optional[int] = None
     validation_issues: List[str] = Field(default_factory=list)
 
     class Config:

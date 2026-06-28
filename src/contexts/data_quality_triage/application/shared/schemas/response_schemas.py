@@ -29,9 +29,7 @@ class TriageCaseDetailResponse(BaseModel):
     verdict: str
     confidence_scores: Dict[str, float]
     confidence_threshold: float
-    documents_snapshot: Dict[str, Dict[str, Any]]
-    corrected_data: Optional[Dict[str, Dict[str, Any]]] = None
-    effective_data: Dict[str, Dict[str, Any]]
+    dossier_data: Dict[str, Any]
     discrepancies: List[DiscrepancySchema]
     rejection_reason: Optional[str] = None
     resolved_by: Optional[UUID] = None

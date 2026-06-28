@@ -16,13 +16,12 @@ class TriageCase:
         batch_id: UUID,
         activity_type: str,
         dni_reference: str,
-        documents_snapshot: Dict[str, Dict[str, Any]],
+        dossier_data: Dict[str, Any],
         document_ids: Dict[str, UUID],
         confidence_scores: Dict[str, float],
         status: TriageStatus,
         verdict: TriageVerdict,
         discrepancies: List[FieldDiscrepancy],
-        corrected_data: Optional[Dict[str, Dict[str, Any]]] = None,
         rejection_reason: Optional[str] = None,
         resolved_by: Optional[UUID] = None,
         resolved_at: Optional[datetime] = None,
@@ -33,13 +32,12 @@ class TriageCase:
         self.batch_id = batch_id
         self.activity_type = activity_type
         self.dni_reference = dni_reference
-        self.documents_snapshot = documents_snapshot
+        self.dossier_data = dossier_data
         self.document_ids = document_ids
         self.confidence_scores = confidence_scores
         self.status = status
         self.verdict = verdict
         self.discrepancies = list(discrepancies)
-        self.corrected_data = corrected_data
         self.rejection_reason = rejection_reason
         self.resolved_by = resolved_by
         self.resolved_at = resolved_at
@@ -55,12 +53,11 @@ class TriageCase:
         dni_reference: str,
         documents: List[Any],
         quality_result: QualityRuleResult,
+        dossier_data: Dict[str, Any],
     ) -> "TriageCase":
-        documents_snapshot = {}
         document_ids = {}
         confidence_scores = {}
         for doc in documents:
-            documents_snapshot[doc.document_code] = doc.extracted_data
             document_ids[doc.document_code] = doc.id
             confidence_scores[doc.document_code] = doc.confidence_score or 0.0
 
@@ -76,7 +73,7 @@ class TriageCase:
             batch_id=batch_id,
             activity_type=activity_type,
             dni_reference=dni_reference,
-            documents_snapshot=documents_snapshot,
+            dossier_data=dossier_data,
             document_ids=document_ids,
             confidence_scores=confidence_scores,
             status=status,
@@ -101,8 +98,8 @@ class TriageCase:
         self.resolved_by = reviewer_id
         self.updated_at = datetime.now(timezone.utc)
 
-    def submit_correction(self, corrected_data: Dict[str, Dict[str, Any]], corrected_by: UUID) -> None:
-        self.corrected_data = corrected_data
+    def submit_correction(self, corrected_data: Dict[str, Any], corrected_by: UUID) -> None:
+        self.dossier_data = corrected_data
         self.status = TriageStatus.CORRECTED
         self.resolved_by = corrected_by
         self.updated_at = datetime.now(timezone.utc)
@@ -148,14 +145,6 @@ class TriageCase:
     @property
     def is_finalized(self) -> bool:
         return self.status in (TriageStatus.APPROVED, TriageStatus.REJECTED)
-
-    @property
-    def effective_data(self) -> Dict[str, Dict[str, Any]]:
-        # Si hay correcciones (el payload final), esa es la fuente de verdad.
-        # Si no, devolvemos el snapshot original de documentos.
-        if self.corrected_data:
-            return self.corrected_data
-        return self.documents_snapshot
 
     @property
     def pending_events(self) -> List[Any]:

@@ -26,7 +26,7 @@ class InscriptionTriageStrategy(TriageStrategy):
     def execute(
         self,
         batch_id: UUID,
-        activity_type: str,
+        activity_type: ActivityType,
         dni_reference: str,
         documents: List[DocumentDTO]
     ) -> TriageCase:
@@ -37,12 +37,13 @@ class InscriptionTriageStrategy(TriageStrategy):
             enriched_docs=enriched_docs
         )
         
-        # Validación de Dominio (Fase adicional requerida por la arquitectura actual)
         try:
             domain_entity = DossierFactory.create_from_enriched(
-                activity_type=ActivityType(activity_type),
+                activity_type=activity_type,
                 **enriched_docs
             )
+            from dataclasses import asdict
+            dossier_data = asdict(domain_entity)
             is_complete, domain_issues = domain_entity.validate_completeness()
             if not is_complete:
                 discrepancies.extend(domain_issues)
@@ -58,6 +59,7 @@ class InscriptionTriageStrategy(TriageStrategy):
                 rule_description=f"Excepción al crear la entidad de dominio: {str(e)}",
                 severity="ERROR"
             ))
+            dossier_data = {}
 
         has_errors = any(d.severity == "ERROR" for d in discrepancies)
 
@@ -70,9 +72,10 @@ class InscriptionTriageStrategy(TriageStrategy):
         
         return TriageCase.create_from_quality_result(
             batch_id=batch_id,
-            activity_type=activity_type,
+            activity_type=activity_type.value,
             dni_reference=dni_reference,
             documents=documents,
             quality_result=result,
+            dossier_data=dossier_data,
         )
 

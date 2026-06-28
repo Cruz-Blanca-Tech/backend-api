@@ -16,7 +16,7 @@ class GetCasesByBatchUseCase:
         items = [
             TriageCaseListItem(
                 id=case.id, batch_id=case.batch_id, dni_reference=case.dni_reference, status=case.status.value, verdict=case.verdict.value,
-                min_confidence_score=case.min_confidence_score, confidence_threshold=case.confidence_threshold,
+                min_confidence_score=case.min_confidence_score, confidence_threshold=0.0,
                 error_count=sum(1 for d in case.discrepancies if d.severity == "ERROR"), warning_count=sum(1 for d in case.discrepancies if d.severity == "WARNING"),
                 discrepancies=[DiscrepancySchema(field_name=d.field_name, expected_pattern=d.expected_pattern, actual_value=d.actual_value, rule_description=d.rule_description, severity=d.severity, document_code=d.document_code) for d in case.discrepancies],
                 created_at=case.created_at, updated_at=case.updated_at,

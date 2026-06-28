@@ -11,7 +11,7 @@ class TriagePolicy:
     required_document_codes: List[str]
 
     def evaluate(self, case: TriageCase) -> ValidationResult:
-        present = set(case.documents_snapshot.keys())
+        present = set(case.document_ids.keys())
 
         missing = [
             code for code in self.required_document_codes

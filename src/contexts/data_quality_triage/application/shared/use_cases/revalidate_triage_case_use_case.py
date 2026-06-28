@@ -19,16 +19,7 @@ class RevalidateTriageCaseUseCase:
         if not case:
             raise ValueError(f"Triage Case {case_id} not found")
 
-        if case.corrected_data:
-            inscription = DossierFactory.reconstitute(case.corrected_data, ActivityType.EDUCA_INSCRIPTION)
-        else:
-            strategy = DossierStrategyFactory().get_strategy_for_documents(set(case.documents_snapshot.keys()))
-            quality_result = strategy.validate(
-                dossier_documents=case.documents_snapshot,
-                confidence_scores=case.confidence_scores,
-                confidence_threshold=case.confidence_threshold
-            )
-            inscription = DossierFactory.create_from_enriched(ActivityType.EDUCA_INSCRIPTION, **quality_result.enriched_docs)
+        inscription = DossierFactory.reconstitute(case.dossier_data, ActivityType(case.activity_type))
 
         is_valid, issues = inscription.validate_completeness()
 

@@ -23,7 +23,7 @@ class EducaInscriptionDossier(DossierData):
         from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
         
         # Importamos las reglas ultra-modulares
-        from src.contexts.data_quality_triage.domain.educa.rules.domain.beneficiary_rules import BeneficiaryCompletenessRule, AgeCoherenceRule
+        from src.contexts.data_quality_triage.domain.educa.rules.domain.beneficiary_rules import BeneficiaryCompletenessRule, AgeCoherenceRule, GenderCoherenceRule
         from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import GuardianPresenceRule, EmergencyContactRule
         from src.contexts.data_quality_triage.domain.educa.rules.domain.medical_rules import MedicalRules
         from src.contexts.data_quality_triage.domain.educa.rules.domain.education_rules import EducationRules
@@ -33,6 +33,7 @@ class EducaInscriptionDossier(DossierData):
         rules = [
             BeneficiaryCompletenessRule(),
             AgeCoherenceRule(),
+            GenderCoherenceRule(),
             EmergencyContactRule(),
             GuardianPresenceRule(),
             MedicalRules(),

@@ -62,6 +62,7 @@ class EnrichedFins:
     child_first_name: EnrichedField
     child_last_name: EnrichedField
     child_birth_date: EnrichedField
+    child_age: EnrichedField
     child_gender: EnrichedField
     adults: List[EnrichedAdult]
     address: EnrichedAddress
