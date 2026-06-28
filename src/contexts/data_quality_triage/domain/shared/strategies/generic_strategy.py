@@ -1,33 +1,28 @@
-from typing import Dict, Any, List
-from src.contexts.data_quality_triage.domain.shared.strategies.base_strategy import DossierValidationStrategy
+from typing import List
+from src.contexts.data_quality_triage.domain.shared.dtos.document_dto import DocumentDTO
+from src.contexts.data_quality_triage.domain.shared.strategies.base_strategy import TriageStrategy
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 from src.contexts.data_quality_triage.domain.shared.value_objects.quality_rule_result import QualityRuleResult
+from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
+from uuid import UUID
 
-class GenericStrategy(DossierValidationStrategy):
-    def validate(
+class GenericTriageStrategy(TriageStrategy):
+    def execute(
         self,
-        dossier_documents: Dict[str, Dict[str, Any]],
-        confidence_scores: Dict[str, float],
-        confidence_threshold: float,
-    ) -> QualityRuleResult:
-        discrepancies: List[FieldDiscrepancy] = []
-        confidence_passed = True
-        for doc_code, score in confidence_scores.items():
-            if score is not None and score < confidence_threshold:
-                confidence_passed = False
-                discrepancies.append(FieldDiscrepancy(
-                    field_name="confidence_score",
-                    expected_pattern=f">= {confidence_threshold}",
-                    actual_value=str(score),
-                    rule_description=f"El score de confianza del documento {doc_code} ({score:.2f}) est? por debajo del umbral ({confidence_threshold})",
-                    severity="WARNING",
-                    document_code=doc_code,
-                ))
-        return QualityRuleResult(
-            is_valid=confidence_passed,
-            discrepancies=discrepancies,
-            confidence_passed=confidence_passed,
+        batch_id: UUID,
+        activity_type: str,
+        dni_reference: str,
+        documents: List[DocumentDTO]
+    ) -> TriageCase:
+        result = QualityRuleResult(
+            is_valid=True,
+            discrepancies=[],
+            confidence_passed=True,
         )
-
-    def get_field_definitions(self) -> List[dict]:
-        return []
+        return TriageCase.create_from_quality_result(
+            batch_id=batch_id,
+            activity_type=activity_type,
+            dni_reference=dni_reference,
+            documents=documents,
+            quality_result=result,
+        )
