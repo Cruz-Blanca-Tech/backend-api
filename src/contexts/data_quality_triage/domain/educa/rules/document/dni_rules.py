@@ -22,10 +22,10 @@ class DniFormatRule(DocumentRule):
             dnis_to_evaluate.append((enriched_dj.guardian_dni, "El DNI del apoderado en DJ no tiene un formato válido", EducaDocumentCode.DJ.value))
             
         if enriched_dnibe:
-            dnis_to_evaluate.append((enriched_dnibe.dni_number, "El documento DNI del beneficiario no es válido", "DNIBE"))
+            dnis_to_evaluate.append((enriched_dnibe.document_number, "El documento DNI del beneficiario no es válido", "DNIBE"))
             
         if enriched_dniap:
-            dnis_to_evaluate.append((enriched_dniap.dni_number, "El documento DNI del apoderado no es válido", "DNIAP"))
+            dnis_to_evaluate.append((enriched_dniap.document_number, "El documento DNI del apoderado no es válido", "DNIAP"))
 
         for dni_field, error_msg, doc_code in dnis_to_evaluate:
             # Si el campo tiene un error de formato (ej. no es válido)
@@ -47,7 +47,7 @@ class BeneficiaryDniCrosscheckRule(DocumentRule):
         if enriched_dj:
             dnis_to_check.append((EducaDocumentCode.DJ.value, enriched_dj.child_dni))
         if enriched_dnibe:
-            dnis_to_check.append((EducaDocumentCode.DNI_BENEFICIARY.value, enriched_dnibe.dni_number))
+            dnis_to_check.append((EducaDocumentCode.DNI_BENEFICIARY.value, enriched_dnibe.document_number))
             
         return validate_exact_match(
             dnis_to_check, 
@@ -65,7 +65,7 @@ class GuardianDniCrosscheckRule(DocumentRule):
         if enriched_dj:
             dnis_to_check_exact.append((EducaDocumentCode.DJ.value, enriched_dj.guardian_dni))
         if enriched_dniap:
-            dnis_to_check_exact.append((EducaDocumentCode.DNI_APODERADO.value, enriched_dniap.dni_number))
+            dnis_to_check_exact.append((EducaDocumentCode.DNI_APODERADO.value, enriched_dniap.document_number))
             
         discrepancies.extend(validate_exact_match(
             dnis_to_check_exact, 

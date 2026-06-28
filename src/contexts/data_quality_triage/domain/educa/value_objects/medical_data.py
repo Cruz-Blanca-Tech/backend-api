@@ -10,9 +10,7 @@ class MedicalData:
     operation_reason: Optional[str] = None
     has_been_hospitalized: bool = False
     hospitalization_reason: Optional[str] = None
-    has_complete_vaccines: bool = False
-    received_tetanus_vaccine: bool = False
-    is_taking_medication: bool = False
-    medication_name: Optional[str] = None
+    vaccines: List[str] = field(default_factory=list)
+    medications: List[str] = field(default_factory=list)
 
 

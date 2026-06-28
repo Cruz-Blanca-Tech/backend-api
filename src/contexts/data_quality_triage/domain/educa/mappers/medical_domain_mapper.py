@@ -26,6 +26,14 @@ class MedicalDomainMapper:
         if m.medical_insurance_fospoli.normalized_value: insurance.append("Fospoli")
         if m.medical_insurance_other.normalized_value: insurance.append("Otro")
 
+        vaccines = []
+        if m.has_complete_vaccines.normalized_value: vaccines.append("Completas")
+        if m.received_tetanus_vaccine.normalized_value: vaccines.append("Tétanos")
+
+        medications = []
+        if m.is_taking_medication.normalized_value and m.medication_name.normalized_value:
+            medications.append(m.medication_name.normalized_value)
+
         return MedicalData(
             allergies=allergies,
             diseases=diseases,
@@ -34,8 +42,6 @@ class MedicalDomainMapper:
             operation_reason=m.operation_reason.normalized_value,
             has_been_hospitalized=m.has_been_hospitalized.normalized_value or False,
             hospitalization_reason=m.hospitalization_reason.normalized_value,
-            has_complete_vaccines=m.has_complete_vaccines.normalized_value or False,
-            received_tetanus_vaccine=m.received_tetanus_vaccine.normalized_value or False,
-            is_taking_medication=m.is_taking_medication.normalized_value or False,
-            medication_name=m.medication_name.normalized_value
+            vaccines=vaccines,
+            medications=medications
         )

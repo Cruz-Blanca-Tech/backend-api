@@ -5,13 +5,14 @@ from src.contexts.data_quality_triage.domain.shared.dtos.document_dto import Doc
 from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
 from typing import List
 from uuid import UUID
+from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
 
 class TriageStrategy(ABC):
     @abstractmethod
     def execute(
         self,
         batch_id: UUID,
-        activity_type: str,
+        activity_type: ActivityType,
         dni_reference: str,
         documents: List[DocumentDTO]
     ) -> TriageCase:

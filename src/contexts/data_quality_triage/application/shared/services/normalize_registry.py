@@ -9,6 +9,7 @@ from src.contexts.data_quality_triage.application.shared.normalizers.type.string
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_mapping import DataType
 
 from src.contexts.data_quality_triage.application.shared.normalizers.type.name_normalizer import NameNormalizer
+from src.contexts.data_quality_triage.application.shared.normalizers.type.gender_normalizer import GenderNormalizer
 
 class NormalizerRegistry:
 
@@ -20,6 +21,7 @@ class NormalizerRegistry:
             DataType.INT: IntNormalizer(),
             DataType.BOOL: BoolNormalizer(),
             DataType.NAME: NameNormalizer(),
+            DataType.GENDER: GenderNormalizer(),
         }
 
     def get(self, data_type):

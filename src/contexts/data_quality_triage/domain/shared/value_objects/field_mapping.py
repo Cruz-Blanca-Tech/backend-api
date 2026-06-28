@@ -10,6 +10,7 @@ class DataType(str, Enum):
     DNI = "dni"
     BOOL = "bool"
     NAME = "name"
+    GENDER = "gender"
 
 
 @dataclass(frozen=True)
