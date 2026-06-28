@@ -39,7 +39,6 @@ class ProcessBatchUseCase:
         activity = await self.activity_repo.get_by_id(request.activity_id)
         if not activity:
             raise EntityNotFoundException("Activity not found")
-
         # 2. Mapeo a Value Objects (Infraestructura -> Dominio)
         raw_files = [RawFileMapper.to_domain(f) for f in request.files]
         

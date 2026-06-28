@@ -40,6 +40,10 @@ def custom_openapi():
 
 security_app.openapi = custom_openapi
 
+@security_app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "ok", "context": "Security & Access"}
+
 # 3. Incluimos los routers internos del contexto
 security_app.include_router(auth_router_instance, tags=["Authentication"])
 security_app.include_router(user_router_instance, tags=["Users"])
