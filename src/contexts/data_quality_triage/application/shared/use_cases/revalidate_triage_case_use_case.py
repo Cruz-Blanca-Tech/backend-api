@@ -1,65 +1,48 @@
-from typing import Dict, Any
 from uuid import UUID
-
-from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageStatus
 from src.contexts.data_quality_triage.domain.shared.repositories.triage_repository import TriageRepository
-from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription import EducaInscription
-from src.contexts.data_quality_triage.domain.educa.value_objects.beneficiary_data import BeneficiaryData
-from src.contexts.data_quality_triage.domain.educa.value_objects.parents_data import ParentsData
-from src.contexts.data_quality_triage.domain.educa.value_objects.parent_detail import ParentDetail
-from src.contexts.data_quality_triage.domain.educa.value_objects.education_data import EducationData
-from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data import MedicalData
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
+from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
+from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
+from src.contexts.data_quality_triage.domain.shared.strategies.strategy_factory import DossierStrategyFactory
 
 class RevalidateTriageCaseUseCase:
     def __init__(self, case_repo: TriageRepository):
         self.case_repo = case_repo
 
-    async def execute(self, case_id: UUID) -> None:
+    async def execute(self, case_id: UUID, reviewer_id: UUID) -> None:
+        """
+        Re-ejecuta las reglas de dominio sobre los datos actuales del caso (corrected_data si existe,
+        o documents_snapshot si aún no hay correcciones) y actualiza su estado.
+        """
         case = await self.case_repo.get_by_id(case_id)
         if not case:
             raise ValueError(f"Triage Case {case_id} not found")
 
-        # Assume canonical_data[0] contains the dossier dictionary
-        if not case.canonical_data:
-            raise ValueError(f"Triage Case {case_id} has no canonical data to validate")
-
-        dossier_payload = case.canonical_data[0]
-
-        beneficiary = BeneficiaryData(**dossier_payload.get("beneficiary", {}))
-        
-        parents_data = dossier_payload.get("parents", {})
-        father = ParentDetail(**parents_data.get("father", {})) if parents_data.get("father") else None
-        mother = ParentDetail(**parents_data.get("mother", {})) if parents_data.get("mother") else None
-        guardian = ParentDetail(**parents_data.get("guardian", {})) if parents_data.get("guardian") else None
-        
-        parents = ParentsData(
-            father=father,
-            mother=mother,
-            guardian=guardian,
-            apoderado_type=parents_data.get("apoderado_type")
-        )
-        
-        education = EducationData(**dossier_payload.get("education", {}))
-        medical = MedicalData(**dossier_payload.get("medical", {}))
-
-        inscription = EducaInscription(
-            beneficiary=beneficiary,
-            parents=parents,
-            education=education,
-            medical=medical
-        )
+        if case.corrected_data:
+            inscription = DossierFactory.reconstitute(case.corrected_data, ActivityType.EDUCA_INSCRIPTION)
+        else:
+            strategy = DossierStrategyFactory().get_strategy_for_documents(set(case.documents_snapshot.keys()))
+            quality_result = strategy.validate(
+                dossier_documents=case.documents_snapshot,
+                confidence_scores=case.confidence_scores,
+                confidence_threshold=case.confidence_threshold
+            )
+            inscription = DossierFactory.create_from_enriched(ActivityType.EDUCA_INSCRIPTION, **quality_result.enriched_docs)
 
         is_valid, issues = inscription.validate_completeness()
 
-        # Update case
-        case.is_valid = is_valid
         if is_valid:
-            case.status = TriageStatus.VALID.value
-            case.issues = []
+            case.approve(reviewer_id)
+            case.discrepancies = []
         else:
-            case.status = TriageStatus.INVALID.value
-            case.issues = [{"description": issue} for issue in issues]
-
-        case.canonical_data = [inscription.to_dict()]
+            case.status = TriageStatus.PENDING_REVIEW
+            case.discrepancies = [
+                FieldDiscrepancy(
+                    field_name="completeness", expected_pattern="Completitud de datos",
+                    actual_value="Falta información", rule_description=issue,
+                    severity="ERROR", document_code="GLOBAL"
+                ) for issue in issues
+            ]
 
         await self.case_repo.save(case)

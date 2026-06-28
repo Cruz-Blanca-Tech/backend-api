@@ -3,15 +3,6 @@ from typing import Optional, Dict, Any, List
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
-class FieldMetadataSchema(BaseModel):
-    name: str
-    type: str
-    label: str
-    value: Optional[Any] = None
-    is_editable: bool = True
-    options: Optional[List[str]] = None
-    group: Optional[str] = None
-
 class DiscrepancySchema(BaseModel):
     field_name: str
     expected_pattern: Optional[str] = None

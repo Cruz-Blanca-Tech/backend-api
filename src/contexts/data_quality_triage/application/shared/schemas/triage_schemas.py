@@ -1,4 +1,4 @@
-from .common_schemas import FieldMetadataSchema, DiscrepancySchema, AuditLogEntry
+from .common_schemas import DiscrepancySchema, AuditLogEntry
 from .request_schemas import TriageCorrectionRequest, TriageRejectRequest
 from .response_schemas import (
     TriageCaseListItem, 
@@ -9,7 +9,6 @@ from .response_schemas import (
 )
 
 __all__ = [
-    "FieldMetadataSchema",
     "DiscrepancySchema",
     "AuditLogEntry",
     "TriageCorrectionRequest",

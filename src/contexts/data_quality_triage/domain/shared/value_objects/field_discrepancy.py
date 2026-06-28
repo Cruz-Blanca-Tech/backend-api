@@ -10,16 +10,6 @@ class FieldDiscrepancy:
     severity: str
     document_code: Optional[str] = None
 
-    def to_dict(self) -> dict:
-        return {
-            "field_name": self.field_name,
-            "expected_pattern": self.expected_pattern,
-            "actual_value": self.actual_value,
-            "rule_description": self.rule_description,
-            "severity": self.severity,
-            "document_code": self.document_code,
-        }
-
     @classmethod
     def from_dict(cls, data: dict) -> "FieldDiscrepancy":
         return cls(

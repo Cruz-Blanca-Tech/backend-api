@@ -27,4 +27,4 @@ class BoolNormalizer(FieldNormalizer):
         if value in self.FALSE_VALUES:
             return False
 
-        return False
+        return None

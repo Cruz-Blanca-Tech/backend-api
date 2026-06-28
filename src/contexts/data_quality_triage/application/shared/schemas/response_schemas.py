@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any, List
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
-from .common_schemas import FieldMetadataSchema, DiscrepancySchema
+from .common_schemas import DiscrepancySchema
 
 class TriageCaseListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -32,7 +32,6 @@ class TriageCaseDetailResponse(BaseModel):
     documents_snapshot: Dict[str, Dict[str, Any]]
     corrected_data: Optional[Dict[str, Dict[str, Any]]] = None
     effective_data: Dict[str, Dict[str, Any]]
-    metadata_schema: Dict[str, List[FieldMetadataSchema]]
     discrepancies: List[DiscrepancySchema]
     rejection_reason: Optional[str] = None
     resolved_by: Optional[UUID] = None

@@ -8,10 +8,4 @@ class RelatedAdult:
     full_name: Optional[str] = None
     phone: Optional[str] = None
 
-    def to_dict(self) -> dict:
-        return {
-            "relationship": self.relationship,
-            "dni": self.dni,
-            "full_name": self.full_name,
-            "phone": self.phone
-        }
+
