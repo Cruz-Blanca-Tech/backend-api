@@ -2,8 +2,9 @@ import logging
 from uuid import UUID
 from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
 from src.contexts.data_quality_triage.domain.shared.repositories.triage_repository import TriageRepository
-from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageVerdict, BatchVerificationStatus
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageVerdict, BatchVerificationStatus, TriageStatus
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
+from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
 from src.core.events.event_dispatcher import EventDispatcher
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,19 @@ class VerifyBatchCompletionUseCase:
                     "verdict_summary": verdict_summary
                 }
             else:
-                logger.info(f"All {len(cases)} cases for batch {batch_id} have been approved. Emitting completion event.")
+                logger.info(f"All {len(cases)} cases for batch {batch_id} have been approved. Emitting approved events per case and batch completion event.")
+                for case in cases:
+                    if case.status == TriageStatus.APPROVED:
+                        await EventDispatcher.dispatch(
+                            DossierApprovedEvent(
+                                triage_case_id=case.id,
+                                batch_id=case.batch_id,
+                                activity_type=case.activity_type,
+                                dni_reference=case.dni_reference,
+                                dossier_data=case.dossier_data,
+                                approved_by=case.resolved_by or UUID("00000000-0000-0000-0000-000000000001")
+                            )
+                        )
                 await EventDispatcher.dispatch(BatchTriageCompletedEvent(batch_id=batch_id))
                 return {
                     "status": BatchVerificationStatus.COMPLETED, 

@@ -49,6 +49,10 @@ async def startup_event():
     # Evento de OCR (Intake) hacia Triage
     EventDispatcher.register(DocumentsExtractedEvent, handle_documents_extracted)
     
+    # Registrar handlers de core_beneficiary_management (MDM)
+    from src.contexts.core_beneficiary_management.infrastructure.events.beneficiary_event_handlers import register_beneficiary_event_handlers
+    register_beneficiary_event_handlers()
+    
     logger.info("Event handlers registrados exitosamente.")
 
 # 2. Registras AuthMiddleware primero (se ejecutará al final, lo cual es correcto)
