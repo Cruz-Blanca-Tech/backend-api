@@ -48,6 +48,9 @@ class ExtractionBatch:
     def mark_as_completed(self) -> None:
         self.status = BatchStatus.COMPLETED
 
+    def mark_as_pending(self) -> None:
+        self.status = BatchStatus.PENDING
+
     def mark_as_failed(self, reason: str) -> None: # <--- Agregamos 'reason'
         self.status = BatchStatus.FAILED
         self.failure_reason = reason # <--- Guardamos el motivo
