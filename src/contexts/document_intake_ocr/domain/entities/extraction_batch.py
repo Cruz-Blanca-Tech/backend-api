@@ -14,6 +14,7 @@ class BatchStatus(str, Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CORRECTED = "CORRECTED"
 
 @dataclass
 class ExtractionBatch:
