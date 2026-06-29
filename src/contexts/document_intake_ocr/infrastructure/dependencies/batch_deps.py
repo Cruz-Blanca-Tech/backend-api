@@ -11,6 +11,7 @@ from src.core.database import get_async_db  # Tu generador de sesión de base de
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.batch_processing_orchestrator import BatchProcessingOrchestrator
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
+from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
 from src.contexts.document_intake_ocr.infrastructure.dependencies.activity_deps import get_activity_repository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_activity_repository import SqlActivityRepository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
@@ -111,5 +112,8 @@ def get_process_batch_use_case(
         batch_orchestrator=orchestrator
     )
 
-def get_documents_by_dossier_use_case(db: AsyncSession = Depends(get_async_db)) -> GetDocumentsByDossierUseCase:
-    return GetDocumentsByDossierUseCase(session=db)
+def get_documents_by_dossier_use_case(session: AsyncSession = Depends(get_async_db)) -> GetDocumentsByDossierUseCase:
+    return GetDocumentsByDossierUseCase(session=session)
+
+def get_list_batches_use_case(session: AsyncSession = Depends(get_async_db)) -> ListBatchesUseCase:
+    return ListBatchesUseCase(session=session)

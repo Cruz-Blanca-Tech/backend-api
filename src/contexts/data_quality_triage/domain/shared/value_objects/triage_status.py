@@ -12,3 +12,8 @@ class TriageVerdict(str, Enum):
     REQUIRES_TRIAGE = "REQUIRES_TRIAGE"
     MANUALLY_APPROVED = "MANUALLY_APPROVED"
     MANUALLY_REJECTED = "MANUALLY_REJECTED"
+
+class BatchVerificationStatus(str, Enum):
+    COMPLETED = "COMPLETED"
+    PENDING = "PENDING"
+    NOT_FOUND = "NOT_FOUND"
