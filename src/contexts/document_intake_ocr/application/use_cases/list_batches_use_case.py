@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.extraction_batch_model import ExtractionBatchModel
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_model import ActivityModel
 from src.contexts.document_intake_ocr.domain.ports.triage_service import TriageServicePort
@@ -22,7 +23,9 @@ class ListBatchesUseCase:
         activity_id: Optional[UUID] = None,
         status: Optional[str] = None
     ) -> dict:
-        stmt = select(ExtractionBatchModel)
+        stmt = select(ExtractionBatchModel).options(
+            joinedload(ExtractionBatchModel.activity).joinedload(ActivityModel.program)
+        )
         
         if activity_id:
             stmt = stmt.where(ExtractionBatchModel.activity_id == activity_id)
@@ -49,6 +52,8 @@ class ListBatchesUseCase:
                     "documents_failed_count": sum(1 for d in getattr(b, 'documents', []) if d.status == "FAILED"),
                     "documents_approved_count": sum(1 for d in getattr(b, 'documents', []) if d.status == "APPROVED"),
                     "description": b.description,
+                    "activity_name": b.activity.name if getattr(b, 'activity', None) else None,
+                    "program_name": b.activity.program.name if getattr(b, 'activity', None) and getattr(b.activity, 'program', None) else None,
                     "triage_summary": triage_summaries.get(b.id, {
                         "total_cases": 0,
                         "verdicts": {}
