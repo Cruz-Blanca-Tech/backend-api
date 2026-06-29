@@ -24,6 +24,7 @@ class ListBatchesUseCase:
                     "created_at": b.created_at.isoformat() if b.created_at else None,
                     "documents_failed_count": sum(1 for d in getattr(b, 'documents', []) if d.status == "FAILED"),
                     "documents_approved_count": sum(1 for d in getattr(b, 'documents', []) if d.status == "APPROVED"),
+                    "description": b.description,
                 }
                 for b in batches
             ]

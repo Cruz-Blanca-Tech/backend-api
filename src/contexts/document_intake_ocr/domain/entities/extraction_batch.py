@@ -24,6 +24,7 @@ class ExtractionBatch:
     id: UUID
     activity_id: UUID
     created_by: UUID
+    description: str
     status: BatchStatus = BatchStatus.PENDING
     created_at: datetime = now_utc.replace(tzinfo=None)
     failure_reason: Optional[str] = None
