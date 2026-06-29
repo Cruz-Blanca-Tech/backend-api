@@ -61,8 +61,9 @@ class BatchProcessingOrchestrator:
 
             
             # 3. Guardar estado
+            batch.mark_as_pending()
             await self.batch_repo.save(batch)
-            logger.info(f"[BATCH COMPLETE] Lote {batch_id} finalizado. Archivos: {total_procesados}")
+            logger.info(f"[BATCH COMPLETE] Lote {batch_id} finalizado y marcado como PENDING. Archivos: {total_procesados}")
 
         except ExternalServiceException as ext_error:
             logger.critical(f"[BATCH CRITICAL] Fallo en la infraestructura base: {ext_error.message}")

@@ -1,9 +1,9 @@
 # Puedes agregar esto al final de tu archivo dependencies.py actual
 
 import json
-import os
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
 from src.contexts.document_intake_ocr.infrastructure.adapters.azure_document_extractor import AzureDocumentExtractor
 from src.core.database import get_async_db  # Tu generador de sesión de base de datos
 
@@ -116,4 +116,16 @@ def get_documents_by_dossier_use_case(session: AsyncSession = Depends(get_async_
     return GetDocumentsByDossierUseCase(session=session)
 
 def get_list_batches_use_case(session: AsyncSession = Depends(get_async_db)) -> ListBatchesUseCase:
-    return ListBatchesUseCase(session=session)
+    from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
+    from src.contexts.data_quality_triage.application.use_cases.get_batches_summaries_use_case import GetBatchesSummariesUseCase
+    from src.contexts.document_intake_ocr.infrastructure.adapters.triage_service_adapter import TriageServiceAdapter
+    
+    triage_repo = SqlTriageRepository(session=session)
+    triage_use_case = GetBatchesSummariesUseCase(triage_repository=triage_repo)
+    triage_service = TriageServiceAdapter(get_batches_summaries_use_case=triage_use_case)
+    
+    return ListBatchesUseCase(session=session, triage_service=triage_service)
+
+def get_batches_summary_use_case(session: AsyncSession = Depends(get_async_db)) -> GetBatchesSummaryUseCase:
+    from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
+    return GetBatchesSummaryUseCase(session=session)

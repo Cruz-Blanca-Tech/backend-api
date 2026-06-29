@@ -14,6 +14,7 @@ class BatchStatus(str, Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CORRECTED = "CORRECTED"
 
 @dataclass
 class ExtractionBatch:
@@ -24,6 +25,7 @@ class ExtractionBatch:
     id: UUID
     activity_id: UUID
     created_by: UUID
+    description: str
     status: BatchStatus = BatchStatus.PENDING
     created_at: datetime = now_utc.replace(tzinfo=None)
     failure_reason: Optional[str] = None
@@ -45,6 +47,9 @@ class ExtractionBatch:
 
     def mark_as_completed(self) -> None:
         self.status = BatchStatus.COMPLETED
+
+    def mark_as_pending(self) -> None:
+        self.status = BatchStatus.PENDING
 
     def mark_as_failed(self, reason: str) -> None: # <--- Agregamos 'reason'
         self.status = BatchStatus.FAILED

@@ -26,10 +26,18 @@ async def handle_dossier_rejected(event) -> None:
         await session.commit()
 
 async def handle_batch_rejected(event) -> None:
-    logger.info(f"[Intake Event Handler] Lote {event.batch_id} rechazado masivamente - Actualizando {len(event.document_ids)} documentos a FAILED")
+    logger.info(f"[Intake Event Handler] Lote {event.batch_id} rechazado masivamente - Actualizando {len(event.document_ids)} documentos a FAILED y lote a FAILED")
     async with async_session_maker() as session:
+        # Update batch status to FAILED
+        batch_stmt = (
+            update(ExtractionBatchModel)
+            .where(ExtractionBatchModel.id == event.batch_id)
+            .values(status="FAILED")
+        )
+        await session.execute(batch_stmt)
+
+        # Update all document statuses to FAILED
         for doc_id in event.document_ids:
-            stmt = update(DocumentItemModel).where(DocumentItemModel.id == doc_id).values(status="FAILED", failure_reason=f"Lote rechazado masivamente: {event.reason}")
             stmt = update(DocumentItemModel).where(DocumentItemModel.id == doc_id).values(status="FAILED", failure_reason=f"Lote rechazado masivamente: {event.reason}")
             await session.execute(stmt)
         await session.commit()

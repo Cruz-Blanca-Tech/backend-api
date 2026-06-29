@@ -26,5 +26,6 @@ class BatchExtractorMapper:
             total_dossiers=len(batch.dossiers),
             total_failed_files=len(batch.rejected_documents),
             failed_files=failed_files,
-            message=message
+            message=message,
+            description=batch.description
         )

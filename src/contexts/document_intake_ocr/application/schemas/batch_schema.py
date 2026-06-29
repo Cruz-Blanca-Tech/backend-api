@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from src.contexts.document_intake_ocr.application.schemas.file_item_schema import FileItemSchema
@@ -8,6 +8,18 @@ from src.contexts.document_intake_ocr.application.schemas.file_item_schema impor
 class ProcessBatchRequest(BaseModel):
     activity_id: UUID = Field(..., description="El ID de la Actividad a la que pertenecen estos documentos")
     files: List[FileItemSchema] = Field(..., description="Lista de archivos seleccionados para procesar")
+    description: str = Field(..., description="Descripción obligatoria del lote")
+
+class ListBatchesRequest(BaseModel):
+    skip: int = 0
+    limit: int = 100
+    program_id: Optional[UUID] = None
+    activity_id: Optional[UUID] = None
+    status: Optional[str] = None
+
+class GetBatchesSummaryRequest(BaseModel):
+    program_id: Optional[UUID] = None
+    activity_id: Optional[UUID] = None
 
 # ==========================================
 # RESPONSE (Lo que devuelve el Backend)
@@ -28,3 +40,4 @@ class ProcessBatchResponse(BaseModel):
     total_failed_files: int
     failed_files: List[FailedDocumentDetail]
     message: str
+    description: Optional[str] = None
