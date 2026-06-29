@@ -13,12 +13,15 @@ from src.contexts.document_intake_ocr.application.schemas.activity_schema import
 from src.contexts.document_intake_ocr.application.use_cases.activities.create_activity import CreateActivityUseCase
 from src.contexts.document_intake_ocr.application.use_cases.activities.update_activity import UpdateActivityUseCase
 from src.contexts.document_intake_ocr.application.use_cases.activities.list_activities import ListActivitiesUseCase
+from src.contexts.document_intake_ocr.application.use_cases.activities.get_activity_by_id import GetActivityByIdUseCase
+from src.core.validators.exceptions import EntityNotFoundException
 
 # IMPORTACIÓN DE ARQUITECTURA: Consumimos la fábrica modular de dependencias
 from src.contexts.document_intake_ocr.infrastructure.dependencies.activity_deps import (
     get_create_activity_use_case,
     get_update_activity_use_case,
-    get_list_activities_use_case
+    get_list_activities_use_case,
+    get_by_activity_id_use_case
 )
 from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_ADMIN_ONLY, ALLOW_ANY_STAFF
 
@@ -59,3 +62,14 @@ async def list_activities(
     - Si no se envía: lista todas las actividades activas.
     """
     return await use_case.execute(program_id=program_id)
+
+@router.get("/{activity_id}", response_model=ActivityResponse)
+async def get_activity(
+    activity_id: UUID,
+    use_case: GetActivityByIdUseCase = Depends(get_by_activity_id_use_case)
+):
+    """Obtiene los detalles de una campaña o actividad específica."""
+    try:
+        return await use_case.execute(activity_id)
+    except EntityNotFoundException as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

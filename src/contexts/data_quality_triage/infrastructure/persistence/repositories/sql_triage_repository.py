@@ -57,6 +57,13 @@ class SqlTriageRepository(TriageRepository):
         models = (await self.session.execute(stmt)).scalars().all()
         return [TriageCaseMapper.to_domain(m) for m in models]
 
+    async def get_all_by_batch_ids(self, batch_ids: List[UUID]) -> List[TriageCase]:
+        if not batch_ids:
+            return []
+        stmt = select(TriageCaseModel).where(TriageCaseModel.batch_id.in_(batch_ids))
+        models = (await self.session.execute(stmt)).scalars().all()
+        return [TriageCaseMapper.to_domain(m) for m in models]
+
     async def bulk_save(self, cases: List[TriageCase]) -> None:
         for case in cases:
             db_model = TriageCaseMapper.to_model(case)
