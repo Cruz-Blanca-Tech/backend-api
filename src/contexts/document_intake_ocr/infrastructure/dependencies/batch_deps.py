@@ -125,3 +125,7 @@ def get_list_batches_use_case(session: AsyncSession = Depends(get_async_db)) -> 
     triage_service = TriageServiceAdapter(get_batches_summaries_use_case=triage_use_case)
     
     return ListBatchesUseCase(session=session, triage_service=triage_service)
+
+def get_batches_summary_use_case(session: AsyncSession = Depends(get_async_db)) -> GetBatchesSummaryUseCase:
+    from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
+    return GetBatchesSummaryUseCase(session=session)

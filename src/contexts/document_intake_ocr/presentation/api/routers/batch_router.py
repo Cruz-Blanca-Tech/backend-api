@@ -8,7 +8,8 @@ from src.contexts.document_intake_ocr.application.use_cases.process_batch.proces
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
-from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case
+from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
+from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case, get_batches_summary_use_case
 from uuid import UUID
 from typing import Optional
 from fastapi import Query
@@ -70,3 +71,12 @@ async def list_batches(
 async def get_batch_statuses():
     """Devuelve la lista de estados válidos para los lotes en el OCR."""
     return [s.value for s in BatchStatus]
+
+@router.get("/summary", summary="Obtiene un resumen cuantitativo de lotes agrupados por estado")
+async def get_batches_summary(
+    program_id: Optional[UUID] = Query(None, description="Filtrar por ID del programa"),
+    activity_id: Optional[UUID] = Query(None, description="Filtrar por ID de la actividad"),
+    use_case: GetBatchesSummaryUseCase = Depends(get_batches_summary_use_case)
+):
+    """Devuelve la cantidad total de lotes existentes agrupados por estado, aplicando filtros opcionales."""
+    return await use_case.execute(program_id=program_id, activity_id=activity_id)
