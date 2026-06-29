@@ -5,6 +5,7 @@ from sqlalchemy import func
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.extraction_batch_model import ExtractionBatchModel
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_model import ActivityModel
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import GetBatchesSummaryRequest
 from uuid import UUID
 from typing import Optional
 
@@ -14,17 +15,13 @@ class GetBatchesSummaryUseCase:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def execute(
-        self,
-        program_id: Optional[UUID] = None,
-        activity_id: Optional[UUID] = None
-    ) -> dict:
+    async def execute(self, request: GetBatchesSummaryRequest) -> dict:
         stmt = select(ExtractionBatchModel.status, func.count(ExtractionBatchModel.id).label("count"))
         
-        if activity_id:
-            stmt = stmt.where(ExtractionBatchModel.activity_id == activity_id)
-        if program_id:
-            stmt = stmt.join(ActivityModel).where(ActivityModel.program_id == program_id)
+        if request.activity_id:
+            stmt = stmt.where(ExtractionBatchModel.activity_id == request.activity_id)
+        if request.program_id:
+            stmt = stmt.join(ActivityModel).where(ActivityModel.program_id == request.program_id)
             
         stmt = stmt.group_by(ExtractionBatchModel.status)
         result = await self.session.execute(stmt)
