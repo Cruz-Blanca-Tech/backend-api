@@ -1,6 +1,6 @@
 from uuid import UUID
 import logging
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.contexts.data_quality_triage.application.shared.schemas.triage_schemas import (
     BatchTriageSummary, TriageRejectRequest, PaginatedTriageResponse, TriageCaseListItem
@@ -24,8 +24,11 @@ HARDCODED_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 @router.post("/{batch_id}/reject")
 async def reject_batch(batch_id: UUID, payload: TriageRejectRequest, reject_uc: RejectBatchUseCase = Depends(get_reject_batch_use_case)):
     """Rechaza masivamente todos los casos pendientes de un lote."""
-    rejected_count = await reject_uc.execute(batch_id=batch_id, user_id=HARDCODED_USER_ID, reason=payload.reason)
-    return {"batch_id": str(batch_id), "rejected_count": rejected_count, "message": f"{rejected_count} expedientes rechazados"}
+    try:
+        rejected_count = await reject_uc.execute(batch_id=batch_id, user_id=HARDCODED_USER_ID, reason=payload.reason)
+        return {"batch_id": str(batch_id), "rejected_count": rejected_count, "message": f"{rejected_count} expedientes rechazados"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @router.get("/{batch_id}/cases", response_model=PaginatedTriageResponse)
 async def get_cases_by_batch(
