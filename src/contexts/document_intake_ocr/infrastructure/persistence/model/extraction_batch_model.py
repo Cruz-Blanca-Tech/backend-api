@@ -23,3 +23,5 @@ class ExtractionBatchModel(Base):
         cascade="all, delete-orphan", 
         lazy="selectin" # Evita el error de MissingGreenlet cargando el grafo de golpe
     )
+    
+    activity: Mapped["ActivityModel"] = relationship("ActivityModel", lazy="joined")
