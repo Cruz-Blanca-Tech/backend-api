@@ -17,4 +17,6 @@ class TriageRepository(ABC):
     @abstractmethod
     async def get_all_by_batch_id(self, batch_id: UUID) -> List[TriageCase]: pass
     @abstractmethod
+    async def get_all_by_batch_ids(self, batch_ids: List[UUID]) -> List[TriageCase]: pass
+    @abstractmethod
     async def bulk_save(self, cases: List[TriageCase]) -> None: pass
