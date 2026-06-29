@@ -6,10 +6,12 @@ from src.contexts.data_quality_triage.application.shared.schemas.triage_schemas 
     BatchTriageSummary, TriageRejectRequest, PaginatedTriageResponse, TriageCaseListItem
 )
 from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import (
-    get_reject_batch_use_case, get_cases_by_batch_use_case,
+    get_reject_batch_use_case, get_cases_by_batch_use_case, get_verify_batch_completion_use_case, get_batch_summary_use_case
 )
 from src.contexts.data_quality_triage.application.shared.use_cases.reject_batch_use_case import RejectBatchUseCase
 from src.contexts.data_quality_triage.application.shared.use_cases.get_cases_by_batch_use_case import GetCasesByBatchUseCase
+from src.contexts.data_quality_triage.application.use_cases.verify_batch_completion_use_case import VerifyBatchCompletionUseCase
+from src.contexts.data_quality_triage.application.use_cases.get_batch_summary_use_case import GetBatchSummaryUseCase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/batch", tags=["Triage Batches"])
@@ -33,3 +35,13 @@ async def get_cases_by_batch(
 ):
     """Devuelve la lista de expedientes de triaje que pertenecen a un lote (batch) específico."""
     return await use_case.execute(batch_id, skip=skip, limit=limit)
+
+@router.post("/{batch_id}/verify-completion")
+async def verify_batch_completion(batch_id: UUID, uc: VerifyBatchCompletionUseCase = Depends(get_verify_batch_completion_use_case)):
+    """Verifica si todos los expedientes de un lote están aprobados y emite un evento si es así."""
+    return await uc.execute(batch_id)
+
+@router.get("/{batch_id}/summary")
+async def get_batch_summary(batch_id: UUID, uc: GetBatchSummaryUseCase = Depends(get_batch_summary_use_case)):
+    """Obtiene un resumen de la cantidad de expedientes aprobados y pendientes de un lote específico."""
+    return await uc.execute(batch_id)
