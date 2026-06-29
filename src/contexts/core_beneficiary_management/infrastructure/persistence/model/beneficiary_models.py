@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Date, Boolean, ForeignKey, JSON
+from typing import List
+
+from sqlalchemy import String, Date, Boolean, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID, UUID as PG_UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from src.core.database.session import Base
+from src.core.database import Base
 import uuid
 from datetime import date
 
