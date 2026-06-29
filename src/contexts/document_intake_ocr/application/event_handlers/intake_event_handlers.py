@@ -70,8 +70,17 @@ async def handle_batch_triage_completed(event: BatchTriageCompletedEvent) -> Non
 
         # Trigger mass PDF generation for all dossiers in this batch
         try:
+            import json
+            if isinstance(settings.GOOGLE_CLIENT_SECRET, str):
+                try:
+                    credentials_info = json.loads(settings.GOOGLE_CLIENT_SECRET)
+                except Exception:
+                    credentials_info = settings.GOOGLE_CLIENT_SECRET
+            else:
+                credentials_info = settings.GOOGLE_CLIENT_SECRET
+
             storage = GoogleDriveStorageAdapter(
-                credentials_info=settings.GOOGLE_CREDENTIALS,
+                credentials_info=credentials_info,
                 scopes=['https://www.googleapis.com/auth/drive'],
                 base_folder_id=settings.GOOGLE_DRIVE_CONSOLIDATED_DOSSIERS_ID
             )
