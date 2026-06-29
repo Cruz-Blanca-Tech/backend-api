@@ -22,9 +22,10 @@ class GenerateBatchPdfsUseCase:
     async def execute(self, batch_id: UUID):
         logger.info(f"Generating PDFs for all dossiers in batch {batch_id}")
         
-        # 1. Fetch all document records for this batch
+        # 1. Fetch only APPROVED document records for this batch
         stmt = select(DocumentItemModel).where(
-            DocumentItemModel.batch_id == batch_id
+            DocumentItemModel.batch_id == batch_id,
+            DocumentItemModel.status == "APPROVED"
         )
         result = await self.session.execute(stmt)
         documents = result.scalars().all()

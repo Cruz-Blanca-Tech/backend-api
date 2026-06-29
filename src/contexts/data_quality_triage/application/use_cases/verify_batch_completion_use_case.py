@@ -47,56 +47,27 @@ class VerifyBatchCompletionUseCase:
             if case.verdict == TriageVerdict.REQUIRES_TRIAGE:
                 all_processed = False
                 pending_cases += 1
-            elif case.verdict == TriageVerdict.MANUALLY_REJECTED:
-                has_rejections = True
                 
         if all_processed:
-            if has_rejections:
-                logger.info(f"Batch {batch_id} has manual rejections. Emitting BatchRejectedEvent.")
-                from src.contexts.data_quality_triage.domain.shared.events.triage_events import BatchRejectedEvent
-                
-                # Gather all documents in the batch to reject them all in the OCR context
-                all_doc_ids = []
-                for c in cases:
-                    all_doc_ids.extend(c.document_ids.values())
-                
-                # Use resolved_by from the last resolved case or a default system UUID
-                resolved_by = next((c.resolved_by for c in cases if c.resolved_by), UUID("00000000-0000-0000-0000-000000000001"))
-                
-                await EventDispatcher.dispatch(
-                    BatchRejectedEvent(
-                        batch_id=batch_id,
-                        triage_case_ids=[c.id for c in cases],
-                        document_ids=all_doc_ids,
-                        rejected_by=resolved_by,
-                        reason="Se detectaron expedientes rechazados en el triaje de este lote."
-                    )
-                )
-                return {
-                    "status": BatchVerificationStatus.COMPLETED, 
-                    "message": f"Batch {batch_id} processed but rejected due to manually rejected cases.",
-                    "verdict_summary": verdict_summary
-                }
-            else:
-                logger.info(f"All {len(cases)} cases for batch {batch_id} have been approved. Emitting approved events per case and batch completion event.")
-                for case in cases:
-                    if case.status == TriageStatus.APPROVED:
-                        await EventDispatcher.dispatch(
-                            DossierApprovedEvent(
-                                triage_case_id=case.id,
-                                batch_id=case.batch_id,
-                                activity_type=case.activity_type,
-                                dni_reference=case.dni_reference,
-                                dossier_data=case.dossier_data,
-                                approved_by=case.resolved_by or UUID("00000000-0000-0000-0000-000000000001")
-                            )
+            logger.info(f"All {len(cases)} cases for batch {batch_id} have been processed. Emitting approved events per case and batch completion event.")
+            for case in cases:
+                if case.status == TriageStatus.APPROVED:
+                    await EventDispatcher.dispatch(
+                        DossierApprovedEvent(
+                            triage_case_id=case.id,
+                            batch_id=case.batch_id,
+                            activity_type=case.activity_type,
+                            dni_reference=case.dni_reference,
+                            dossier_data=case.dossier_data,
+                            approved_by=case.resolved_by or UUID("00000000-0000-0000-0000-000000000001")
                         )
-                await EventDispatcher.dispatch(BatchTriageCompletedEvent(batch_id=batch_id))
-                return {
-                    "status": BatchVerificationStatus.COMPLETED, 
-                    "message": f"Batch {batch_id} verified and marked as completed.",
-                    "verdict_summary": verdict_summary
-                }
+                    )
+            await EventDispatcher.dispatch(BatchTriageCompletedEvent(batch_id=batch_id))
+            return {
+                "status": BatchVerificationStatus.COMPLETED, 
+                "message": f"Batch {batch_id} verified and marked as completed.",
+                "verdict_summary": verdict_summary
+            }
         else:
             return {
                 "status": BatchVerificationStatus.PENDING, 
