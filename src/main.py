@@ -11,7 +11,8 @@ from src.contexts.data_quality_triage.presentation.api.routes import triage_app
 from src.contexts.reporting_analytics.api.routes import router as reporting_router
 
 from src.core.events.event_dispatcher import EventDispatcher
-from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierApprovedEvent, DossierRejectedEvent, BatchRejectedEvent
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierRejectedEvent, BatchRejectedEvent
+from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
 from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
 from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import (
     handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected

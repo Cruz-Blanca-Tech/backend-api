@@ -5,6 +5,8 @@ from typing import Dict, Any, List
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseUpload
+import io
 
 from src.contexts.document_intake_ocr.domain.ports.document_storage import DocumentStorage
 from src.contexts.document_intake_ocr.domain.value_objects.file_item import FileItem
@@ -171,4 +173,78 @@ class GoogleDriveStorageAdapter(DocumentStorage):
         
         # Solicitamos los bytes multimedia del archivo de forma nativa
         request = service_volunteer.files().get_media(fileId=file_item.file_id)
+        return request.execute()
+
+    async def ensure_beneficiary_directory(self, dni: str) -> str:
+        """Crea o recupera la carpeta del beneficiario en el Drive de Custodia."""
+        return await asyncio.to_thread(self._sync_ensure_beneficiary_directory, dni)
+
+    def _sync_ensure_beneficiary_directory(self, dni: str) -> str:
+        base_credentials = service_account.Credentials.from_service_account_info(
+            self._credentials_info, scopes=self._scopes
+        )
+        service = build('drive', 'v3', credentials=base_credentials, cache_discovery=False)
+        
+        folder_name = f"Beneficiary_{dni}"
+        query = f"name = '{folder_name}' and '{self._base_folder_id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        response = service.files().list(q=query, spaces='drive', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        
+        files = response.get('files', [])
+        if files:
+            return files[0]['id']
+            
+        folder_metadata = {
+            'name': folder_name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [self._base_folder_id]
+        }
+        folder = service.files().create(body=folder_metadata, supportsAllDrives=True, fields='id').execute()
+        return folder.get('id')
+
+    async def upload_file_to_folder(self, folder_id: str, file_bytes: bytes, filename: str, mime_type: str = "application/pdf") -> str:
+        return await asyncio.to_thread(self._sync_upload_file_to_folder, folder_id, file_bytes, filename, mime_type)
+
+    def _sync_upload_file_to_folder(self, folder_id: str, file_bytes: bytes, filename: str, mime_type: str) -> str:
+        base_credentials = service_account.Credentials.from_service_account_info(
+            self._credentials_info, scopes=self._scopes
+        )
+        service = build('drive', 'v3', credentials=base_credentials, cache_discovery=False)
+        # Check if file exists in the folder
+        query = f"name = '{filename}' and '{folder_id}' in parents and trashed = false"
+        response = service.files().list(q=query, spaces='drive', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        files = response.get('files', [])
+        
+        media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=True)
+        
+        if files:
+            existing_file_id = files[0]['id']
+            file_metadata = {'name': filename}
+            file = service.files().update(
+                fileId=existing_file_id, 
+                body=file_metadata, 
+                media_body=media, 
+                supportsAllDrives=True, 
+                fields='id, webViewLink'
+            ).execute()
+        else:
+            file_metadata = {
+                'name': filename,
+                'parents': [folder_id]
+            }
+            file = service.files().create(
+                body=file_metadata, 
+                media_body=media, 
+                supportsAllDrives=True, 
+                fields='id, webViewLink'
+            ).execute()
+            
+        return file.get('webViewLink')
+
+    def download_file_to_memory(self, file_id: str) -> bytes:
+        """Descarga un archivo directamente usando las credenciales del Robot, asumiendo que ya está en Custodia."""
+        base_credentials = service_account.Credentials.from_service_account_info(
+            self._credentials_info, scopes=self._scopes
+        )
+        service = build('drive', 'v3', credentials=base_credentials, cache_discovery=False)
+        request = service.files().get_media(fileId=file_id)
         return request.execute()
