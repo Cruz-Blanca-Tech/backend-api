@@ -86,8 +86,9 @@ class TriageCase:
                 DossierApprovedEvent(
                     triage_case_id=case.id,
                     batch_id=batch_id,
+                    activity_type=activity_type,
                     dni_reference=dni_reference,
-                    document_ids=list(document_ids.values()),
+                    dossier_data=dossier_data,
                     approved_by=UUID("00000000-0000-0000-0000-000000000000"),
                 )
             )
@@ -118,8 +119,9 @@ class TriageCase:
             DossierApprovedEvent(
                 triage_case_id=self.id,
                 batch_id=self.batch_id,
+                activity_type=self.activity_type,
                 dni_reference=self.dni_reference,
-                document_ids=list(self.document_ids.values()),
+                dossier_data=self.dossier_data,
                 approved_by=approved_by,
             )
         )
