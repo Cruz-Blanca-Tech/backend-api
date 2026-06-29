@@ -9,6 +9,8 @@ from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dos
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
 from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case
 from uuid import UUID
+from typing import Optional
+from fastapi import Query
 
 # Mantenemos el desacoplamiento: importamos solo el modelo de Auth para el tipado
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
@@ -50,6 +52,15 @@ async def get_documents_by_dossier(
 async def list_batches(
     skip: int = 0,
     limit: int = 100,
+    program_id: Optional[UUID] = Query(None, description="Filtrar por ID del programa"),
+    activity_id: Optional[UUID] = Query(None, description="Filtrar por ID de la actividad"),
+    status: Optional[str] = Query(None, description="Filtrar por estado del lote"),
     use_case: ListBatchesUseCase = Depends(get_list_batches_use_case)
 ):
-    return await use_case.execute(skip=skip, limit=limit)
+    return await use_case.execute(
+        skip=skip, 
+        limit=limit, 
+        program_id=program_id, 
+        activity_id=activity_id, 
+        status=status
+    )
