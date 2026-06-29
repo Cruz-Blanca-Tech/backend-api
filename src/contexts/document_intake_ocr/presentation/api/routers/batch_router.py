@@ -2,13 +2,17 @@
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse
+from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
-from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case
+from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
+from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case, get_batches_summary_use_case
 from uuid import UUID
+from typing import Optional
+from fastapi import Query
 
 # Mantenemos el desacoplamiento: importamos solo el modelo de Auth para el tipado
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
@@ -50,6 +54,31 @@ async def get_documents_by_dossier(
 async def list_batches(
     skip: int = 0,
     limit: int = 100,
+    program_id: Optional[UUID] = Query(None, description="Filtrar por ID del programa"),
+    activity_id: Optional[UUID] = Query(None, description="Filtrar por ID de la actividad"),
+    status: Optional[str] = Query(None, description="Filtrar por estado del lote"),
     use_case: ListBatchesUseCase = Depends(get_list_batches_use_case)
 ):
-    return await use_case.execute(skip=skip, limit=limit)
+    request = ListBatchesRequest(
+        skip=skip,
+        limit=limit,
+        program_id=program_id,
+        activity_id=activity_id,
+        status=status
+    )
+    return await use_case.execute(request)
+
+@router.get("/statuses", summary="Obtiene la lista de estados de lotes disponibles")
+async def get_batch_statuses():
+    """Devuelve la lista de estados válidos para los lotes en el OCR."""
+    return [s.value for s in BatchStatus]
+
+@router.get("/summary", summary="Obtiene un resumen cuantitativo de lotes agrupados por estado")
+async def get_batches_summary(
+    program_id: Optional[UUID] = Query(None, description="Filtrar por ID del programa"),
+    activity_id: Optional[UUID] = Query(None, description="Filtrar por ID de la actividad"),
+    use_case: GetBatchesSummaryUseCase = Depends(get_batches_summary_use_case)
+):
+    """Devuelve la cantidad total de lotes existentes agrupados por estado, aplicando filtros opcionales."""
+    request = GetBatchesSummaryRequest(program_id=program_id, activity_id=activity_id)
+    return await use_case.execute(request)

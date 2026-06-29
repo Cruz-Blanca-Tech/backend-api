@@ -15,6 +15,7 @@ class ExtractionBatchModel(Base):
     created_by: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False) # ID del usuario
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))    
+    description: Mapped[str] = mapped_column(String(500), nullable=False, server_default="")
     
     documents: Mapped[List["DocumentItemModel"]] = relationship( # type: ignore
         "DocumentItemModel", 
@@ -22,3 +23,5 @@ class ExtractionBatchModel(Base):
         cascade="all, delete-orphan", 
         lazy="selectin" # Evita el error de MissingGreenlet cargando el grafo de golpe
     )
+    
+    activity: Mapped["ActivityModel"] = relationship("ActivityModel", lazy="joined")
