@@ -24,6 +24,9 @@ class SubmitCorrectionUseCase:
         case = await self.triage_repo.get_by_id(case_id)
         if not case:
             raise EntityNotFoundException(f"No se encontró el caso de triaje con ID: {case_id}")
+            
+        if case.is_finalized:
+            raise ValueError("No se puede editar un caso de triaje que ya ha sido finalizado (aprobado o rechazado).")
 
         previous_status = case.status.value
         case.submit_correction(corrected_data, user_id)
