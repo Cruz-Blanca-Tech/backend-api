@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 
+from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
 from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
@@ -64,3 +65,8 @@ async def list_batches(
         activity_id=activity_id, 
         status=status
     )
+
+@router.get("/statuses", summary="Obtiene la lista de estados de lotes disponibles")
+async def get_batch_statuses():
+    """Devuelve la lista de estados válidos para los lotes en el OCR."""
+    return [s.value for s in BatchStatus]

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from src.contexts.data_quality_triage.application.shared.schemas.triage_schemas import (
     BatchTriageSummary, TriageRejectRequest, PaginatedTriageResponse, TriageCaseListItem
 )
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
 from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import (
     get_reject_batch_use_case, get_cases_by_batch_use_case, get_verify_batch_completion_use_case, get_batch_summary_use_case
 )
@@ -45,3 +46,13 @@ async def verify_batch_completion(batch_id: UUID, uc: VerifyBatchCompletionUseCa
 async def get_batch_summary(batch_id: UUID, uc: GetBatchSummaryUseCase = Depends(get_batch_summary_use_case)):
     """Obtiene un resumen de la cantidad de expedientes aprobados y pendientes de un lote específico."""
     return await uc.execute(batch_id)
+
+@router.get("/verdicts", summary="Obtiene la lista de veredictos de triaje")
+async def get_triage_verdicts():
+    """Devuelve los veredictos de triaje válidos (AUTO_APPROVED, REQUIRES_TRIAGE, etc)."""
+    return [v.value for v in TriageVerdict]
+
+@router.get("/statuses", summary="Obtiene la lista de estados del expediente de triaje")
+async def get_triage_statuses():
+    """Devuelve los estados de triaje válidos (PENDING_REVIEW, APPROVED, etc)."""
+    return [s.value for s in TriageStatus]
