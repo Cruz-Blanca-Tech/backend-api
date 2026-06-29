@@ -27,8 +27,16 @@ def get_dossier_processor(session: AsyncSession = Depends(get_async_db), triage_
 def get_submit_correction_use_case(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> SubmitCorrectionUseCase:
     return SubmitCorrectionUseCase(triage_repo=triage_repo, session=session)
 
-def get_reject_batch_use_case(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> RejectBatchUseCase:
-    return RejectBatchUseCase(triage_repo=triage_repo, session=session)
+def get_reject_batch_use_case(
+    session: AsyncSession = Depends(get_async_db),
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository)
+) -> RejectBatchUseCase:
+    from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
+    from src.contexts.data_quality_triage.infrastructure.adapters.batch_status_validator_adapter import BatchStatusValidatorAdapter
+
+    batch_repo = SqlBatchRepository(session=session)
+    validator = BatchStatusValidatorAdapter(batch_repository=batch_repo)
+    return RejectBatchUseCase(triage_repo=triage_repo, session=session, batch_status_validator=validator)
 
 def get_reject_dossier_use_case(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> RejectDossierUseCase:
     return RejectDossierUseCase(triage_repo=triage_repo, session=session)
@@ -36,8 +44,16 @@ def get_reject_dossier_use_case(session: AsyncSession = Depends(get_async_db), t
 def get_cases_by_batch_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> GetCasesByBatchUseCase:
     return GetCasesByBatchUseCase(triage_repo=triage_repo)
 
-def get_verify_batch_completion_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> VerifyBatchCompletionUseCase:
-    return VerifyBatchCompletionUseCase(triage_repository=triage_repo)
+def get_verify_batch_completion_use_case(
+    session: AsyncSession = Depends(get_async_db),
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository)
+) -> VerifyBatchCompletionUseCase:
+    from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
+    from src.contexts.data_quality_triage.infrastructure.adapters.batch_status_validator_adapter import BatchStatusValidatorAdapter
+
+    batch_repo = SqlBatchRepository(session=session)
+    validator = BatchStatusValidatorAdapter(batch_repository=batch_repo)
+    return VerifyBatchCompletionUseCase(triage_repository=triage_repo, batch_status_validator=validator)
 
 def get_batch_summary_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> GetBatchSummaryUseCase:
     return GetBatchSummaryUseCase(triage_repository=triage_repo)

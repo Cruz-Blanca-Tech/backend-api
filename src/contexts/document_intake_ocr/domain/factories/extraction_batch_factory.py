@@ -18,14 +18,14 @@ class ExtractionBatchFactory:
     aplicando todas las reglas de filtrado y agrupación del dominio.
     """
     @staticmethod
-    def create_from_raw_files(raw_files: List[RawFile], activity: Activity, user_id: UUID) -> ExtractionBatch:
+    def create_from_raw_files(raw_files: List[RawFile], activity: Activity, user_id: UUID, description: str) -> ExtractionBatch:
         # 1. Clasificación inmediata (incluye validación del código contra el catálogo de la actividad)
         clean_files, rejected_files = DocumentFilterService.filter_batch(raw_files, activity)
         # 2. Agrupación
         proposals = DocumentGrouperService.group_valid_files(clean_files)
 
         # 3. Instanciación del Agregado
-        batch = ExtractionBatch(id=uuid4(), activity_id=activity.id, created_by=user_id, created_at=datetime.now(timezone.utc))
+        batch = ExtractionBatch(id=uuid4(), activity_id=activity.id, created_by=user_id, created_at=datetime.now(timezone.utc), description=description)
         
         # 4. Ensamblaje de Expedientes
         for prop in proposals:
