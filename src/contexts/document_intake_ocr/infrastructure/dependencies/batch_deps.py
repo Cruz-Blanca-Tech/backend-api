@@ -1,9 +1,9 @@
 # Puedes agregar esto al final de tu archivo dependencies.py actual
 
 import json
-import os
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
 from src.contexts.document_intake_ocr.infrastructure.adapters.azure_document_extractor import AzureDocumentExtractor
 from src.core.database import get_async_db  # Tu generador de sesión de base de datos
 

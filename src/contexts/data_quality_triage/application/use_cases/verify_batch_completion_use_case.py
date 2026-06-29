@@ -23,7 +23,7 @@ class VerifyBatchCompletionUseCase:
                 "verdict_summary": verdict_summary
             }
         
-        all_approved = True
+        all_processed = True
         pending_cases = 0
 
         
@@ -31,13 +31,13 @@ class VerifyBatchCompletionUseCase:
             verdict_name = case.verdict.name if hasattr(case.verdict, 'name') else case.verdict
             verdict_summary[verdict_name] = verdict_summary.get(verdict_name, 0) + 1
             
-            # The approved statuses in TriageVerdict are AUTO_APPROVED and MANUALLY_APPROVED
-            if case.verdict not in (TriageVerdict.AUTO_APPROVED, TriageVerdict.MANUALLY_APPROVED):
-                all_approved = False
+            # The only pending status that blocks completion is REQUIRES_TRIAGE
+            if case.verdict == TriageVerdict.REQUIRES_TRIAGE:
+                all_processed = False
                 pending_cases += 1
                 
-        if all_approved:
-            logger.info(f"All {len(cases)} cases for batch {batch_id} are approved. Emitting completion event.")
+        if all_processed:
+            logger.info(f"All {len(cases)} cases for batch {batch_id} have been processed. Emitting completion event.")
             await EventDispatcher.dispatch(BatchTriageCompletedEvent(batch_id=batch_id))
             return {
                 "status": BatchVerificationStatus.COMPLETED, 
