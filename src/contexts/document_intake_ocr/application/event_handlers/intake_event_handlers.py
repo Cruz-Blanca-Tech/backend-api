@@ -13,19 +13,31 @@ from src.core.config import settings
 logger = logging.getLogger(__name__)
 
 async def handle_dossier_approved(event) -> None:
-    logger.info(f"[Intake Event Handler] Expediente aprobado - Actualizando {len(event.document_ids)} documentos a APPROVED")
+    logger.info(f"[Intake Event Handler] Expediente aprobado - Actualizando documentos del DNI {event.dni_reference} en lote {event.batch_id} a APPROVED")
     async with async_session_maker() as session:
-        for doc_id in event.document_ids:
-            stmt = update(DocumentItemModel).where(DocumentItemModel.id == doc_id).values(status="APPROVED")
-            await session.execute(stmt)
+        stmt = (
+            update(DocumentItemModel)
+            .where(
+                DocumentItemModel.batch_id == event.batch_id,
+                DocumentItemModel.dni_reference == event.dni_reference
+            )
+            .values(status="APPROVED")
+        )
+        await session.execute(stmt)
         await session.commit()
 
 async def handle_dossier_rejected(event) -> None:
-    logger.info(f"[Intake Event Handler] Expediente rechazado - Actualizando {len(event.document_ids)} documentos a FAILED")
+    logger.info(f"[Intake Event Handler] Expediente rechazado - Actualizando documentos del DNI {event.dni_reference} en lote {event.batch_id} a FAILED")
     async with async_session_maker() as session:
-        for doc_id in event.document_ids:
-            stmt = update(DocumentItemModel).where(DocumentItemModel.id == doc_id).values(status="FAILED", failure_reason=f"Rechazado en triaje: {event.reason}")
-            await session.execute(stmt)
+        stmt = (
+            update(DocumentItemModel)
+            .where(
+                DocumentItemModel.batch_id == event.batch_id,
+                DocumentItemModel.dni_reference == event.dni_reference
+            )
+            .values(status="FAILED", failure_reason=f"Rechazado en triaje: {event.reason}")
+        )
+        await session.execute(stmt)
         await session.commit()
 
 async def handle_batch_rejected(event) -> None:
