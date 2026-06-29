@@ -14,3 +14,11 @@ class BatchStatusValidatorAdapter(BatchStatusValidatorPort):
             
         # El lote está listo si NO está en proceso de extracción
         return batch.status != BatchStatus.PROCESSING
+
+    async def is_batch_rejectable(self, batch_id: UUID) -> bool:
+        batch = await self.batch_repository.get_by_id(batch_id)
+        if not batch:
+            return False
+            
+        # Solo se puede rechazar si el lote está pendiente de triaje (PENDING)
+        return batch.status == BatchStatus.PENDING
