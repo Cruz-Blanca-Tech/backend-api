@@ -1,5 +1,6 @@
 import logging
 from uuid import UUID
+from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
 from src.contexts.data_quality_triage.domain.shared.repositories.triage_repository import TriageRepository
 from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageVerdict, BatchVerificationStatus
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
@@ -8,14 +9,24 @@ from src.core.events.event_dispatcher import EventDispatcher
 logger = logging.getLogger(__name__)
 
 class VerifyBatchCompletionUseCase:
-    def __init__(self, triage_repository: TriageRepository):
+    def __init__(self, triage_repository: TriageRepository, batch_status_validator: BatchStatusValidatorPort):
         self.triage_repository = triage_repository
+        self.batch_status_validator = batch_status_validator
 
     async def execute(self, batch_id: UUID) -> dict:
-        cases = await self.triage_repository.get_all_by_batch_id(batch_id)
-        
         verdict_summary = {v.name: 0 for v in TriageVerdict}
 
+        # Check if the batch has finished processing in the OCR engine
+        is_ready = await self.batch_status_validator.is_batch_ready_for_triage(batch_id)
+        if not is_ready:
+            return {
+                "status": BatchVerificationStatus.PENDING,
+                "message": "No se puede verificar la finalización porque el motor OCR aún está procesando el lote.",
+                "verdict_summary": verdict_summary
+            }
+
+        cases = await self.triage_repository.get_all_by_batch_id(batch_id)
+        
         if not cases:
             return {
                 "status": BatchVerificationStatus.NOT_FOUND, 
