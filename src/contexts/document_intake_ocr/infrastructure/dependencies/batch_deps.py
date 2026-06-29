@@ -116,4 +116,12 @@ def get_documents_by_dossier_use_case(session: AsyncSession = Depends(get_async_
     return GetDocumentsByDossierUseCase(session=session)
 
 def get_list_batches_use_case(session: AsyncSession = Depends(get_async_db)) -> ListBatchesUseCase:
-    return ListBatchesUseCase(session=session)
+    from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
+    from src.contexts.data_quality_triage.application.use_cases.get_batches_summaries_use_case import GetBatchesSummariesUseCase
+    from src.contexts.document_intake_ocr.infrastructure.adapters.triage_service_adapter import TriageServiceAdapter
+    
+    triage_repo = SqlTriageRepository(session=session)
+    triage_use_case = GetBatchesSummariesUseCase(triage_repository=triage_repo)
+    triage_service = TriageServiceAdapter(get_batches_summaries_use_case=triage_use_case)
+    
+    return ListBatchesUseCase(session=session, triage_service=triage_service)
