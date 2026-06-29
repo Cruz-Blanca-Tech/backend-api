@@ -9,6 +9,8 @@ from src.contexts.data_quality_triage.application.shared.use_cases.submit_correc
 from src.contexts.data_quality_triage.application.shared.use_cases.reject_batch_use_case import RejectBatchUseCase
 from src.contexts.data_quality_triage.application.shared.use_cases.reject_dossier_use_case import RejectDossierUseCase
 from src.contexts.data_quality_triage.application.shared.use_cases.get_cases_by_batch_use_case import GetCasesByBatchUseCase
+from src.contexts.data_quality_triage.application.use_cases.verify_batch_completion_use_case import VerifyBatchCompletionUseCase
+from src.contexts.data_quality_triage.application.use_cases.get_batch_summary_use_case import GetBatchSummaryUseCase
 
 def get_triage_repository(session: AsyncSession = Depends(get_async_db)) -> SqlTriageRepository:
     return SqlTriageRepository(session=session)
@@ -33,3 +35,9 @@ def get_reject_dossier_use_case(session: AsyncSession = Depends(get_async_db), t
 
 def get_cases_by_batch_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> GetCasesByBatchUseCase:
     return GetCasesByBatchUseCase(triage_repo=triage_repo)
+
+def get_verify_batch_completion_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> VerifyBatchCompletionUseCase:
+    return VerifyBatchCompletionUseCase(triage_repository=triage_repo)
+
+def get_batch_summary_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> GetBatchSummaryUseCase:
+    return GetBatchSummaryUseCase(triage_repository=triage_repo)

@@ -6,7 +6,8 @@ from src.contexts.document_intake_ocr.application.schemas.batch_schema import Pr
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
-from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case
+from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
+from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case
 from uuid import UUID
 
 # Mantenemos el desacoplamiento: importamos solo el modelo de Auth para el tipado
@@ -44,3 +45,11 @@ async def get_documents_by_dossier(
     Retorna la data cruda útil para el frontend (IDs, nombres de archivo y URLs).
     """
     return await use_case.execute(batch_id=batch_id, dni_reference=dni_reference)
+
+@router.get("/", summary="Obtiene la lista de lotes y sus estados")
+async def list_batches(
+    skip: int = 0,
+    limit: int = 100,
+    use_case: ListBatchesUseCase = Depends(get_list_batches_use_case)
+):
+    return await use_case.execute(skip=skip, limit=limit)

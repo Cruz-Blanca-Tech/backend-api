@@ -12,9 +12,10 @@ from src.contexts.reporting_analytics.api.routes import router as reporting_rout
 
 from src.core.events.event_dispatcher import EventDispatcher
 from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierApprovedEvent, DossierRejectedEvent, BatchRejectedEvent
+from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
 from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
 from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import (
-    handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected
+    handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected, handle_batch_triage_completed
 )
 from src.contexts.data_quality_triage.application.shared.handlers.triage_event_handler import handle_documents_extracted
 from fastapi.openapi.utils import get_openapi
@@ -42,6 +43,7 @@ async def startup_event():
     EventDispatcher.register(DossierApprovedEvent, handle_dossier_approved)
     EventDispatcher.register(DossierRejectedEvent, handle_dossier_rejected)
     EventDispatcher.register(BatchRejectedEvent, handle_batch_rejected)
+    EventDispatcher.register(BatchTriageCompletedEvent, handle_batch_triage_completed)
     
     # Evento de OCR (Intake) hacia Triage
     EventDispatcher.register(DocumentsExtractedEvent, handle_documents_extracted)
