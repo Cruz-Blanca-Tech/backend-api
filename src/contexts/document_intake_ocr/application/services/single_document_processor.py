@@ -37,11 +37,7 @@ class SingleDocumentProcessor:
             logger.debug(f"     [2/3] Descargando bytes a memoria RAM...")
             doc.mark_as_processing()
             file_bytes = await self.storage.download_file(file_item, user_email)
-            
-            mock_data = {
-                "Nombres": "Datos de Prueba", 
-                "DNI": doc.dni_reference
-            }
+
             ## --- FASE 3: EXTRACCIÓN OCR ---
             logger.debug(f"     [3/3] Enviando a motor OCR de Azure...")
             ocr_result = await self.extractor.extract_data(file_bytes, model_id)
