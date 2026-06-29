@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.contexts.data_quality_triage.domain.shared.events.triage_events import BatchRejectedEvent
+from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.core.events.event_dispatcher import EventDispatcher
@@ -11,11 +12,17 @@ from src.core.validators.exceptions import EntityNotFoundException
 logger = logging.getLogger(__name__)
 
 class RejectBatchUseCase:
-    def __init__(self, triage_repo: SqlTriageRepository, session: AsyncSession):
+    def __init__(self, triage_repo: SqlTriageRepository, session: AsyncSession, batch_status_validator: BatchStatusValidatorPort):
         self.triage_repo = triage_repo
         self.session = session
+        self.batch_status_validator = batch_status_validator
 
     async def execute(self, batch_id: UUID, user_id: UUID, reason: str) -> int:
+        # Check if the batch status allows rejections (must be in PENDING)
+        is_rejectable = await self.batch_status_validator.is_batch_rejectable(batch_id)
+        if not is_rejectable:
+            raise ValueError("No se puede rechazar el lote porque ya ha sido finalizado, fallado o está en procesamiento.")
+
         cases = await self.triage_repo.get_all_by_batch_id(batch_id)
         if not cases: 
             raise EntityNotFoundException(f"No se encontraron casos de triaje para el lote {batch_id}")
