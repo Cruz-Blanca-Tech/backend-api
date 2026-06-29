@@ -10,6 +10,17 @@ class ProcessBatchRequest(BaseModel):
     files: List[FileItemSchema] = Field(..., description="Lista de archivos seleccionados para procesar")
     description: str = Field(..., description="Descripción obligatoria del lote")
 
+class ListBatchesRequest(BaseModel):
+    skip: int = 0
+    limit: int = 100
+    program_id: Optional[UUID] = None
+    activity_id: Optional[UUID] = None
+    status: Optional[str] = None
+
+class GetBatchesSummaryRequest(BaseModel):
+    program_id: Optional[UUID] = None
+    activity_id: Optional[UUID] = None
+
 # ==========================================
 # RESPONSE (Lo que devuelve el Backend)
 # ==========================================

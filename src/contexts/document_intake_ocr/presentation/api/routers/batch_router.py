@@ -3,7 +3,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
-from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
@@ -59,13 +59,14 @@ async def list_batches(
     status: Optional[str] = Query(None, description="Filtrar por estado del lote"),
     use_case: ListBatchesUseCase = Depends(get_list_batches_use_case)
 ):
-    return await use_case.execute(
-        skip=skip, 
-        limit=limit, 
-        program_id=program_id, 
-        activity_id=activity_id, 
+    request = ListBatchesRequest(
+        skip=skip,
+        limit=limit,
+        program_id=program_id,
+        activity_id=activity_id,
         status=status
     )
+    return await use_case.execute(request)
 
 @router.get("/statuses", summary="Obtiene la lista de estados de lotes disponibles")
 async def get_batch_statuses():
@@ -79,4 +80,5 @@ async def get_batches_summary(
     use_case: GetBatchesSummaryUseCase = Depends(get_batches_summary_use_case)
 ):
     """Devuelve la cantidad total de lotes existentes agrupados por estado, aplicando filtros opcionales."""
-    return await use_case.execute(program_id=program_id, activity_id=activity_id)
+    request = GetBatchesSummaryRequest(program_id=program_id, activity_id=activity_id)
+    return await use_case.execute(request)
