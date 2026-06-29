@@ -5,6 +5,7 @@ from src.contexts.data_quality_triage.domain.shared.repositories.triage_reposito
 from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageVerdict, BatchVerificationStatus, TriageStatus
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
 from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierRejectedEvent
 from src.core.events.event_dispatcher import EventDispatcher
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ class VerifyBatchCompletionUseCase:
                 pending_cases += 1
                 
         if all_processed:
-            logger.info(f"All {len(cases)} cases for batch {batch_id} have been processed. Emitting approved events per case and batch completion event.")
+            logger.info(f"All {len(cases)} cases for batch {batch_id} have been processed. Emitting approved and rejected events per case, then batch completion event.")
             for case in cases:
                 if case.status == TriageStatus.APPROVED:
                     await EventDispatcher.dispatch(
@@ -60,6 +61,17 @@ class VerifyBatchCompletionUseCase:
                             dni_reference=case.dni_reference,
                             dossier_data=case.dossier_data,
                             approved_by=case.resolved_by or UUID("00000000-0000-0000-0000-000000000001")
+                        )
+                    )
+                elif case.status == TriageStatus.REJECTED:
+                    await EventDispatcher.dispatch(
+                        DossierRejectedEvent(
+                            triage_case_id=case.id,
+                            batch_id=case.batch_id,
+                            dni_reference=case.dni_reference,
+                            document_ids=list(case.document_ids.values()),
+                            rejected_by=case.resolved_by or UUID("00000000-0000-0000-0000-000000000001"),
+                            reason=case.rejection_reason or "Rechazado en triaje"
                         )
                     )
             await EventDispatcher.dispatch(BatchTriageCompletedEvent(batch_id=batch_id))
