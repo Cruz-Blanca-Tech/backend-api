@@ -15,6 +15,7 @@ class ExtractionBatchModel(Base):
     created_by: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False) # ID del usuario
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))    
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
     
     documents: Mapped[List["DocumentItemModel"]] = relationship( # type: ignore
         "DocumentItemModel", 
