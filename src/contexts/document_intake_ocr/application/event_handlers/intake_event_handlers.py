@@ -6,6 +6,9 @@ from src.core.database import async_session_maker
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.document_item_model import DocumentItemModel
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.extraction_batch_model import ExtractionBatchModel
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
+from src.contexts.document_intake_ocr.application.use_cases.generate_batch_pdfs_use_case import GenerateBatchPdfsUseCase
+from src.contexts.document_intake_ocr.infrastructure.adapters.google_drive_storage_adapter import GoogleDriveStorageAdapter
+from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -52,3 +55,15 @@ async def handle_batch_triage_completed(event: BatchTriageCompletedEvent) -> Non
         )
         await session.execute(stmt)
         await session.commit()
+
+        # Trigger mass PDF generation for all dossiers in this batch
+        try:
+            storage = GoogleDriveStorageAdapter(
+                credentials_info=settings.GOOGLE_CREDENTIALS,
+                scopes=['https://www.googleapis.com/auth/drive'],
+                base_folder_id=settings.GOOGLE_DRIVE_CONSOLIDATED_DOSSIERS_ID
+            )
+            uc = GenerateBatchPdfsUseCase(storage, session)
+            await uc.execute(event.batch_id)
+        except Exception as ex:
+            logger.error(f"Error executing GenerateBatchPdfsUseCase for batch {event.batch_id}: {ex}")

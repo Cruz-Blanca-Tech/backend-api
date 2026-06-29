@@ -5,9 +5,7 @@ from uuid import UUID, uuid4
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 from src.contexts.data_quality_triage.domain.shared.value_objects.quality_rule_result import QualityRuleResult
 from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
-from src.contexts.data_quality_triage.domain.shared.events.triage_events import (
-    DossierApprovedEvent, DossierRejectedEvent,
-)
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierRejectedEvent
 
 class TriageCase:
     def __init__(
@@ -81,17 +79,6 @@ class TriageCase:
             discrepancies=quality_result.discrepancies,
         )
 
-        if verdict == TriageVerdict.AUTO_APPROVED:
-            case._pending_events.append(
-                DossierApprovedEvent(
-                    triage_case_id=case.id,
-                    batch_id=batch_id,
-                    activity_type=activity_type,
-                    dni_reference=dni_reference,
-                    dossier_data=dossier_data,
-                    approved_by=UUID("00000000-0000-0000-0000-000000000000"),
-                )
-            )
         return case
 
     def assign_to_reviewer(self, reviewer_id: UUID) -> None:
@@ -115,16 +102,6 @@ class TriageCase:
         self.resolved_by = approved_by
         self.resolved_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
-        self._pending_events.append(
-            DossierApprovedEvent(
-                triage_case_id=self.id,
-                batch_id=self.batch_id,
-                activity_type=self.activity_type,
-                dni_reference=self.dni_reference,
-                dossier_data=self.dossier_data,
-                approved_by=approved_by,
-            )
-        )
 
     def reject(self, rejected_by: UUID, reason: str) -> None:
         self.status = TriageStatus.REJECTED
