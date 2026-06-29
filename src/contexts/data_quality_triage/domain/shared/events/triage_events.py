@@ -18,14 +18,7 @@ class DocumentRejectedEvent:
     reason: str
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
-@dataclass(frozen=True)
-class DossierApprovedEvent:
-    triage_case_id: UUID
-    batch_id: UUID
-    dni_reference: str
-    document_ids: List[UUID]
-    approved_by: UUID
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 @dataclass(frozen=True)
 class DossierRejectedEvent:
