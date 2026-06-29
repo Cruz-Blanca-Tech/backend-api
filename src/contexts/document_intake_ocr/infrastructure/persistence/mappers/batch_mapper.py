@@ -17,7 +17,8 @@ class BatchMapper:
             activity_id=entity.activity_id,
             created_by=entity.created_by,
             status=entity.status.value,
-            created_at=entity.created_at
+            created_at=entity.created_at,
+            description=entity.description
         )
         
         # We must gather ALL documents (valid from dossiers + rejected) to save them
@@ -38,7 +39,8 @@ class BatchMapper:
             activity_id=model.activity_id,
             created_by=model.created_by,
             status=BatchStatus(model.status),
-            created_at=model.created_at
+            created_at=model.created_at,
+            description=model.description
         )
         
         # 2. CLASIFICAR documentos: los FALLIDOS son rechazados del lote,

@@ -47,7 +47,8 @@ class ProcessBatchUseCase:
         batch = ExtractionBatchFactory.create_from_raw_files(
             raw_files=raw_files, 
             activity=activity, 
-            user_id=user_id
+            user_id=user_id,
+            description=request.description
         )
 
         # 4. Persistencia transaccional inicial
