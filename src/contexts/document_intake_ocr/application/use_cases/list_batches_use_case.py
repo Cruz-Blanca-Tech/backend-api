@@ -2,8 +2,10 @@ import logging
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.extraction_batch_model import ExtractionBatchModel
+from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_model import ActivityModel
 from src.contexts.document_intake_ocr.domain.ports.triage_service import TriageServicePort
 from uuid import UUID
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -12,8 +14,24 @@ class ListBatchesUseCase:
         self.session = session
         self.triage_service = triage_service
 
-    async def execute(self, skip: int = 0, limit: int = 100) -> dict:
-        stmt = select(ExtractionBatchModel).order_by(ExtractionBatchModel.created_at.desc()).offset(skip).limit(limit)
+    async def execute(
+        self, 
+        skip: int = 0, 
+        limit: int = 100,
+        program_id: Optional[UUID] = None,
+        activity_id: Optional[UUID] = None,
+        status: Optional[str] = None
+    ) -> dict:
+        stmt = select(ExtractionBatchModel)
+        
+        if activity_id:
+            stmt = stmt.where(ExtractionBatchModel.activity_id == activity_id)
+        if program_id:
+            stmt = stmt.join(ActivityModel).where(ActivityModel.program_id == program_id)
+        if status:
+            stmt = stmt.where(ExtractionBatchModel.status == status)
+            
+        stmt = stmt.order_by(ExtractionBatchModel.created_at.desc()).offset(skip).limit(limit)
         result = await self.session.execute(stmt)
         batches = result.scalars().all()
         
