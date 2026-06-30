@@ -14,4 +14,4 @@ class Person:
     last_name: str
     birth_date: Optional[date]
     gender: Optional[Gender]
-    type: str  # "beneficiary" or "adult"
+    type: str = ""  # Set by subclasses in __post_init__

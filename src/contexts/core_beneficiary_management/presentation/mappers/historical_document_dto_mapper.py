@@ -11,7 +11,7 @@ class HistoricalDocumentDtoMapper:
                 batch_id=doc.batch_id,
                 document_type=doc.document_type,
                 year=doc.year,
-                file_url=doc.file_url
+                file_id=doc.file_id
             )
             for doc in domain_entities
         ]

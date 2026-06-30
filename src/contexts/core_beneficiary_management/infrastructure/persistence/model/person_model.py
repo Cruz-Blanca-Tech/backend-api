@@ -14,7 +14,7 @@ class PersonModel(Base):
     first_name: Mapped[str] = mapped_column(String(100))
     last_name: Mapped[str] = mapped_column(String(100))
     birth_date: Mapped[date] = mapped_column(Date, nullable=True)
-    gender: Mapped[str] = mapped_column(String(1), nullable=True)
+    gender: Mapped[str] = mapped_column(String(10), nullable=True)
     
     # Polymorphic type column
     type: Mapped[str] = mapped_column(String(50))
