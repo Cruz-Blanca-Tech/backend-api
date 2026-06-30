@@ -64,8 +64,8 @@ class BatchProcessingOrchestrator:
                 batch.mark_as_failed(reason="Todos los documentos del lote fallaron durante el procesamiento.")
                 logger.warning(f"[BATCH FAILED] Lote {batch_id} marcado como FAILED porque el 100% de sus archivos fallaron.")
             else:
-                batch.mark_as_pending()
-                logger.info(f"[BATCH COMPLETE] Lote {batch_id} finalizado y marcado como PENDING. Archivos: {total_procesados}")
+                batch.mark_as_completed()
+                logger.info(f"[BATCH COMPLETE] Lote {batch_id} finalizado y marcado como COMPLETED. Archivos: {total_procesados}")
                 
             await self.batch_repo.save(batch)
             
