@@ -66,4 +66,4 @@ class ListBatchesUseCase:
                 }
                 for b in batches
             ]
-        }
+        )
