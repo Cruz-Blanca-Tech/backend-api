@@ -209,7 +209,7 @@ class GoogleDriveStorageAdapter(DocumentStorage):
                 fields='id, webViewLink'
             ).execute()
             
-        return file.get('webViewLink')
+        return file.get('id')
 
     def download_file_to_memory(self, file_id: str) -> bytes:
         """Descarga un archivo directamente usando las credenciales del Robot, asumiendo que ya está en Custodia."""

@@ -69,14 +69,15 @@ class GenerateDossierPdfUseCase:
         # 5. Upload PDF
         year = datetime.utcnow().year
         filename = f"Dossier_Inscripcion_{event.dni_reference}_{year}.pdf"
-        file_url = self.storage.upload_file_to_folder(folder_id, pdf_bytes, filename, mime_type="application/pdf")
+        file_id = self.storage.upload_file_to_folder(folder_id, pdf_bytes, filename, mime_type="application/pdf")
         
         # 6. Emit Event
         await EventDispatcher.dispatch(DossierPdfArchivedEvent(
             beneficiary_dni=event.dni_reference,
             triage_case_id=event.triage_case_id,
-            pdf_url=file_url,
-            year=year
+            pdf_id=file_id,
+            year=year,
+            batch_id=event.batch_id
         ))
         
-        logger.info(f"Successfully generated and uploaded PDF for {event.dni_reference}: {file_url}")
+        logger.info(f"Successfully generated and uploaded PDF for {event.dni_reference}: {file_id}")
