@@ -17,3 +17,10 @@ class BatchStatusValidatorPort(ABC):
         (debe estar en estado PENDING).
         """
         pass
+
+    @abstractmethod
+    async def is_batch_completed(self, batch_id: UUID) -> bool:
+        """
+        Retorna True si el lote ya fue completado/triajado.
+        """
+        pass
