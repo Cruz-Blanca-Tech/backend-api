@@ -14,7 +14,7 @@ class HistoricalDocumentMapper:
             batch_id=model.batch_id,
             document_type=model.document_type,
             year=model.year,
-            file_url=model.file_url
+            file_id=model.file_id
         )
 
     @staticmethod
@@ -28,5 +28,5 @@ class HistoricalDocumentMapper:
             batch_id=entity.batch_id,
             document_type=entity.document_type,
             year=entity.year,
-            file_url=entity.file_url
+            file_id=entity.file_id
         )

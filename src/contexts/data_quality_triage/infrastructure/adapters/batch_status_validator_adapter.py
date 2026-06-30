@@ -28,5 +28,5 @@ class BatchStatusValidatorAdapter(BatchStatusValidatorPort):
         if not batch:
             return False
             
-        # El lote está completado si está en estado FINALIZED o FAILED
-        return batch.status in (BatchStatus.FINALIZED, BatchStatus.FAILED)
+        # El lote está completado si está en estado FINALIZED, FAILED o REJECTED
+        return batch.status in (BatchStatus.FINALIZED, BatchStatus.FAILED, BatchStatus.REJECTED)
