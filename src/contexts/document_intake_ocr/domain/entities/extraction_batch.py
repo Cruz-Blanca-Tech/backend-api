@@ -14,7 +14,8 @@ class BatchStatus(str, Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
-    CORRECTED = "CORRECTED"
+    REJECTED = "REJECTED"
+    FINALIZED = "FINALIZED"
 
 @dataclass
 class ExtractionBatch:
@@ -51,9 +52,13 @@ class ExtractionBatch:
     def mark_as_pending(self) -> None:
         self.status = BatchStatus.PENDING
 
-    def mark_as_failed(self, reason: str) -> None: # <--- Agregamos 'reason'
+    def mark_as_failed(self, reason: str) -> None: 
         self.status = BatchStatus.FAILED
-        self.failure_reason = reason # <--- Guardamos el motivo
+        self.failure_reason = reason 
+
+    def mark_as_rejected(self, reason: str) -> None: 
+        self.status = BatchStatus.REJECTED
+        self.failure_reason = reason 
     # ---------------------------------------------
 
     def add_dossier(self, dossier: Dossier) -> None:

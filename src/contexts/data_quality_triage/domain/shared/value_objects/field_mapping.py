@@ -11,6 +11,7 @@ class DataType(str, Enum):
     BOOL = "bool"
     NAME = "name"
     GENDER = "gender"
+    GRADE = "grade"
 
 
 @dataclass(frozen=True)

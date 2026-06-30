@@ -14,6 +14,7 @@ class DocumentStatus(str, Enum):
     PROCESSING_OCR = "PROCESSING_OCR"
     READY_FOR_REVIEW = "READY_FOR_REVIEW"
     APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
     FAILED = "FAILED"
 
 
@@ -41,3 +42,7 @@ class PipelineState:
 
     def mark_approved(self):
         return PipelineState(DocumentStatus.APPROVED, self.processed_at)
+        
+    def mark_rejected(self, reason: str):
+        self.failure_reason = reason
+        return PipelineState(DocumentStatus.REJECTED, self.processed_at)
