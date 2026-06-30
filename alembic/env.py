@@ -18,6 +18,7 @@ from src.contexts.document_intake_ocr.infrastructure.persistence.model.extractio
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.document_item_model import DocumentItemModel
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_case_model import TriageCaseModel
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
+import src.contexts.core_beneficiary_management.infrastructure.persistence.model  # Imports all models via __init__.py
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

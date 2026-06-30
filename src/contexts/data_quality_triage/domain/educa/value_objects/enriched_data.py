@@ -6,7 +6,8 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.enriched_field
 class EnrichedAdult:
     role: str
     dni: EnrichedField
-    full_name: EnrichedField
+    first_name: EnrichedField
+    last_name: EnrichedField
     phone: Optional[EnrichedField] = None
 
 @dataclass

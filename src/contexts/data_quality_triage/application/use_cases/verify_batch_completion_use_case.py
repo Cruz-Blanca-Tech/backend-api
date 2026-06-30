@@ -2,8 +2,10 @@ import logging
 from uuid import UUID
 from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
 from src.contexts.data_quality_triage.domain.shared.repositories.triage_repository import TriageRepository
-from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageVerdict, BatchVerificationStatus
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageVerdict, BatchVerificationStatus, TriageStatus
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
+from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierRejectedEvent
 from src.core.events.event_dispatcher import EventDispatcher
 
 logger = logging.getLogger(__name__)
@@ -16,6 +18,15 @@ class VerifyBatchCompletionUseCase:
     async def execute(self, batch_id: UUID) -> dict:
         verdict_summary = {v.name: 0 for v in TriageVerdict}
 
+        # Check if the batch is already completed
+        is_completed = await self.batch_status_validator.is_batch_completed(batch_id)
+        if is_completed:
+            return {
+                "status": BatchVerificationStatus.COMPLETED,
+                "message": f"El lote {batch_id} ya fue verificado y completado previamente.",
+                "verdict_summary": verdict_summary
+            }
+
         # Check if the batch has finished processing in the OCR engine
         is_ready = await self.batch_status_validator.is_batch_ready_for_triage(batch_id)
         if not is_ready:
@@ -26,6 +37,7 @@ class VerifyBatchCompletionUseCase:
             }
 
         cases = await self.triage_repository.get_all_by_batch_id(batch_id)
+        logger.info(f"VerifyBatchCompletion - Loaded {len(cases)} cases for batch {batch_id}: {[f'ID: {c.id}, status: {c.status}, verdict: {c.verdict}, DNI: {c.dni_reference}' for c in cases]}")
         
         if not cases:
             return {
@@ -46,44 +58,52 @@ class VerifyBatchCompletionUseCase:
             if case.verdict == TriageVerdict.REQUIRES_TRIAGE:
                 all_processed = False
                 pending_cases += 1
-            elif case.verdict == TriageVerdict.MANUALLY_REJECTED:
-                has_rejections = True
                 
         if all_processed:
-            if has_rejections:
-                logger.info(f"Batch {batch_id} has manual rejections. Emitting BatchRejectedEvent.")
-                from src.contexts.data_quality_triage.domain.shared.events.triage_events import BatchRejectedEvent
-                
-                # Gather all documents in the batch to reject them all in the OCR context
-                all_doc_ids = []
-                for c in cases:
-                    all_doc_ids.extend(c.document_ids.values())
-                
-                # Use resolved_by from the last resolved case or a default system UUID
-                resolved_by = next((c.resolved_by for c in cases if c.resolved_by), UUID("00000000-0000-0000-0000-000000000001"))
-                
-                await EventDispatcher.dispatch(
-                    BatchRejectedEvent(
-                        batch_id=batch_id,
-                        triage_case_ids=[c.id for c in cases],
-                        document_ids=all_doc_ids,
-                        rejected_by=resolved_by,
-                        reason="Se detectaron expedientes rechazados en el triaje de este lote."
+            logger.info(f"All {len(cases)} cases for batch {batch_id} have been processed. Emitting approved and rejected events per case, then batch completion event.")
+            for case in cases:
+                if case.status == TriageStatus.APPROVED:
+                    await EventDispatcher.dispatch(
+                        DossierApprovedEvent(
+                            triage_case_id=case.id,
+                            batch_id=case.batch_id,
+                            activity_type=case.activity_type,
+                            dni_reference=case.dni_reference,
+                            dossier_data=case.dossier_data,
+                            approved_by=case.resolved_by or UUID("00000000-0000-0000-0000-000000000001")
+                        )
                     )
-                )
-                return {
-                    "status": BatchVerificationStatus.COMPLETED, 
-                    "message": f"Batch {batch_id} processed but rejected due to manually rejected cases.",
-                    "verdict_summary": verdict_summary
-                }
-            else:
-                logger.info(f"All {len(cases)} cases for batch {batch_id} have been approved. Emitting completion event.")
-                await EventDispatcher.dispatch(BatchTriageCompletedEvent(batch_id=batch_id))
-                return {
-                    "status": BatchVerificationStatus.COMPLETED, 
-                    "message": f"Batch {batch_id} verified and marked as completed.",
-                    "verdict_summary": verdict_summary
-                }
+                elif case.status == TriageStatus.REJECTED:
+                    await EventDispatcher.dispatch(
+                        DossierRejectedEvent(
+                            triage_case_id=case.id,
+                            batch_id=case.batch_id,
+                            dni_reference=case.dni_reference,
+                            document_ids=list(case.document_ids.values()),
+                            rejected_by=case.resolved_by or UUID("00000000-0000-0000-0000-000000000001"),
+                            reason=case.rejection_reason or "Rechazado en triaje"
+                        )
+                    )
+            approved_dossiers = {}
+            for case in cases:
+                if case.status == TriageStatus.APPROVED:
+                    # Extract the true corrected DNI from dossier_data if available, otherwise fallback to dni_reference
+                    corrected_dni = case.dossier_data.get("beneficiary", {}).get("dni", case.dni_reference)
+                    
+                    approved_dossiers[case.dni_reference] = {
+                        "corrected_dni": corrected_dni,
+                        "documents": list(case.document_ids.values())
+                    }
+
+            await EventDispatcher.dispatch(BatchTriageCompletedEvent(
+                batch_id=batch_id,
+                approved_dossiers=approved_dossiers
+            ))
+            return {
+                "status": BatchVerificationStatus.COMPLETED, 
+                "message": f"Batch {batch_id} verified and marked as completed.",
+                "verdict_summary": verdict_summary
+            }
         else:
             return {
                 "status": BatchVerificationStatus.PENDING, 
