@@ -20,6 +20,7 @@ class ListBatchesRequest(BaseModel):
 class GetBatchesSummaryRequest(BaseModel):
     program_id: Optional[UUID] = None
     activity_id: Optional[UUID] = None
+    status: Optional[str] = None
 
 # ==========================================
 # RESPONSE (Lo que devuelve el Backend)
@@ -41,3 +42,23 @@ class ProcessBatchResponse(BaseModel):
     failed_files: List[FailedDocumentDetail]
     message: str
     description: Optional[str] = None
+
+class TriageSummarySchema(BaseModel):
+    total_cases: int
+    verdicts: dict
+
+class BatchItemSchema(BaseModel):
+    id: UUID
+    activity_id: UUID
+    status: str
+    created_at: Optional[str] = None
+    documents_failed_count: int
+    documents_approved_count: int
+    description: Optional[str] = None
+    activity_name: Optional[str] = None
+    program_name: Optional[str] = None
+    triage_summary: TriageSummarySchema
+
+class ListBatchesResponse(BaseModel):
+    total: int
+    batches: List[BatchItemSchema]
