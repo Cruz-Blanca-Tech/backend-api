@@ -8,11 +8,13 @@ from src.core.config import settings
 from src.contexts.security_access.presentation.routes import security_app
 from src.contexts.document_intake_ocr.presentation.api.routes import intake_app
 from src.contexts.data_quality_triage.presentation.api.routes import triage_app
+from src.contexts.core_beneficiary_management.presentation.api.routes import beneficiary_app
 from src.contexts.reporting_analytics.api.routes import router as reporting_router
 
 from src.core.events.event_dispatcher import EventDispatcher
-from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierApprovedEvent, DossierRejectedEvent, BatchRejectedEvent
+from src.contexts.data_quality_triage.domain.shared.events.triage_events import DossierRejectedEvent, BatchRejectedEvent
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
+from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
 from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
 from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import (
     handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected, handle_batch_triage_completed
@@ -47,6 +49,10 @@ async def startup_event():
     
     # Evento de OCR (Intake) hacia Triage
     EventDispatcher.register(DocumentsExtractedEvent, handle_documents_extracted)
+    
+    # Registrar handlers de core_beneficiary_management (MDM)
+    from src.contexts.core_beneficiary_management.infrastructure.events.beneficiary_event_handlers import register_beneficiary_event_handlers
+    register_beneficiary_event_handlers()
     
     logger.info("Event handlers registrados exitosamente.")
 
@@ -87,12 +93,14 @@ configure_exception_handlers(app)          # Para la app raíz
 configure_exception_handlers(intake_app)   # Para el contexto de Ingesta
 configure_exception_handlers(security_app) # Para el contexto de Seguridad
 configure_exception_handlers(triage_app)   # Para el contexto de Triage
+configure_exception_handlers(beneficiary_app) # Para el contexto de Beneficiarios
 
 
 # Registrar routers de cada Bounded Context bajo el prefijo común
 app.mount(f"{settings.API_V1_STR}/intake", intake_app)
 app.mount("/auth", security_app)
 app.mount(f"{settings.API_V1_STR}/triage", triage_app)
+app.mount(f"{settings.API_V1_STR}/mdm", beneficiary_app)
 
 app.include_router(reporting_router, prefix=settings.API_V1_STR)
 

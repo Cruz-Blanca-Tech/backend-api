@@ -11,6 +11,7 @@ class DocumentStatus(str, Enum):
     PROCESSING_OCR = "PROCESSING_OCR"         # Actualmente enviándose a Azure
     READY_FOR_REVIEW = "READY_FOR_REVIEW"     # Azure terminó, esperando triaje humano
     APPROVED = "APPROVED"                     # Humano validó que todo está correcto
+    REJECTED = "REJECTED"                     # Humano rechazó el documento por reglas de negocio
     FAILED = "FAILED"                         # Error técnico o documento ilegible
 
 
