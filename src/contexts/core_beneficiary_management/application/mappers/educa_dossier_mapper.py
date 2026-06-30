@@ -28,7 +28,12 @@ class EducaDossierMapper:
                 pass
 
         try:
-            gender = Gender(ben_dto.gender.upper())
+            gender_str = ben_dto.gender.upper() if ben_dto.gender else ""
+            if gender_str == "F":
+                gender_str = "FEMALE"
+            elif gender_str == "M":
+                gender_str = "MALE"
+            gender = Gender(gender_str)
         except ValueError:
             gender = Gender.UNKNOWN
             

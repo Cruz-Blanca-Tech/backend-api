@@ -19,9 +19,9 @@ class GenerateBatchPdfsUseCase:
         self.storage = storage
         self.session = session
 
-    async def execute(self, batch_id: UUID, approved_dossiers: Dict[str, List[UUID]]):
+    async def execute(self, batch_id: UUID, approved_dossiers: Dict[str, dict]):
         """
-        approved_dossiers: { dni_reference -> [doc_id, doc_id, ...] }
+        approved_dossiers: { original_dni -> {"corrected_dni": "...", "documents": [doc_id, doc_id, ...]} }
         These come directly from the TriageCase.document_ids so they are always in sync.
         """
         if not approved_dossiers:
@@ -30,8 +30,15 @@ class GenerateBatchPdfsUseCase:
 
         logger.info(f"Generating PDFs for {len(approved_dossiers)} approved dossiers in batch {batch_id}")
 
-        for dni, doc_ids in approved_dossiers.items():
-            logger.info(f"Processing PDF generation for DNI: {dni} ({len(doc_ids)} documents)")
+        for original_dni, dossier_meta in approved_dossiers.items():
+            doc_ids = dossier_meta.get("documents", [])
+            corrected_dni = dossier_meta.get("corrected_dni", original_dni)
+
+            logger.info(f"Processing PDF generation for DNI: {corrected_dni} (original: {original_dni}, {len(doc_ids)} documents)")
+
+            if not doc_ids:
+                logger.warning(f"No documents provided for DNI {original_dni}, skipping PDF generation")
+                continue
 
             # Fetch the concrete document records by their exact IDs
             stmt = select(DocumentItemModel).where(
@@ -41,7 +48,7 @@ class GenerateBatchPdfsUseCase:
             docs = result.scalars().all()
 
             if not docs:
-                logger.warning(f"No document records found for DNI {dni} in batch {batch_id}")
+                logger.warning(f"No document records found for DNI {original_dni} in batch {batch_id}")
                 continue
 
             images = []
@@ -57,7 +64,7 @@ class GenerateBatchPdfsUseCase:
                     logger.error(f"Error downloading doc {doc.id} (custody_id={doc.custody_id}) for DNI {dni}: {e}")
 
             if not images:
-                logger.warning(f"No valid images downloaded for DNI {dni}")
+                logger.warning(f"No valid images downloaded for DNI {corrected_dni}")
                 continue
 
             try:
@@ -70,22 +77,23 @@ class GenerateBatchPdfsUseCase:
                 pdf_bytes = pdf_buffer.getvalue()
 
                 # Ensure Drive folder for this dossier
-                folder_id = await self.storage.ensure_beneficiary_directory(dni)
+                folder_id = await self.storage.ensure_beneficiary_directory(corrected_dni)
 
                 # Upload PDF
                 year = datetime.utcnow().year
-                filename = f"Dossier_Inscripcion_{dni}_{year}.pdf"
-                file_url = await self.storage.upload_file_to_folder(
+                filename = f"Dossier_Inscripcion_{corrected_dni}_{year}.pdf"
+                file_id = await self.storage.upload_file_to_folder(
                     folder_id, pdf_bytes, filename, mime_type="application/pdf"
                 )
 
-                # Notify MDM with the archived PDF URL
+                # Notify MDM with the archived PDF ID
                 await EventDispatcher.dispatch(DossierPdfArchivedEvent(
-                    beneficiary_dni=dni,
+                    beneficiary_dni=corrected_dni,
                     triage_case_id=None,
-                    pdf_url=file_url,
-                    year=year
+                    pdf_id=file_id,
+                    year=year,
+                    batch_id=batch_id
                 ))
-                logger.info(f"PDF generated and uploaded for DNI {dni}: {file_url}")
+                logger.info(f"PDF generated and uploaded for DNI {corrected_dni}: {file_id}")
             except Exception as e:
-                logger.error(f"Failed to generate/upload PDF for DNI {dni}: {e}")
+                logger.error(f"Failed to generate/upload PDF for DNI {corrected_dni}: {e}")
