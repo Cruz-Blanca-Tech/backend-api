@@ -3,7 +3,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
-from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest, ListBatchesResponse
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
@@ -50,7 +50,7 @@ async def get_documents_by_dossier(
     """
     return await use_case.execute(batch_id=batch_id, dni_reference=dni_reference)
 
-@router.get("/", summary="Obtiene la lista de lotes y sus estados")
+@router.get("/", response_model=ListBatchesResponse, summary="Obtiene la lista de lotes y sus estados")
 async def list_batches(
     skip: int = 0,
     limit: int = 100,
@@ -77,8 +77,9 @@ async def get_batch_statuses():
 async def get_batches_summary(
     program_id: Optional[UUID] = Query(None, description="Filtrar por ID del programa"),
     activity_id: Optional[UUID] = Query(None, description="Filtrar por ID de la actividad"),
+    status: Optional[str] = Query(None, description="Filtrar por estado del lote"),
     use_case: GetBatchesSummaryUseCase = Depends(get_batches_summary_use_case)
 ):
     """Devuelve la cantidad total de lotes existentes agrupados por estado, aplicando filtros opcionales."""
-    request = GetBatchesSummaryRequest(program_id=program_id, activity_id=activity_id)
+    request = GetBatchesSummaryRequest(program_id=program_id, activity_id=activity_id, status=status)
     return await use_case.execute(request)
