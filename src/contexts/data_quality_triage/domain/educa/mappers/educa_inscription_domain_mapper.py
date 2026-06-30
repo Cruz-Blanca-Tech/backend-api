@@ -18,6 +18,8 @@ class EducaInscriptionDomainMapper:
         self.family_mapper = FamilyDomainMapper()
         self.education_mapper = EducationDomainMapper()
         self.medical_mapper = MedicalDomainMapper()
+        import logging
+        self.logger = logging.getLogger(__name__)
         
     def map(self, enriched_fins: EnrichedFins, enriched_dj: EnrichedDj = None, enriched_dniap: Any = None) -> EducaInscriptionDossier:
         
@@ -29,13 +31,30 @@ class EducaInscriptionDomainMapper:
         )
         
     def map_beneficiary(self, enriched_fins: EnrichedFins) -> BeneficiaryData:
-        return self.beneficiary_mapper.map(enriched_fins)
+        try:
+            return self.beneficiary_mapper.map(enriched_fins)
+        except Exception as e:
+            self.logger.error(f"Error mapeando beneficiary: {e}")
+            return BeneficiaryData(validation_issues=[f"Error interno mapeando sección: {e}"])
 
     def map_parents(self, enriched_fins: EnrichedFins, enriched_dj: EnrichedDj = None, enriched_dniap: Any = None) -> FamilyData:
-        return self.family_mapper.map(enriched_fins, enriched_dj, enriched_dniap)
+        try:
+            return self.family_mapper.map(enriched_fins, enriched_dj, enriched_dniap)
+        except Exception as e:
+            self.logger.error(f"Error mapeando parents: {e}")
+            return FamilyData(validation_issues=[f"Error interno mapeando sección: {e}"])
 
     def map_education(self, enriched_fins: EnrichedFins) -> EducationData:
-        return self.education_mapper.map(enriched_fins)
+        try:
+            return self.education_mapper.map(enriched_fins)
+        except Exception as e:
+            self.logger.error(f"Error mapeando education: {e}")
+            # EducationData no tiene validation_issues por defecto, mandamos vacío
+            return EducationData()
 
     def map_medical(self, enriched_fins: EnrichedFins) -> MedicalData:
-        return self.medical_mapper.map(enriched_fins)
+        try:
+            return self.medical_mapper.map(enriched_fins)
+        except Exception as e:
+            self.logger.error(f"Error mapeando medical: {e}")
+            return MedicalData()
