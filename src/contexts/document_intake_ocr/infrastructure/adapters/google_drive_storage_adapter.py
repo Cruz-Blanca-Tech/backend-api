@@ -242,6 +242,15 @@ class GoogleDriveStorageAdapter(DocumentStorage):
 
     def download_file_to_memory(self, file_id: str) -> bytes:
         """Descarga un archivo directamente usando las credenciales del Robot, asumiendo que ya está en Custodia."""
+        # Si se guardó la URL completa de Drive, extraemos solo el ID del archivo
+        if file_id.startswith("http"):
+            import re
+            match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', file_id)
+            if match:
+                file_id = match.group(1)
+            else:
+                raise ValueError(f"No se pudo extraer el file ID de la URL: {file_id}")
+
         base_credentials = service_account.Credentials.from_service_account_info(
             self._credentials_info, scopes=self._scopes
         )
