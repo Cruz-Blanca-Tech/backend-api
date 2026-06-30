@@ -22,6 +22,9 @@ class GetBatchesSummaryUseCase:
             stmt = stmt.where(ExtractionBatchModel.activity_id == request.activity_id)
         if request.program_id:
             stmt = stmt.join(ActivityModel).where(ActivityModel.program_id == request.program_id)
+        if request.status:
+            stmt = stmt.where(ExtractionBatchModel.status == request.status)
+            
             
         stmt = stmt.group_by(ExtractionBatchModel.status)
         result = await self.session.execute(stmt)
