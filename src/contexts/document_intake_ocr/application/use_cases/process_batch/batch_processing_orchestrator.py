@@ -55,15 +55,26 @@ class BatchProcessingOrchestrator:
                 )
                 print(f"DEBUG: Expediente {dossier.dni} tiene {len(dossier.documents)} documentos.")
                 total_procesados += procesados_en_dossier   
-                
-                # ¡Detonamos el evento usando el Publisher oficial!
-                await self.event_publisher.publish_created(dossier, activity)
-
             
-            # 3. Guardar estado
-            batch.mark_as_pending()
+            # 3. Validar si todo falló
+            all_docs = batch.get_all_documents()
+            failed_docs_count = sum(1 for d in all_docs if d.status.value == "FAILED")
+            
+            if len(all_docs) > 0 and failed_docs_count == len(all_docs):
+                batch.mark_as_failed(reason="Todos los documentos del lote fallaron durante el procesamiento.")
+                logger.warning(f"[BATCH FAILED] Lote {batch_id} marcado como FAILED porque el 100% de sus archivos fallaron.")
+            else:
+                batch.mark_as_pending()
+                logger.info(f"[BATCH COMPLETE] Lote {batch_id} finalizado y marcado como PENDING. Archivos: {total_procesados}")
+                
             await self.batch_repo.save(batch)
-            logger.info(f"[BATCH COMPLETE] Lote {batch_id} finalizado y marcado como PENDING. Archivos: {total_procesados}")
+            
+            # 4. Detonar los eventos de Triaje AHORA que los datos OCR están guardados en la BD
+            for dossier in batch.dossiers:
+                # Solo disparamos eventos para los expedientes que tengan al menos 1 documento extraído exitosamente
+                if any(doc.status.value != "FAILED" for doc in dossier.documents):
+                    await self.event_publisher.publish_created(dossier, activity)
+
 
         except ExternalServiceException as ext_error:
             logger.critical(f"[BATCH CRITICAL] Fallo en la infraestructura base: {ext_error.message}")
