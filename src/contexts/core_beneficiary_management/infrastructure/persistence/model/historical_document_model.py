@@ -14,6 +14,6 @@ class HistoricalDocumentModel(Base):
 
     document_type: Mapped[str] = mapped_column(String(100))
     year: Mapped[int] = mapped_column(Integer)
-    file_url: Mapped[str] = mapped_column(String(1000))
+    file_id: Mapped[str] = mapped_column(String(500))
 
     beneficiary = relationship("BeneficiaryModel", back_populates="historical_documents")

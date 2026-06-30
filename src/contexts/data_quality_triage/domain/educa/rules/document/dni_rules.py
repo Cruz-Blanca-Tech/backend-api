@@ -34,7 +34,7 @@ class DniFormatRule(DocumentRule):
                     field_name=dni_field.name, expected_pattern="Formato de DNI válido", 
                     actual_value=str(dni_field.raw_value),
                     rule_description=error_msg, 
-                    severity="ERROR", document_code=doc_code
+                    severity="WARNING", document_code=doc_code
                 ))
         return discrepancies
 
