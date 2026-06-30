@@ -25,7 +25,7 @@ class SaveHistoricalDocumentUseCase:
             batch_id=event.batch_id,
             document_type=event.document_type,
             year=event.year,
-            file_url=event.file_url
+            file_id=event.file_id
         )
 
         # 3. Append to beneficiary

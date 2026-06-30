@@ -22,5 +22,15 @@ class EventDispatcher:
             await handler(event)
 
     @classmethod
+    def dispatch_background(cls, event: Any) -> None:
+        """Dispara un evento de forma asíncrona sin bloquear al que lo llama (fire and forget)."""
+        import asyncio
+        event_type = type(event)
+        handlers = cls._handlers.get(event_type, [])
+        for handler in handlers:
+            # Create a background task for each handler
+            asyncio.create_task(handler(event))
+
+    @classmethod
     def clear(cls) -> None:
         cls._handlers.clear()

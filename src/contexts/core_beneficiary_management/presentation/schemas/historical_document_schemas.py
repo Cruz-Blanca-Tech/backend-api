@@ -4,7 +4,7 @@ from uuid import UUID
 
 class HistoricalDocumentResponse(BaseModel):
     id: UUID
-    batch_id: UUID
+    batch_id: Optional[UUID] = None
     document_type: str
     year: int
-    file_url: str
+    file_id: str

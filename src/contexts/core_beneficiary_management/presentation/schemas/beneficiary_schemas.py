@@ -21,8 +21,19 @@ class BeneficiaryResponse(BaseModel):
     related_adults: List[AdultResponse]
     historical_documents: List[HistoricalDocumentResponse]
 
+class BeneficiarySummaryResponse(BaseModel):
+    id: UUID
+    dni: str
+    first_name: str
+    last_name: str
+    birth_date: Optional[date]
+    age: Optional[int] = None
+    gender: Optional[str]
+    is_active: bool
+    grade: Optional[str] = None
+
 class PaginatedBeneficiaryResponse(BaseModel):
-    items: List[BeneficiaryResponse]
+    items: List[BeneficiarySummaryResponse]
     total: int
     skip: int
     limit: int
