@@ -59,7 +59,9 @@ class InscriptionTriageStrategy(TriageStrategy):
                 rule_description=f"Excepción al crear la entidad de dominio: {str(e)}",
                 severity="ERROR"
             ))
-            dossier_data = {}
+            from dataclasses import asdict
+            fallback_entity = DossierFactory.create_empty(activity_type)
+            dossier_data = asdict(fallback_entity)
 
         has_errors = any(d.severity == "ERROR" for d in discrepancies)
 

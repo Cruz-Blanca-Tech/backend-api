@@ -63,5 +63,19 @@ class DossierFactory:
                 raise ValueError("No se puede construir un Dossier Educa sin el documento principal FINS.")
             mapper = EducaInscriptionDomainMapper()
             return mapper.map(enriched_fins, enriched_dj, enriched_dniap)
-
         raise ValueError(f"ActivityType '{activity_type}' no está soportado en la creación desde enriquecidos.")
+
+    @staticmethod
+    def create_empty(activity_type: ActivityType) -> DossierData:
+        """
+        Crea un DossierData vacío. Útil como fallback cuando falla la creación por falta
+        de documentos críticos, permitiendo que la interfaz de Triaje renderice el formulario.
+        """
+        if activity_type == ActivityType.EDUCA_INSCRIPTION:
+            return EducaInscriptionDossier(
+                beneficiary=BeneficiaryData(),
+                related_adults=FamilyData(),
+                education=EducationData(),
+                medical=MedicalData()
+            )
+        raise ValueError(f"ActivityType '{activity_type}' no soportado para create_empty.")
