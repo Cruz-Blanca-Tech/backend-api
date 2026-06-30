@@ -5,7 +5,7 @@ class DossierProcessorFactory:
     @staticmethod
     def get_processor(activity_type: str) -> DossierProcessorStrategy:
         activity_type = activity_type.upper()
-        if activity_type == "EDUCA":
+        if activity_type in ("EDUCA", "EDUCA_INSCRIPTION"):
             return EducaDossierProcessor()
         
         # You can add more programs here in the future

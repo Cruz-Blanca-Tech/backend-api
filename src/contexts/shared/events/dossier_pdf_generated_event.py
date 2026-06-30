@@ -7,7 +7,7 @@ class DossierPdfGeneratedEvent:
     batch_id: UUID
     dni: str
     document_type: str
-    file_url: str
+    file_id: str
     year: int
     event_name: str = field(default="DossierPdfGeneratedEvent", init=False)
     occurred_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

@@ -63,7 +63,7 @@ class VerifyBatchCompletionUseCase:
             logger.info(f"All {len(cases)} cases for batch {batch_id} have been processed. Emitting approved and rejected events per case, then batch completion event.")
             for case in cases:
                 if case.status == TriageStatus.APPROVED:
-                    await EventDispatcher.dispatch(
+                    EventDispatcher.dispatch_background(
                         DossierApprovedEvent(
                             triage_case_id=case.id,
                             batch_id=case.batch_id,
@@ -74,7 +74,7 @@ class VerifyBatchCompletionUseCase:
                         )
                     )
                 elif case.status == TriageStatus.REJECTED:
-                    await EventDispatcher.dispatch(
+                    EventDispatcher.dispatch_background(
                         DossierRejectedEvent(
                             triage_case_id=case.id,
                             batch_id=case.batch_id,
@@ -95,7 +95,7 @@ class VerifyBatchCompletionUseCase:
                         "documents": list(case.document_ids.values())
                     }
 
-            await EventDispatcher.dispatch(BatchTriageCompletedEvent(
+            EventDispatcher.dispatch_background(BatchTriageCompletedEvent(
                 batch_id=batch_id,
                 approved_dossiers=approved_dossiers
             ))

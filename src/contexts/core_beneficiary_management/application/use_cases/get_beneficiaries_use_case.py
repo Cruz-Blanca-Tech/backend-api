@@ -11,7 +11,7 @@ class GetBeneficiariesUseCase:
         total = await self.repo.count()
         beneficiaries = await self.repo.get_all(skip=skip, limit=limit)
         
-        items = [BeneficiaryDtoMapper.to_response(b) for b in beneficiaries]
+        items = [BeneficiaryDtoMapper.to_summary_response(b) for b in beneficiaries]
         
         return PaginatedBeneficiaryResponse(
             items=items,
