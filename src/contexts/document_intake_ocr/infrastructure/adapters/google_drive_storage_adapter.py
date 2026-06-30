@@ -95,59 +95,30 @@ class GoogleDriveStorageAdapter(DocumentStorage):
 
     def _sync_copy_to_custody(self, file_item: FileItem, target_folder_id: str, user_email: str) -> str:
         """
-        Lógica síncrona que orquesta el apretón de manos de permisos entre
-        el voluntario y el sistema central para escribir en Unidades Compartidas.
+        Lógica síncrona que resuelve el acceso a archivos personales.
+        En lugar de usar 'copy' (que falla por políticas de Workspace al intentar compartir),
+        descargamos el archivo a memoria suplantando al voluntario, y lo subimos a la bóveda
+        actuando como el Robot.
         """
-        # 1. Credenciales Base (El Robot actuando como sí mismo)
-        base_credentials = service_account.Credentials.from_service_account_info(
-            self._credentials_info, scopes=self._scopes
-        )
-        service_robot = build('drive', 'v3', credentials=base_credentials, cache_discovery=False)
+        # 1. Descargar a RAM usando la identidad del Voluntario
+        file_bytes = self._sync_download_file(file_item, user_email)
         
-        # 2. Credenciales Delegadas (El Robot usando la identidad del Voluntario)
-        delegated_credentials = base_credentials.with_subject(user_email)
-        service_volunteer = build('drive', 'v3', credentials=delegated_credentials, cache_discovery=False)
-        
-        # 3. PUENTE DE PERMISOS: El voluntario le da acceso de lectura temporal al Robot
-        user_permission = {
-            'type': 'user',
-            'role': 'reader',
-            'emailAddress': self._robot_email
-        }
-        
-        permission = service_volunteer.permissions().create(
-            fileId=file_item.file_id,
-            body=user_permission,
-            fields='id'
-        ).execute()
-        
-        try:
-            # 4. COPIA: El Robot realiza la copia nativa hacia la subcarpeta del Lote
-            body = {
-                'parents': [target_folder_id],
-                'name': file_item.file_name
-            }
-            new_file = service_robot.files().copy(
-                fileId=file_item.file_id,
-                body=body,
-                supportsAllDrives=True, # Obligatorio para escribir en Shared Drives
-                fields='id, webViewLink'
-            ).execute()
+        # 2. Obtener el mimetype basándonos en la extensión
+        mime_type = "application/pdf"
+        if file_item.file_name.lower().endswith(".jpg") or file_item.file_name.lower().endswith(".jpeg"):
+            mime_type = "image/jpeg"
+        elif file_item.file_name.lower().endswith(".png"):
+            mime_type = "image/png"
             
-            # Devolvemos el enlace seguro del archivo recién custodiado
-            return new_file.get('webViewLink', f"https://drive.google.com/open?id={new_file.get('id')}")
+        # 3. Subir a la bóveda como el Robot
+        webview_link = self._sync_upload_file_to_folder(
+            folder_id=target_folder_id,
+            file_bytes=file_bytes,
+            filename=file_item.file_name,
+            mime_type=mime_type
+        )
         
-        except HttpError as e:
-            # ESTO ES LO QUE DEBES MIRAR EN TUS LOGS
-            print(f"ERROR CRÍTICO EN DRIVE: {e.content}")
-            raise ExternalServiceException(...)
-        finally:
-            # 5. LIMPIEZA GARANTIZADA: El voluntario revoca el acceso del Robot
-            # Este bloque se ejecuta incluso si el paso 4 falla por cualquier motivo
-            service_volunteer.permissions().delete(
-                fileId=file_item.file_id,
-                permissionId=permission['id']
-            ).execute()
+        return webview_link
 
     # Agregar al final de src/contexts/document_intake_ocr/infrastructure/adapters/google_drive_storage_adapter.py
 
