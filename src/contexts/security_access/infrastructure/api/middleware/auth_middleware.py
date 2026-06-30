@@ -27,7 +27,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/v1/triage/health",
             "/api/v1/reporting/health",
             "/api/v1/triage/docs",
-            "/api/v1/triage/openapi.json"
+            "/api/v1/triage/openapi.json",
+            "/api/v1/mdm/docs",
+            "/api/v1/mdm/openapi.json"
         ]
 
     async def dispatch(self, request: Request, call_next):

@@ -18,6 +18,15 @@ class VerifyBatchCompletionUseCase:
     async def execute(self, batch_id: UUID) -> dict:
         verdict_summary = {v.name: 0 for v in TriageVerdict}
 
+        # Check if the batch is already completed
+        is_completed = await self.batch_status_validator.is_batch_completed(batch_id)
+        if is_completed:
+            return {
+                "status": BatchVerificationStatus.COMPLETED,
+                "message": f"El lote {batch_id} ya fue verificado y completado previamente.",
+                "verdict_summary": verdict_summary
+            }
+
         # Check if the batch has finished processing in the OCR engine
         is_ready = await self.batch_status_validator.is_batch_ready_for_triage(batch_id)
         if not is_ready:
@@ -28,6 +37,7 @@ class VerifyBatchCompletionUseCase:
             }
 
         cases = await self.triage_repository.get_all_by_batch_id(batch_id)
+        logger.info(f"VerifyBatchCompletion - Loaded {len(cases)} cases for batch {batch_id}: {[f'ID: {c.id}, status: {c.status}, verdict: {c.verdict}, DNI: {c.dni_reference}' for c in cases]}")
         
         if not cases:
             return {
@@ -74,7 +84,21 @@ class VerifyBatchCompletionUseCase:
                             reason=case.rejection_reason or "Rechazado en triaje"
                         )
                     )
-            await EventDispatcher.dispatch(BatchTriageCompletedEvent(batch_id=batch_id))
+            approved_dossiers = {}
+            for case in cases:
+                if case.status == TriageStatus.APPROVED:
+                    # Extract the true corrected DNI from dossier_data if available, otherwise fallback to dni_reference
+                    corrected_dni = case.dossier_data.get("beneficiary", {}).get("dni", case.dni_reference)
+                    
+                    approved_dossiers[case.dni_reference] = {
+                        "corrected_dni": corrected_dni,
+                        "documents": list(case.document_ids.values())
+                    }
+
+            await EventDispatcher.dispatch(BatchTriageCompletedEvent(
+                batch_id=batch_id,
+                approved_dossiers=approved_dossiers
+            ))
             return {
                 "status": BatchVerificationStatus.COMPLETED, 
                 "message": f"Batch {batch_id} verified and marked as completed.",

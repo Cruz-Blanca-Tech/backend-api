@@ -5,7 +5,7 @@ from src.contexts.shared.events.dossier_approved_event import DossierApprovedEve
 from src.contexts.core_beneficiary_management.domain.events.beneficiary_events import DossierPdfArchivedEvent
 from src.contexts.core_beneficiary_management.application.use_cases.process_approved_triage_case_use_case import ProcessApprovedTriageCaseUseCase
 from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
-from src.contexts.core_beneficiary_management.infrastructure.persistence.model.beneficiary_models import HistoricalDocumentModel
+from src.contexts.core_beneficiary_management.infrastructure.persistence.model.historical_document_model import HistoricalDocumentModel
 from src.core.database import async_session_maker
 import uuid
 

@@ -8,6 +8,7 @@ from src.core.config import settings
 from src.contexts.security_access.presentation.routes import security_app
 from src.contexts.document_intake_ocr.presentation.api.routes import intake_app
 from src.contexts.data_quality_triage.presentation.api.routes import triage_app
+from src.contexts.core_beneficiary_management.presentation.api.routes import beneficiary_app
 from src.contexts.reporting_analytics.api.routes import router as reporting_router
 
 from src.core.events.event_dispatcher import EventDispatcher
@@ -92,12 +93,14 @@ configure_exception_handlers(app)          # Para la app raíz
 configure_exception_handlers(intake_app)   # Para el contexto de Ingesta
 configure_exception_handlers(security_app) # Para el contexto de Seguridad
 configure_exception_handlers(triage_app)   # Para el contexto de Triage
+configure_exception_handlers(beneficiary_app) # Para el contexto de Beneficiarios
 
 
 # Registrar routers de cada Bounded Context bajo el prefijo común
 app.mount(f"{settings.API_V1_STR}/intake", intake_app)
 app.mount("/auth", security_app)
 app.mount(f"{settings.API_V1_STR}/triage", triage_app)
+app.mount(f"{settings.API_V1_STR}/mdm", beneficiary_app)
 
 app.include_router(reporting_router, prefix=settings.API_V1_STR)
 
