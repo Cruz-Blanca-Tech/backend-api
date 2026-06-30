@@ -1,59 +1,52 @@
 import pytest
 from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
+from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
 
-RAW_DATA = {
-    "FINS": {
-        "child_first_name": "Soraia HJaman",
-        "child_last_name": "Perez",
-        "child_age": "5 años",
-        "parents_mother_full_name": "Milagro Chacon quispe",
-        "parents_father_full_name": "Ramiro Chacon",
-        "parents_guardian_full_name": None,
-        "education_school_name": "Colegio Nacional 123",
-        "education_grade": "Primero Primaria",
-        "education_knows_read": "selected",
-        "education_knows_write": "si",
-        "education_repeated_grade": "unselected",
-        "education_learning_difficulties": "true",
-        "medical_has_been_hospitalized": "selected",
-        "medical_hospitalization_reason": "Problemas digestivos",
-        "medical_has_been_operated": "no",
-        "medical_allergies": ["other: Carne"],
-        "medical_insurance": ["sis"]
+RAW_PAYLOAD = {
+    "beneficiary": {
+        "dni": "78739850",
+        "first_name": "SARAI MILENA",
+        "last_name": "CHACON",
+        "birth_date": "2021-06-28",
+        "gender": "F"
     },
-    "DNIBEF": {
-        "FirstName": "SARAI MILENA",
-        "LastName": "CHACON",
-        "DocumentNumber": "78739850"
+    "related_adults": {
+        "adults": [
+            {
+                "relationship": "MOTHER",
+                "dni": "48100010",
+                "full_name": "MILAGROS VERONICA QUISPE",
+                "phone": "999999999"
+            }
+        ],
+        "guardian_dni": "48100010"
     },
-    "DNIAP": {
-        "FirstName": "MILAGROS VERONICA",
-        "LastName": "QUISPE",
-        "DocumentNumber": "4 8 1 00010 - 1"
+    "education": {
+        "school": "Colegio Nacional 123",
+        "grade": "Primero Primaria",
+        "knows_how_to_read": True,
+        "knows_how_to_write": True,
+        "has_repeated_grade": False,
+        "has_learning_difficulties": True
     },
-    "DJ": {
-        "child_dni": "78739850",
-        "parents_father_dni": "47 54 50 15",
-        "parents_mother_dni": "4 8 1 00010"
+    "medical": {
+        "has_been_hospitalized": True,
+        "hospitalization_reason": "Problemas digestivos",
+        "has_been_operated": False,
+        "operation_reason": None,
+        "vaccines": [],
+        "medications": [],
+        "allergies": ["Carne"],
+        "diseases": [],
+        "insurance": ["sis"]
     }
 }
 
 def test_dossier_factory_mapping_and_validation():
-    inscription = DossierFactory.from_data(RAW_DATA)
+    inscription = DossierFactory.reconstitute(RAW_PAYLOAD, ActivityType.EDUCA_INSCRIPTION)
     
     # Assert Normalized DNI mappings
-    assert inscription.beneficiary.dni in (None, "")
-    assert inscription.parents.mother.dni in (None, "")
-    assert inscription.parents.father.dni in (None, "")
-
-    # Assert Validation behavior
-    phones = [p for p in [
-        inscription.parents.father.phone if inscription.parents.father else None, 
-        inscription.parents.mother.phone if inscription.parents.mother else None, 
-        inscription.parents.guardian.phone if inscription.parents.guardian else None
-    ] if p]
-    
-    if not phones:
-        assert any("Debe existir al menos un número de emergencia" in issue for issue in inscription.parents.validation_issues)
-    
-    assert inscription.parents.apoderado_type is not None
+    assert inscription.beneficiary.dni == "78739850"
+    assert inscription.related_adults.guardian_dni == "48100010"
+    assert inscription.education.school == "Colegio Nacional 123"
+    assert inscription.medical.has_been_hospitalized is True

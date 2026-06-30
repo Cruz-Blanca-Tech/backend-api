@@ -5,9 +5,7 @@ from uuid import UUID, uuid4
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 from src.contexts.data_quality_triage.domain.shared.value_objects.quality_rule_result import QualityRuleResult
 from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
-from src.contexts.data_quality_triage.domain.shared.events.triage_events import (
-    DossierApprovedEvent, DossierRejectedEvent,
-)
+# No imports from triage_events
 
 class TriageCase:
     def __init__(
@@ -81,16 +79,6 @@ class TriageCase:
             discrepancies=quality_result.discrepancies,
         )
 
-        if verdict == TriageVerdict.AUTO_APPROVED:
-            case._pending_events.append(
-                DossierApprovedEvent(
-                    triage_case_id=case.id,
-                    batch_id=batch_id,
-                    dni_reference=dni_reference,
-                    document_ids=list(document_ids.values()),
-                    approved_by=UUID("00000000-0000-0000-0000-000000000000"),
-                )
-            )
         return case
 
     def assign_to_reviewer(self, reviewer_id: UUID) -> None:
@@ -114,15 +102,6 @@ class TriageCase:
         self.resolved_by = approved_by
         self.resolved_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
-        self._pending_events.append(
-            DossierApprovedEvent(
-                triage_case_id=self.id,
-                batch_id=self.batch_id,
-                dni_reference=self.dni_reference,
-                document_ids=list(self.document_ids.values()),
-                approved_by=approved_by,
-            )
-        )
 
     def reject(self, rejected_by: UUID, reason: str) -> None:
         self.status = TriageStatus.REJECTED
@@ -131,16 +110,6 @@ class TriageCase:
         self.resolved_by = rejected_by
         self.resolved_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
-        self._pending_events.append(
-            DossierRejectedEvent(
-                triage_case_id=self.id,
-                batch_id=self.batch_id,
-                dni_reference=self.dni_reference,
-                document_ids=list(self.document_ids.values()),
-                rejected_by=rejected_by,
-                reason=reason,
-            )
-        )
 
     @property
     def is_finalized(self) -> bool:

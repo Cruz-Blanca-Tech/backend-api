@@ -22,3 +22,11 @@ class BatchStatusValidatorAdapter(BatchStatusValidatorPort):
             
         # Solo se puede rechazar si el lote está pendiente de triaje (PENDING)
         return batch.status == BatchStatus.PENDING
+
+    async def is_batch_completed(self, batch_id: UUID) -> bool:
+        batch = await self.batch_repository.get_by_id(batch_id)
+        if not batch:
+            return False
+            
+        # El lote está completado si está en estado FINALIZED o FAILED
+        return batch.status in (BatchStatus.FINALIZED, BatchStatus.FAILED)
