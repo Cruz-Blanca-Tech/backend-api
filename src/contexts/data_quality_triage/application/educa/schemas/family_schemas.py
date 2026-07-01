@@ -13,6 +13,7 @@ class RelatedAdultSchema(BaseModel):
 class FamilySchema(BaseModel):
     adults: List[RelatedAdultSchema] = Field(default_factory=list)
     guardian_dni: Optional[str] = None
+    emergency_contact_dni: Optional[str] = None
     validation_issues: List[str] = Field(default_factory=list)
 
     class Config:
