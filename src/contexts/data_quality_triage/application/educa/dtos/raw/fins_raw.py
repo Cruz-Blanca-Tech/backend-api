@@ -64,6 +64,14 @@ class FinsRaw(BaseModel):
     medical_is_taking_medication: Optional[str] = Field(default=None, alias="medical_is_taking_medication")
     medical_medication_name: Optional[str] = Field(default=None, alias="medical_medication_name")
 
+    # Religion
+    religion_baptized: Optional[str] = Field(default=None, alias="religion_baptized", title="¿Fue bautizado?", json_schema_extra={"group": "religion"})
+    religion_first_communion: Optional[str] = Field(default=None, alias="religion_first_communion", title="¿Hizo la 1ra Comunión?", json_schema_extra={"group": "religion"})
+
+    # Permissions
+    permission_haircut: Optional[str] = Field(default=None, alias="permission_haircut", title="¿Podemos cortarle el pelo?", json_schema_extra={"group": "permisos"})
+    permission_medical_exams: Optional[str] = Field(default=None, alias="permission_medical_exams", title="¿Podemos hacerle exámenes médicos?", json_schema_extra={"group": "permisos"})
+
     @classmethod
     def from_dict(cls, data: dict):
         return cls(**data)

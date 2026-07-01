@@ -8,6 +8,8 @@ from src.contexts.core_beneficiary_management.domain.entities.adult import Adult
 from src.contexts.core_beneficiary_management.domain.value_objects.medical_record import MedicalRecord
 from src.contexts.core_beneficiary_management.domain.value_objects.education_record import EducationRecord
 from src.contexts.core_beneficiary_management.domain.value_objects.relationship_role import RelationshipRole
+from src.contexts.core_beneficiary_management.domain.value_objects.religion_record import ReligionRecord
+from src.contexts.core_beneficiary_management.domain.value_objects.permissions_record import PermissionsRecord
 from src.contexts.core_beneficiary_management.domain.value_objects.dni import DNI
 from src.contexts.core_beneficiary_management.domain.value_objects.phone import Phone
 from src.contexts.core_beneficiary_management.domain.value_objects.grade import Grade
@@ -49,7 +51,8 @@ class EducaDossierMapper:
                 first_name=ben_dto.first_name,
                 last_name=ben_dto.last_name,
                 birth_date=birth_date,
-                gender=gender
+                gender=gender,
+                address=ben_dto.address
             )
         else:
             beneficiary = existing_beneficiary
@@ -58,6 +61,19 @@ class EducaDossierMapper:
             if birth_date:
                 beneficiary.birth_date = birth_date
             beneficiary.gender = gender
+            beneficiary.address = ben_dto.address
+
+        rel_dto = dto.religion
+        beneficiary.religion_record = ReligionRecord(
+            baptized=rel_dto.baptized,
+            first_communion=rel_dto.first_communion
+        )
+
+        perm_dto = dto.permissions
+        beneficiary.permissions_record = PermissionsRecord(
+            haircut_permission=perm_dto.haircut_permission,
+            medical_exams_permission=perm_dto.medical_exams_permission
+        )
 
         # Map Medical Record
         med_dto = dto.medical

@@ -10,6 +10,8 @@ from .enrollment_mapper import EnrollmentMapper
 
 from src.contexts.core_beneficiary_management.domain.value_objects.dni import DNI
 from src.contexts.core_beneficiary_management.domain.value_objects.gender import Gender
+from src.contexts.core_beneficiary_management.domain.value_objects.religion_record import ReligionRecord
+from src.contexts.core_beneficiary_management.domain.value_objects.permissions_record import PermissionsRecord
 
 class BeneficiaryMapper:
     @staticmethod
@@ -57,6 +59,15 @@ class BeneficiaryMapper:
             last_name=model.last_name,
             birth_date=model.birth_date,
             gender=gender,
+            address=model.address,
+            religion_record=ReligionRecord(
+                baptized=model.baptized,
+                first_communion=model.first_communion
+            ),
+            permissions_record=PermissionsRecord(
+                haircut_permission=model.haircut_permission,
+                medical_exams_permission=model.medical_exams_permission
+            ),
             medical_record=MedicalRecordMapper.to_domain(model.medical_record),
             education_record=EducationRecordMapper.to_domain(model.education_record),
             relatives=relatives,
@@ -75,7 +86,12 @@ class BeneficiaryMapper:
             first_name=entity.first_name,
             last_name=entity.last_name,
             birth_date=entity.birth_date,
-            gender=entity.gender.value if entity.gender else None
+            gender=entity.gender.value if entity.gender else None,
+            address=entity.address,
+            baptized=entity.religion_record.baptized if entity.religion_record else None,
+            first_communion=entity.religion_record.first_communion if entity.religion_record else None,
+            haircut_permission=entity.permissions_record.haircut_permission if entity.permissions_record else None,
+            medical_exams_permission=entity.permissions_record.medical_exams_permission if entity.permissions_record else None
         )
 
         model.medical_record = MedicalRecordMapper.to_persistence(entity.medical_record, entity.id)
