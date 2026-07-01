@@ -45,7 +45,8 @@ class AdultMapper:
             gender=gender,
             beneficiary_id=model.beneficiary_id,
             role=role_enum,
-            phone=phone
+            phone=phone,
+            is_emergency_contact=model.is_emergency_contact
         )
 
     @staticmethod
@@ -62,5 +63,6 @@ class AdultMapper:
             gender=entity.gender.value if entity.gender else None,
             beneficiary_id=beneficiary_id,
             role=entity.role.value,
-            phone=entity.phone.value if entity.phone else None
+            phone=entity.phone.value if entity.phone else None,
+            is_emergency_contact=entity.is_emergency_contact
         )

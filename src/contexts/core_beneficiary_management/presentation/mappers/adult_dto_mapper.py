@@ -17,7 +17,8 @@ class AdultDtoMapper:
             birth_date=domain_entity.birth_date,
             gender=domain_entity.gender.value if domain_entity.gender else None,
             role=domain_entity.role.value if domain_entity.role else "",
-            phone=domain_entity.phone.value if domain_entity.phone else None
+            phone=domain_entity.phone.value if domain_entity.phone else None,
+            is_emergency_contact=domain_entity.is_emergency_contact
         )
 
     @staticmethod

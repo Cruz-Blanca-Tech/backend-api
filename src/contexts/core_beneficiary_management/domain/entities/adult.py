@@ -11,6 +11,7 @@ class Adult(Person):
     beneficiary_id: UUID = None
     role: RelationshipRole = RelationshipRole.OTHER
     phone: Optional[Phone] = None
+    is_emergency_contact: bool = False
 
     def __post_init__(self):
         self.type = "adult"

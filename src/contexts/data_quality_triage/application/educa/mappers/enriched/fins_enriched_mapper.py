@@ -30,6 +30,7 @@ class FinsEnrichedMapper(BaseEnrichedMapper):
             child_age=self.build_field(raw_dto.child_age, "Edad", DataType.INT),
             child_gender=self.build_field(raw_dto.child_gender, "Sexo", DataType.GENDER),
             adults=self.adults_mapper.map(raw_dto),
+            emergency_contact_phone=self.build_field(raw_dto.parents_emergency_contact_phone, "Teléfono de Emergencia", DataType.PHONE),
             address=self.address_mapper.map(raw_dto),
             education=self.education_mapper.map(raw_dto),
             medical=self.medical_mapper.map(raw_dto),
