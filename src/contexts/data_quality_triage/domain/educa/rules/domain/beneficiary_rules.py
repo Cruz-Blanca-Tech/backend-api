@@ -6,6 +6,20 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscripti
 class BeneficiaryCompletenessRule(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
+        
+        # Validar DNI
+        dni = domain_entity.beneficiary.dni
+        if not dni or not dni.strip():
+            issues.append(FieldDiscrepancy(
+                field_name="beneficiary.dni", expected_pattern="8 dígitos numéricos", actual_value="(vacío)",
+                rule_description="El DNI del beneficiario es obligatorio.", severity="ERROR", document_code="DOMINIO"
+            ))
+        elif not (dni.isdigit() and len(dni) == 8):
+            issues.append(FieldDiscrepancy(
+                field_name="beneficiary.dni", expected_pattern="8 dígitos numéricos", actual_value=str(dni),
+                rule_description="El DNI del beneficiario debe tener exactamente 8 dígitos numéricos.", severity="ERROR", document_code="DOMINIO"
+            ))
+
         if not domain_entity.beneficiary.first_name or not domain_entity.beneficiary.last_name:
             issues.append(FieldDiscrepancy(
                 field_name="beneficiary.name", expected_pattern="Nombre y Apellido", actual_value="(vacío)",
