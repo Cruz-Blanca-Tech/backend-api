@@ -2,9 +2,11 @@ from typing import List, Optional
 from dataclasses import dataclass
 from src.contexts.data_quality_triage.domain.shared.value_objects.enriched_field import EnrichedField
 
+from src.contexts.data_quality_triage.domain.shared.value_objects.adult_role import AdultRole
+
 @dataclass
 class EnrichedAdult:
-    role: str
+    role: AdultRole
     dni: EnrichedField
     first_name: EnrichedField
     last_name: EnrichedField
@@ -76,6 +78,7 @@ class EnrichedFins:
     child_age: EnrichedField
     child_gender: EnrichedField
     adults: List[EnrichedAdult]
+    emergency_contact_phone: EnrichedField
     address: EnrichedAddress
     education: EnrichedEducation
     medical: EnrichedMedical

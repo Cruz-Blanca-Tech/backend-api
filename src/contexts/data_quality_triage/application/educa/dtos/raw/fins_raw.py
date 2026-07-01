@@ -28,6 +28,7 @@ class FinsRaw(BaseModel):
     parents_guardian_full_name: Optional[str] = Field(default=None, alias="parents_guardian_full_name", title="Apoderado", json_schema_extra={"group": "padres"})
     parents_guardian_phone: Optional[str] = Field(default=None, alias="parents_guardian_phone", title="Teléfono Apoderado", json_schema_extra={"group": "padres"})
     parents_guardian_dni: Optional[str] = Field(default=None, alias="parents_guardian_dni", title="DNI Apoderado", json_schema_extra={"group": "padres"})
+    parents_emergency_contact_phone: Optional[str] = Field(default=None, alias="parents_emergency_contact_phone", title="Teléfono Emergencia", json_schema_extra={"group": "padres"})
 
     # Education
     child_school: Optional[str] = Field(default=None, alias="child_school", title="Colegio", json_schema_extra={"group": "educacion"})

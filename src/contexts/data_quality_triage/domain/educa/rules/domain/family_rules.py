@@ -23,19 +23,27 @@ class GuardianPresenceRule(DomainRule):
         return issues
 
 class EmergencyContactRule(DomainRule):
+    """
+    Verifica que el contacto de emergencia haya sido resuelto a un adulto válido.
+    """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
-        from src.contexts.data_quality_triage.domain.shared.value_objects.phone_number import PhoneNumber
+        emergency_dni = domain_entity.related_adults.emergency_contact_dni
         
-        valid_phones = []
-        for adult in domain_entity.related_adults.adults:
-            if adult.phone and PhoneNumber.is_valid(adult.phone):
-                valid_phones.append(adult.phone)
-                
-        if not valid_phones:
+        if not emergency_dni:
             issues.append(FieldDiscrepancy(
-                field_name="related_adults.phone", expected_pattern="Al menos 1 teléfono válido", actual_value="(inválido o vacío)",
-                rule_description="Debe existir al menos un número de emergencia válido (7-15 dígitos, opcionalmente con prefijo '+') registrado para los adultos.", 
+                field_name="related_adults.emergency_contact_dni", expected_pattern="DNI asignado", actual_value="(vacío)",
+                rule_description="No se pudo asignar un contacto de emergencia a ninguno de los adultos.", 
                 severity="ERROR", document_code="DOMINIO"
             ))
+            return issues
+            
+        adult_dnis = [a.dni for a in domain_entity.related_adults.adults if a.dni]
+        if emergency_dni not in adult_dnis:
+            issues.append(FieldDiscrepancy(
+                field_name="related_adults.emergency_contact_dni", expected_pattern="DNI de un adulto registrado", actual_value=str(emergency_dni),
+                rule_description="El contacto de emergencia resuelto no corresponde a ningún adulto registrado.", 
+                severity="ERROR", document_code="DOMINIO"
+            ))
+            
         return issues

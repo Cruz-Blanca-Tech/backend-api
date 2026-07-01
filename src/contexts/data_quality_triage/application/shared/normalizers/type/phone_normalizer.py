@@ -1,8 +1,8 @@
 from typing import Any
-from src.contexts.data_quality_triage.application.shared.normalizers.base.normalizer_strategy import NormalizerStrategy
+from src.contexts.data_quality_triage.application.shared.normalizers.base import FieldNormalizer
 from src.contexts.data_quality_triage.domain.shared.value_objects.phone_number import PhoneNumber
 
-class PhoneNormalizer(NormalizerStrategy):
+class PhoneNormalizer(FieldNormalizer):
     def normalize(self, raw_value: Any) -> Any:
         if not raw_value:
             return None
