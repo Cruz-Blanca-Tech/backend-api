@@ -3,13 +3,14 @@
 from fastapi import APIRouter, BackgroundTasks, Depends
 
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
-from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest, ListBatchesResponse
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest, ListBatchesResponse, BatchItemSchema
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
 from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
-from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case, get_batches_summary_use_case
+from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_list_batches_use_case, get_batches_summary_use_case, get_batch_by_id_use_case
+from src.contexts.document_intake_ocr.application.use_cases.get_batch_by_id_use_case import GetBatchByIdUseCase
 from uuid import UUID
 from typing import Optional
 from fastapi import Query
@@ -67,6 +68,14 @@ async def list_batches(
         status=status
     )
     return await use_case.execute(request)
+
+@router.get("/{batch_id}", response_model=BatchItemSchema, summary="Obtiene el detalle de un lote específico por ID")
+async def get_batch_by_id(
+    batch_id: UUID,
+    use_case: GetBatchByIdUseCase = Depends(get_batch_by_id_use_case)
+):
+    """Devuelve los detalles, contadores y métricas de un lote en particular."""
+    return await use_case.execute(batch_id=batch_id)
 
 @router.get("/statuses", summary="Obtiene la lista de estados de lotes disponibles")
 async def get_batch_statuses():
