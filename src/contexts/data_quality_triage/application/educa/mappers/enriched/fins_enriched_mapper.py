@@ -8,6 +8,8 @@ from .address_enriched_mapper import AddressEnrichedMapper
 from .education_enriched_mapper import EducationEnrichedMapper
 from .medical_enriched_mapper import MedicalEnrichedMapper
 from .adults_enriched_mapper import AdultsEnrichedMapper
+from .religion_enriched_mapper import ReligionEnrichedMapper
+from .permissions_enriched_mapper import PermissionsEnrichedMapper
 
 class FinsEnrichedMapper(BaseEnrichedMapper):
     def __init__(self, registry: NormalizerRegistry):
@@ -16,6 +18,8 @@ class FinsEnrichedMapper(BaseEnrichedMapper):
         self.education_mapper = EducationEnrichedMapper(registry)
         self.medical_mapper = MedicalEnrichedMapper(registry)
         self.adults_mapper = AdultsEnrichedMapper(registry)
+        self.religion_mapper = ReligionEnrichedMapper(registry)
+        self.permissions_mapper = PermissionsEnrichedMapper(registry)
 
     def map(self, raw_dto: FinsRaw) -> EnrichedFins:
         return EnrichedFins(
@@ -28,5 +32,7 @@ class FinsEnrichedMapper(BaseEnrichedMapper):
             adults=self.adults_mapper.map(raw_dto),
             address=self.address_mapper.map(raw_dto),
             education=self.education_mapper.map(raw_dto),
-            medical=self.medical_mapper.map(raw_dto)
+            medical=self.medical_mapper.map(raw_dto),
+            religion=self.religion_mapper.map(raw_dto),
+            permissions=self.permissions_mapper.map(raw_dto)
         )
