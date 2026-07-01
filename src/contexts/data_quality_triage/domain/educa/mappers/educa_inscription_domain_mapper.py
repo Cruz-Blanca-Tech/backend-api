@@ -11,6 +11,10 @@ from .beneficiary_domain_mapper import BeneficiaryDomainMapper
 from .family_domain_mapper import FamilyDomainMapper
 from .education_domain_mapper import EducationDomainMapper
 from .medical_domain_mapper import MedicalDomainMapper
+from .religion_domain_mapper import ReligionDomainMapper
+from .permissions_domain_mapper import PermissionsDomainMapper
+from src.contexts.data_quality_triage.domain.educa.value_objects.religion_data import ReligionData
+from src.contexts.data_quality_triage.domain.educa.value_objects.permissions_data import PermissionsData
 
 class EducaInscriptionDomainMapper:
     def __init__(self):
@@ -18,6 +22,8 @@ class EducaInscriptionDomainMapper:
         self.family_mapper = FamilyDomainMapper()
         self.education_mapper = EducationDomainMapper()
         self.medical_mapper = MedicalDomainMapper()
+        self.religion_mapper = ReligionDomainMapper()
+        self.permissions_mapper = PermissionsDomainMapper()
         import logging
         self.logger = logging.getLogger(__name__)
         
@@ -27,7 +33,9 @@ class EducaInscriptionDomainMapper:
             beneficiary=self.map_beneficiary(enriched_fins),
             related_adults=self.map_parents(enriched_fins, enriched_dj, enriched_dniap),
             education=self.map_education(enriched_fins),
-            medical=self.map_medical(enriched_fins)
+            medical=self.map_medical(enriched_fins),
+            religion=self.map_religion(enriched_fins),
+            permissions=self.map_permissions(enriched_fins)
         )
         
     def map_beneficiary(self, enriched_fins: EnrichedFins) -> BeneficiaryData:
@@ -58,3 +66,18 @@ class EducaInscriptionDomainMapper:
         except Exception as e:
             self.logger.error(f"Error mapeando medical: {e}")
             return MedicalData()
+
+    def map_religion(self, enriched_fins: EnrichedFins) -> ReligionData:
+        try:
+            return self.religion_mapper.map(enriched_fins)
+        except Exception as e:
+            self.logger.error(f"Error mapeando religion: {e}")
+            return ReligionData()
+
+    def map_permissions(self, enriched_fins: EnrichedFins) -> PermissionsData:
+        try:
+            return self.permissions_mapper.map(enriched_fins)
+        except Exception as e:
+            self.logger.error(f"Error mapeando permissions: {e}")
+            return PermissionsData()
+

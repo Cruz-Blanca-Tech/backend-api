@@ -12,6 +12,7 @@ class Person:
     dni: DNI
     first_name: str
     last_name: str
-    birth_date: Optional[date]
-    gender: Optional[Gender]
+    birth_date: Optional[date] = None
+    gender: Optional[Gender] = None
+    address: Optional[str] = None
     type: str = ""  # Set by subclasses in __post_init__
