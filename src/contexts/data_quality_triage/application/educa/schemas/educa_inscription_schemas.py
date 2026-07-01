@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Dict, Any, List
 
 from src.contexts.data_quality_triage.application.shared.schemas.dossier_schemas import DossierRequest, DossierResponse
@@ -19,6 +19,26 @@ class EducaInscriptionData(BaseModel):
     religion: ReligionSchema = Field(default_factory=ReligionSchema)
     permissions: PermissionsSchema = Field(default_factory=PermissionsSchema)
 
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "beneficiary" in data:
+            ben = data["beneficiary"]
+            if isinstance(ben, dict):
+                if "baptized" in ben or "first_communion" in ben:
+                    data.setdefault("religion", {})
+                    if "baptized" in ben:
+                        data["religion"]["baptized"] = ben.pop("baptized")
+                    if "first_communion" in ben:
+                        data["religion"]["first_communion"] = ben.pop("first_communion")
+                if "haircut_permission" in ben or "medical_exams_permission" in ben:
+                    data.setdefault("permissions", {})
+                    if "haircut_permission" in ben:
+                        data["permissions"]["haircut_permission"] = ben.pop("haircut_permission")
+                    if "medical_exams_permission" in ben:
+                        data["permissions"]["medical_exams_permission"] = ben.pop("medical_exams_permission")
+        return data
+
     class Config:
         from_attributes = True
 
@@ -33,6 +53,26 @@ class EducaInscriptionRequest(DossierRequest):
     medical: MedicalSchema = Field(default_factory=MedicalSchema)
     religion: ReligionSchema = Field(default_factory=ReligionSchema)
     permissions: PermissionsSchema = Field(default_factory=PermissionsSchema)
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "beneficiary" in data:
+            ben = data["beneficiary"]
+            if isinstance(ben, dict):
+                if "baptized" in ben or "first_communion" in ben:
+                    data.setdefault("religion", {})
+                    if "baptized" in ben:
+                        data["religion"]["baptized"] = ben.pop("baptized")
+                    if "first_communion" in ben:
+                        data["religion"]["first_communion"] = ben.pop("first_communion")
+                if "haircut_permission" in ben or "medical_exams_permission" in ben:
+                    data.setdefault("permissions", {})
+                    if "haircut_permission" in ben:
+                        data["permissions"]["haircut_permission"] = ben.pop("haircut_permission")
+                    if "medical_exams_permission" in ben:
+                        data["permissions"]["medical_exams_permission"] = ben.pop("medical_exams_permission")
+        return data
 
 class EducaInscriptionResponse(DossierResponse):
     """
