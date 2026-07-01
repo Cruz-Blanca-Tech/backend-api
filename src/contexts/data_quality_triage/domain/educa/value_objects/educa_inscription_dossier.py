@@ -49,6 +49,10 @@ class EducaInscriptionDossier(DossierData):
 
         self.beneficiary.validation_issues = [i.rule_description for i in issues if "beneficiary" in i.field_name]
         self.related_adults.validation_issues = [i.rule_description for i in issues if "related_adults" in i.field_name]
+        self.education.validation_issues = [i.rule_description for i in issues if "education" in i.field_name]
+        self.medical.validation_issues = [i.rule_description for i in issues if "medical" in i.field_name]
+        self.religion.validation_issues = [i.rule_description for i in issues if "religion" in i.field_name]
+        self.permissions.validation_issues = [i.rule_description for i in issues if "permissions" in i.field_name]
         
         is_valid = len(issues) == 0
         return is_valid, issues

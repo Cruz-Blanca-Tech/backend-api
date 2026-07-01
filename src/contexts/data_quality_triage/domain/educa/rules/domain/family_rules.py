@@ -25,11 +25,18 @@ class GuardianPresenceRule(DomainRule):
 class EmergencyContactRule(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
-        phones = [adult.phone for adult in domain_entity.related_adults.adults if adult.phone]
-        if not phones:
+        import re
+        phone_pattern = re.compile(r"^\+?[\d\s-]{7,15}$")
+        
+        valid_phones = []
+        for adult in domain_entity.related_adults.adults:
+            if adult.phone and phone_pattern.match(adult.phone.strip()):
+                valid_phones.append(adult.phone)
+                
+        if not valid_phones:
             issues.append(FieldDiscrepancy(
-                field_name="related_adults.phone", expected_pattern="Al menos 1 teléfono", actual_value="(vacío)",
-                rule_description="Debe existir al menos un número de emergencia (teléfono) registrado para los adultos relacionados.", 
+                field_name="related_adults.phone", expected_pattern="Al menos 1 teléfono válido", actual_value="(inválido o vacío)",
+                rule_description="Debe existir al menos un número de emergencia válido (7-15 dígitos, opcionalmente con prefijo '+') registrado para los adultos.", 
                 severity="ERROR", document_code="DOMINIO"
             ))
         return issues
