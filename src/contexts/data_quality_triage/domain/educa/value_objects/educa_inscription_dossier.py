@@ -8,6 +8,8 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.beneficiary_dat
 from src.contexts.data_quality_triage.domain.educa.value_objects.family_data import FamilyData
 from src.contexts.data_quality_triage.domain.educa.value_objects.education_data import EducationData
 from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data import MedicalData
+from src.contexts.data_quality_triage.domain.educa.value_objects.religion_data import ReligionData
+from src.contexts.data_quality_triage.domain.educa.value_objects.permissions_data import PermissionsData
 
 
 @dataclass
@@ -16,6 +18,8 @@ class EducaInscriptionDossier(DossierData):
     related_adults: FamilyData
     education: EducationData
     medical: MedicalData
+    religion: ReligionData
+    permissions: PermissionsData
 
 
     def validate_completeness(self) -> Tuple[bool, List['FieldDiscrepancy']]:

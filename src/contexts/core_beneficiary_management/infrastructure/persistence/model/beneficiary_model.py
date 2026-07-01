@@ -14,6 +14,11 @@ class BeneficiaryModel(PersonModel):
         "polymorphic_identity": "beneficiary",
     }
 
+    baptized: Mapped[bool] = mapped_column(nullable=True)
+    first_communion: Mapped[bool] = mapped_column(nullable=True)
+    haircut_permission: Mapped[bool] = mapped_column(nullable=True)
+    medical_exams_permission: Mapped[bool] = mapped_column(nullable=True)
+
     medical_record = relationship("MedicalRecordModel", back_populates="beneficiary", uselist=False, cascade="all, delete-orphan")
     education_record = relationship("EducationRecordModel", back_populates="beneficiary", uselist=False, cascade="all, delete-orphan")
     

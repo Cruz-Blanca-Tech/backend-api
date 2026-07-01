@@ -7,6 +7,8 @@ from .beneficiary_schemas import BeneficiarySchema
 from .family_schemas import FamilySchema
 from .education_schemas import EducationSchema
 from .medical_schemas import MedicalSchema
+from .religion_schemas import ReligionSchema
+from .permissions_schemas import PermissionsSchema
 
 class EducaInscriptionData(BaseModel):
     """Esquema para serializar la data del Dossier (EducaInscriptionDossier)."""
@@ -14,6 +16,8 @@ class EducaInscriptionData(BaseModel):
     related_adults: FamilySchema = Field(default_factory=FamilySchema)
     education: EducationSchema = Field(default_factory=EducationSchema)
     medical: MedicalSchema = Field(default_factory=MedicalSchema)
+    religion: ReligionSchema = Field(default_factory=ReligionSchema)
+    permissions: PermissionsSchema = Field(default_factory=PermissionsSchema)
 
     class Config:
         from_attributes = True
@@ -27,6 +31,8 @@ class EducaInscriptionRequest(DossierRequest):
     related_adults: FamilySchema = Field(default_factory=FamilySchema)
     education: EducationSchema = Field(default_factory=EducationSchema)
     medical: MedicalSchema = Field(default_factory=MedicalSchema)
+    religion: ReligionSchema = Field(default_factory=ReligionSchema)
+    permissions: PermissionsSchema = Field(default_factory=PermissionsSchema)
 
 class EducaInscriptionResponse(DossierResponse):
     """
