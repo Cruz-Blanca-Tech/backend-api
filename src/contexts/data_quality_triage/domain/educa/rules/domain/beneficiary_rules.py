@@ -25,6 +25,12 @@ class BeneficiaryCompletenessRule(DomainRule):
                 field_name="beneficiary.name", expected_pattern="Nombre y Apellido", actual_value="(vacío)",
                 rule_description="El nombre y apellido del beneficiario son obligatorios.", severity="ERROR", document_code="DOMINIO"
             ))
+
+        if not domain_entity.beneficiary.birth_date:
+            issues.append(FieldDiscrepancy(
+                field_name="beneficiary.birth_date", expected_pattern="Fecha válida (YYYY-MM-DD)", actual_value="(vacío)",
+                rule_description="La fecha de nacimiento del beneficiario es un campo obligatorio.", severity="ERROR", document_code="DOMINIO"
+            ))
         if not domain_entity.beneficiary.gender:
             issues.append(FieldDiscrepancy(
                 field_name="beneficiary.gender", expected_pattern="M o F", actual_value="(vacío)",
