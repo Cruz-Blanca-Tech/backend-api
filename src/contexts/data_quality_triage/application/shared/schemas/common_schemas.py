@@ -11,6 +11,17 @@ class DiscrepancySchema(BaseModel):
     severity: str
     document_code: Optional[str] = None
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "DiscrepancySchema":
+        """Mapeo explícito (Anti-Corruption Layer) desde el JSONB de la BD hacia el Schema."""
+        return cls(
+            field_name=data.get("field_name", "Desconocido"),
+            expected_pattern=data.get("expected_pattern"),
+            actual_value=data.get("actual_value"),
+            rule_description=data.get("rule_description", "Sin descripción"),
+            severity=data.get("severity", "WARNING"),
+            document_code=data.get("document_code")
+        )
 class AuditLogEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID

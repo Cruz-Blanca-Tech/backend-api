@@ -41,11 +41,7 @@ async def get_educa_triage_case(
         )
 
     discrepancies = [
-        DiscrepancySchema(
-            field_name=d.field_name, expected_pattern=d.expected_pattern,
-            actual_value=d.actual_value, rule_description=d.rule_description,
-            severity=d.severity, document_code=d.document_code,
-        ) for d in case.discrepancies
+        DiscrepancySchema.from_dict(d) for d in case.discrepancies
     ]
 
     # Reconstruimos la entidad de dominio para asegurar integridad
@@ -85,11 +81,7 @@ async def submit_correction(
     )
 
     discrepancies = [
-        DiscrepancySchema(
-            field_name=d.field_name, expected_pattern=d.expected_pattern,
-            actual_value=d.actual_value, rule_description=d.rule_description,
-            severity=d.severity, document_code=d.document_code,
-        ) for d in case.discrepancies
+        DiscrepancySchema.from_dict(d) for d in case.discrepancies
     ]
 
     return EducaTriageCaseDetailResponse(
