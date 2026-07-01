@@ -6,6 +6,6 @@ from src.contexts.data_quality_triage.application.educa.dtos.raw.fins_raw import
 class PermissionsEnrichedMapper(BaseEnrichedMapper):
     def map(self, raw_dto: FinsRaw) -> EnrichedPermissions:
         return EnrichedPermissions(
-            haircut=self.build_field(raw_dto.permission_haircut, "¿Podemos cortarle el pelo?", DataType.BOOLEAN),
-            medical_exams=self.build_field(raw_dto.permission_medical_exams, "¿Podemos hacerle exámenes médicos?", DataType.BOOLEAN)
+            haircut=self.build_field(raw_dto.permission_haircut or "NO", "¿Podemos cortarle el pelo?", DataType.BOOL),
+            medical_exams=self.build_field(raw_dto.permission_medical_exams or "NO", "¿Podemos hacerle exámenes médicos?", DataType.BOOL)
         )

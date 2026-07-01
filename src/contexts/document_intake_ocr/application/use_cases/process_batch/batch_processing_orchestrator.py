@@ -74,6 +74,9 @@ class BatchProcessingOrchestrator:
                 # Solo disparamos eventos para los expedientes que tengan al menos 1 documento extraído exitosamente
                 if any(doc.status.value != "FAILED" for doc in dossier.documents):
                     await self.event_publisher.publish_created(dossier, activity)
+                    
+            # 5. Detonar evento de fin de lote para automatización
+            await self.event_publisher.publish_batch_ocr_completed(batch.id)
 
 
         except ExternalServiceException as ext_error:

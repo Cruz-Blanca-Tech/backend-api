@@ -51,7 +51,36 @@ class FamilyDomainMapper:
                     full_name=full_name.strip() or None
                 ))
                 
+        from src.contexts.data_quality_triage.domain.shared.value_objects.adult_role import AdultRole
+
+        emergency_contact_phone = enriched_fins.emergency_contact_phone.normalized_value if enriched_fins.emergency_contact_phone else None
+        emergency_contact_dni = None
+        
+        # 1. Try to match explicit phone
+        if emergency_contact_phone:
+            matched_adult = next((a for a in adults if a.phone == emergency_contact_phone), None)
+            if matched_adult:
+                emergency_contact_dni = matched_adult.dni
+
+        # 2. Fallback
+        if not emergency_contact_dni:
+            def get_role_str(rel):
+                if hasattr(rel, 'value'): return str(rel.value).upper()
+                return str(rel).upper()
+                
+            apoderado = next((a for a in adults if a.relationship and get_role_str(a.relationship) in ["OTHER", "APODERADO"] and a.phone), None)
+            madre = next((a for a in adults if a.relationship and get_role_str(a.relationship) == "MOTHER" and a.phone), None)
+            padre = next((a for a in adults if a.relationship and get_role_str(a.relationship) == "FATHER" and a.phone), None)
+            
+            if apoderado:
+                emergency_contact_dni = apoderado.dni
+            elif madre:
+                emergency_contact_dni = madre.dni
+            elif padre:
+                emergency_contact_dni = padre.dni
+                
         return FamilyData(
             adults=adults,
-            guardian_dni=guardian_dni
+            guardian_dni=guardian_dni,
+            emergency_contact_dni=emergency_contact_dni
         )
