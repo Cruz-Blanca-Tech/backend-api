@@ -17,7 +17,7 @@ class ActivityRequirementModel(Base):
     document_type_config_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("document_type_configs.id"), nullable=False)
     
     is_required: Mapped[bool] = mapped_column(Boolean, default=True)
-    confidence_threshold: Mapped[float] = mapped_column(Float, default=0.85)
+    confidence_threshold: Mapped[float] = mapped_column(Float, default=0.80)
     
     # Referencias con strings para evitar el error de import circular
     activity: Mapped["ActivityModel"] = relationship("ActivityModel", back_populates="requirements") # type: ignore
