@@ -12,6 +12,7 @@ class DataType(str, Enum):
     NAME = "name"
     GENDER = "gender"
     GRADE = "grade"
+    PHONE = "phone"
 
 
 @dataclass(frozen=True)
