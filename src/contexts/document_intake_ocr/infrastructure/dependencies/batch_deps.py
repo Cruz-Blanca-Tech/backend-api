@@ -12,6 +12,7 @@ from src.contexts.document_intake_ocr.application.use_cases.process_batch.batch_
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
+from src.contexts.document_intake_ocr.application.use_cases.get_batch_by_id_use_case import GetBatchByIdUseCase
 from src.contexts.document_intake_ocr.infrastructure.dependencies.activity_deps import get_activity_repository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_activity_repository import SqlActivityRepository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
@@ -129,3 +130,14 @@ def get_list_batches_use_case(session: AsyncSession = Depends(get_async_db)) -> 
 def get_batches_summary_use_case(session: AsyncSession = Depends(get_async_db)) -> GetBatchesSummaryUseCase:
     from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
     return GetBatchesSummaryUseCase(session=session)
+
+def get_batch_by_id_use_case(session: AsyncSession = Depends(get_async_db)) -> GetBatchByIdUseCase:
+    from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
+    from src.contexts.data_quality_triage.application.use_cases.get_batches_summaries_use_case import GetBatchesSummariesUseCase
+    from src.contexts.document_intake_ocr.infrastructure.adapters.triage_service_adapter import TriageServiceAdapter
+    
+    triage_repo = SqlTriageRepository(session=session)
+    triage_use_case = GetBatchesSummariesUseCase(triage_repository=triage_repo)
+    triage_service = TriageServiceAdapter(get_batches_summaries_use_case=triage_use_case)
+    
+    return GetBatchByIdUseCase(session=session, triage_service=triage_service)
