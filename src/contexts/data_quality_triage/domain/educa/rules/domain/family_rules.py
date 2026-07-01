@@ -25,12 +25,11 @@ class GuardianPresenceRule(DomainRule):
 class EmergencyContactRule(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
-        import re
-        phone_pattern = re.compile(r"^\+?[\d\s-]{7,15}$")
+        from src.contexts.data_quality_triage.domain.shared.value_objects.phone_number import PhoneNumber
         
         valid_phones = []
         for adult in domain_entity.related_adults.adults:
-            if adult.phone and phone_pattern.match(adult.phone.strip()):
+            if adult.phone and PhoneNumber.is_valid(adult.phone):
                 valid_phones.append(adult.phone)
                 
         if not valid_phones:
