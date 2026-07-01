@@ -69,14 +69,6 @@ async def list_batches(
     )
     return await use_case.execute(request)
 
-@router.get("/{batch_id}", response_model=BatchItemSchema, summary="Obtiene el detalle de un lote específico por ID")
-async def get_batch_by_id(
-    batch_id: UUID,
-    use_case: GetBatchByIdUseCase = Depends(get_batch_by_id_use_case)
-):
-    """Devuelve los detalles, contadores y métricas de un lote en particular."""
-    return await use_case.execute(batch_id=batch_id)
-
 @router.get("/statuses", summary="Obtiene la lista de estados de lotes disponibles")
 async def get_batch_statuses():
     """Devuelve la lista de estados válidos para los lotes en el OCR."""
@@ -92,3 +84,11 @@ async def get_batches_summary(
     """Devuelve la cantidad total de lotes existentes agrupados por estado, aplicando filtros opcionales."""
     request = GetBatchesSummaryRequest(program_id=program_id, activity_id=activity_id, status=status)
     return await use_case.execute(request)
+
+@router.get("/{batch_id}", response_model=BatchItemSchema, summary="Obtiene el detalle de un lote específico por ID")
+async def get_batch_by_id(
+    batch_id: UUID,
+    use_case: GetBatchByIdUseCase = Depends(get_batch_by_id_use_case)
+):
+    """Devuelve los detalles, contadores y métricas de un lote en particular."""
+    return await use_case.execute(batch_id=batch_id)
