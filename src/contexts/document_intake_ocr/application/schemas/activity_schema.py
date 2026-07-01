@@ -9,7 +9,7 @@ from uuid import UUID
 class ActivityRequirementRequest(BaseModel):
     document_type_config_id: UUID = Field(...) # Obligatorio
     is_required: bool = True
-    confidence_threshold: float = Field(0.85, ge=0.0, le=1.0)
+    confidence_threshold: float = Field(0.80, ge=0.0, le=1.0)
 
 class ActivityBase(BaseModel):
     name: Optional[str] = Field(None, min_length=3, max_length=100)

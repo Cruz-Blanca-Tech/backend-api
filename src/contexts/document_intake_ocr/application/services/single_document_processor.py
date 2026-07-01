@@ -45,7 +45,7 @@ class SingleDocumentProcessor:
             ## Registrar éxito
             doc.mark_as_processed_successfully(
                 data= ocr_result.get("fields", {}), 
-                confidence=0.95
+                confidence=ocr_result.get("confidence", 0.0)
             )
             logger.info(f"  -> [OK] Documento {doc.file_name} extraído correctamente.")
             
