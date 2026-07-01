@@ -64,9 +64,10 @@ class InscriptionTriageStrategy(TriageStrategy):
             dossier_data = asdict(fallback_entity)
 
         has_errors = any(d.severity == "ERROR" for d in discrepancies)
+        has_warnings = any(d.severity == "WARNING" for d in discrepancies)
 
         result = QualityRuleResult(
-            is_valid=not has_errors,
+            is_valid=(not has_errors and not has_warnings),
             discrepancies=discrepancies,
             confidence_passed=True,
             enriched_docs=enriched_docs,

@@ -16,10 +16,13 @@ from src.contexts.data_quality_triage.domain.shared.events.triage_events import 
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
 from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
 from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
+from src.contexts.shared.events.batch_ocr_completed_event import BatchOcrCompletedEvent
 from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import (
     handle_dossier_approved, handle_dossier_rejected, handle_batch_rejected, handle_batch_triage_completed
 )
-from src.contexts.data_quality_triage.application.shared.handlers.triage_event_handler import handle_documents_extracted
+from src.contexts.data_quality_triage.application.shared.handlers.triage_event_handler import (
+    handle_documents_extracted, handle_batch_ocr_completed
+)
 from fastapi.openapi.utils import get_openapi
 
 from src.core.handlers.exception_handler import configure_exception_handlers
@@ -49,6 +52,7 @@ async def startup_event():
     
     # Evento de OCR (Intake) hacia Triage
     EventDispatcher.register(DocumentsExtractedEvent, handle_documents_extracted)
+    EventDispatcher.register(BatchOcrCompletedEvent, handle_batch_ocr_completed)
     
     # Registrar handlers de core_beneficiary_management (MDM)
     from src.contexts.core_beneficiary_management.infrastructure.events.beneficiary_event_handlers import register_beneficiary_event_handlers

@@ -13,6 +13,7 @@ class AdultModel(PersonModel):
     
     role: Mapped[str] = mapped_column(String(50))
     phone: Mapped[str] = mapped_column(String(50), nullable=True)
+    is_emergency_contact: Mapped[bool] = mapped_column(default=False)
 
     __mapper_args__ = {
         "polymorphic_identity": "adult",

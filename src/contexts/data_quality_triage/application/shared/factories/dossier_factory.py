@@ -36,7 +36,8 @@ class DossierFactory:
             adults_list = [RelatedAdult(**ad_data) for ad_data in fam_dict.get("adults", [])]
             family_obj = FamilyData(
                 adults=adults_list,
-                guardian_dni=fam_dict.get("guardian_dni")
+                guardian_dni=fam_dict.get("guardian_dni"),
+                emergency_contact_phone=fam_dict.get("emergency_contact_phone")
             )
             
             # Creamos la entidad de dominio estricta

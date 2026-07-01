@@ -44,6 +44,8 @@ class EducaAdultDTO(BaseModel):
 
 class EducaRelatedAdultsDTO(BaseModel):
     adults: List[EducaAdultDTO] = Field(default_factory=list)
+    guardian_dni: Optional[str] = None
+    emergency_contact_dni: Optional[str] = None
 
 class EducaDossierDTO(BaseModel):
     beneficiary: EducaBeneficiaryDTO

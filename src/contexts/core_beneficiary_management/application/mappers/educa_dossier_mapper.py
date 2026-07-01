@@ -156,6 +156,10 @@ class EducaDossierMapper:
                 except ValueError:
                     pass
 
+            is_emergency = False
+            if dto.related_adults.emergency_contact_dni and ad_dto.dni == dto.related_adults.emergency_contact_dni:
+                is_emergency = True
+
             beneficiary.relatives.append(Adult(
                 id=uuid.uuid4(),
                 dni=ad_dni,
@@ -165,7 +169,8 @@ class EducaDossierMapper:
                 gender=None,
                 beneficiary_id=beneficiary.id,
                 role=role_enum,
-                phone=ad_phone
+                phone=ad_phone,
+                is_emergency_contact=is_emergency
             ))
 
         return beneficiary

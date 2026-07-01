@@ -2,6 +2,7 @@
 
 import logging
 from src.contexts.shared.events.documents_extracted_event import DocumentsExtractedEvent
+from src.contexts.shared.events.batch_ocr_completed_event import BatchOcrCompletedEvent
 from src.contexts.data_quality_triage.application.shared.services.dossier_processor import ProcessDossierUseCase
 
 logger = logging.getLogger(__name__)
@@ -52,3 +53,21 @@ async def handle_documents_extracted(event) -> None:
         
         # Guardar en base de datos
         await session.commit()
+
+
+async def handle_batch_ocr_completed(event: BatchOcrCompletedEvent) -> None:
+    """
+    Punto de entrada global para el Bus de Eventos.
+    Verifica automáticamente si el lote se auto-aprobó en su totalidad al terminar el OCR.
+    """
+    from src.core.database import async_session_maker
+    from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import get_verify_batch_completion_use_case
+    
+    logger.info(f"[Triage Event Handler] Escuchando BatchOcrCompletedEvent para batch {event.batch_id}")
+    
+    async with async_session_maker() as session:
+        from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import get_triage_repository
+        repo = get_triage_repository(session)
+        use_case = get_verify_batch_completion_use_case(session=session, triage_repo=repo)
+        result = await use_case.execute(event.batch_id)
+        logger.info(f"[Triage Event Handler] Resultado de la verificación automática: {result}")
