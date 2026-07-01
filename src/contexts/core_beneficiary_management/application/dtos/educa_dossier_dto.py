@@ -7,6 +7,15 @@ class EducaBeneficiaryDTO(BaseModel):
     last_name: str
     birth_date: Optional[str] = None
     gender: str = "UNKNOWN"
+    address: Optional[str] = None
+
+class EducaReligionDTO(BaseModel):
+    baptized: Optional[bool] = None
+    first_communion: Optional[bool] = None
+
+class EducaPermissionsDTO(BaseModel):
+    haircut_permission: Optional[bool] = None
+    medical_exams_permission: Optional[bool] = None
 
 class EducaMedicalDTO(BaseModel):
     has_been_hospitalized: bool = False
@@ -38,6 +47,8 @@ class EducaRelatedAdultsDTO(BaseModel):
 
 class EducaDossierDTO(BaseModel):
     beneficiary: EducaBeneficiaryDTO
+    religion: EducaReligionDTO = Field(default_factory=EducaReligionDTO)
+    permissions: EducaPermissionsDTO = Field(default_factory=EducaPermissionsDTO)
     medical: EducaMedicalDTO = Field(default_factory=EducaMedicalDTO)
     education: EducaEducationDTO = Field(default_factory=EducaEducationDTO)
     related_adults: EducaRelatedAdultsDTO = Field(default_factory=EducaRelatedAdultsDTO)

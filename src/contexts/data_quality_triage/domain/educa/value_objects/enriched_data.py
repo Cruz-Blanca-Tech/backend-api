@@ -58,6 +58,16 @@ class EnrichedMedical:
     medical_insurance_other: EnrichedField
 
 @dataclass
+class EnrichedReligion:
+    baptized: EnrichedField
+    first_communion: EnrichedField
+
+@dataclass
+class EnrichedPermissions:
+    haircut: EnrichedField
+    medical_exams: EnrichedField
+
+@dataclass
 class EnrichedFins:
     child_dni: EnrichedField
     child_first_name: EnrichedField
@@ -69,6 +79,8 @@ class EnrichedFins:
     address: EnrichedAddress
     education: EnrichedEducation
     medical: EnrichedMedical
+    religion: EnrichedReligion
+    permissions: EnrichedPermissions
 
 @dataclass
 class EnrichedDj:
