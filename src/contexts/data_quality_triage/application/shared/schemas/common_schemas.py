@@ -12,15 +12,15 @@ class DiscrepancySchema(BaseModel):
     document_code: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DiscrepancySchema":
-        """Mapeo explícito (Anti-Corruption Layer) desde el JSONB de la BD hacia el Schema."""
+    def from_domain(cls, domain_obj: Any) -> "DiscrepancySchema":
+        """Mapeo explícito (Anti-Corruption Layer) desde la Entidad de Dominio hacia el Schema."""
         return cls(
-            field_name=data.get("field_name", "Desconocido"),
-            expected_pattern=data.get("expected_pattern"),
-            actual_value=data.get("actual_value"),
-            rule_description=data.get("rule_description", "Sin descripción"),
-            severity=data.get("severity", "WARNING"),
-            document_code=data.get("document_code")
+            field_name=getattr(domain_obj, "field_name", "Desconocido"),
+            expected_pattern=getattr(domain_obj, "expected_pattern", None),
+            actual_value=getattr(domain_obj, "actual_value", None),
+            rule_description=getattr(domain_obj, "rule_description", "Sin descripción"),
+            severity=getattr(domain_obj, "severity", "WARNING") if isinstance(getattr(domain_obj, "severity", "WARNING"), str) else getattr(domain_obj, "severity").value,
+            document_code=getattr(domain_obj, "document_code", None)
         )
 class AuditLogEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
