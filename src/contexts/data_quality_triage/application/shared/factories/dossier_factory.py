@@ -10,6 +10,8 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.family_data imp
 from src.contexts.data_quality_triage.domain.educa.value_objects.related_adult import RelatedAdult
 from src.contexts.data_quality_triage.domain.educa.value_objects.education_data import EducationData
 from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data import MedicalData
+from src.contexts.data_quality_triage.domain.educa.value_objects.religion_data import ReligionData
+from src.contexts.data_quality_triage.domain.educa.value_objects.permissions_data import PermissionsData
 
 
 class DossierFactory:
@@ -28,6 +30,8 @@ class DossierFactory:
             edu_dict = validated_schema.education.model_dump()
             med_dict = validated_schema.medical.model_dump()
             fam_dict = validated_schema.related_adults.model_dump()
+            rel_dict = validated_schema.religion.model_dump()
+            perm_dict = validated_schema.permissions.model_dump()
             
             adults_list = [RelatedAdult(**ad_data) for ad_data in fam_dict.get("adults", [])]
             family_obj = FamilyData(
@@ -40,7 +44,9 @@ class DossierFactory:
                 beneficiary=BeneficiaryData(**ben_dict),
                 related_adults=family_obj,
                 education=EducationData(**edu_dict),
-                medical=MedicalData(**med_dict)
+                medical=MedicalData(**med_dict),
+                religion=ReligionData(**rel_dict),
+                permissions=PermissionsData(**perm_dict)
             )
             
         raise ValueError(f"ActivityType '{activity_type}' no está soportado para reconstituir un dossier.")
@@ -76,6 +82,8 @@ class DossierFactory:
                 beneficiary=BeneficiaryData(),
                 related_adults=FamilyData(),
                 education=EducationData(),
-                medical=MedicalData()
+                medical=MedicalData(),
+                religion=ReligionData(),
+                permissions=PermissionsData()
             )
         raise ValueError(f"ActivityType '{activity_type}' no soportado para create_empty.")
