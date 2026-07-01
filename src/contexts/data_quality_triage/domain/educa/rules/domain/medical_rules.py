@@ -12,4 +12,11 @@ class MedicalRules(DomainRule):
                 rule_description="Si estuvo hospitalizado, debe especificar el motivo.", 
                 severity="ERROR", document_code="DOMINIO"
             ))
+        
+        if domain_entity.medical.has_been_operated and not domain_entity.medical.operation_reason:
+             issues.append(FieldDiscrepancy(
+                field_name="medical.operation_reason", expected_pattern="Motivo de operación", actual_value="(vacío)",
+                rule_description="Si ha sido operado, debe especificar el motivo de la operación.", 
+                severity="ERROR", document_code="DOMINIO"
+            ))
         return issues
