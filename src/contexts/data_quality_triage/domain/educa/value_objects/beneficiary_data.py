@@ -9,5 +9,6 @@ class BeneficiaryData:
     birth_date: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None
+    address: Optional[str] = None
     validation_issues: List[str] = field(default_factory=list)
 
