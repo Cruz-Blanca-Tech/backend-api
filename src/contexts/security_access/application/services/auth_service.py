@@ -24,10 +24,10 @@ class AuthService:
         self.token_provider = token_provider
         self.policy = policy
 
-    async def authenticate_user(self, google_token: str) -> TokenPair:
+    async def authenticate_user(self, auth_code: str) -> TokenPair:
         """Orquesta el inicio de sesión y aprovisionamiento de usuario."""
         
-        external_identity = self.external_auth_provider.verify_token(google_token)
+        external_identity = await self.external_auth_provider.verify_token(auth_code)
         self.policy.check(external_identity.email)
         
         user: Optional[User] = await self.user_repo.get_by_email(str(external_identity.email))

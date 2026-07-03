@@ -45,15 +45,20 @@ class SubmitCorrectionUseCase:
                 )
             ]
 
-        if is_complete:
+        # Preserve structural discrepancies (like missing physical documents)
+        global_issues = [d for d in case.discrepancies if d.document_code == "GLOBAL" or "Falta" in d.rule_description]
+
+        if is_complete and not global_issues:
             case.approve(user_id)
             case.discrepancies = []
             self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, TriageStatus.CORRECTED.value, {"corrected_fields": corrected_data})
             self._add_audit_log(case_id, "AUTO_APPROVED", user_id, TriageStatus.CORRECTED.value, case.status.value, {"verdict": case.verdict.value, "reason": "Validación manual exitosa"})
         else:
-            case.update_discrepancies(domain_issues)
+            # Combine domain issues (text validation) with the preserved structural missing document errors
+            all_issues = global_issues + domain_issues
+            case.update_discrepancies(all_issues)
             case.status = TriageStatus.PENDING_REVIEW
-            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {"corrected_fields": corrected_data, "remaining_errors": len(domain_issues)})
+            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {"corrected_fields": corrected_data, "remaining_errors": len(all_issues)})
 
         await self.triage_repo.save(case)
         for event in case.pending_events:

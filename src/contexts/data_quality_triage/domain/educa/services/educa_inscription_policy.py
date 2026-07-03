@@ -4,6 +4,8 @@ from src.contexts.data_quality_triage.application.educa.dtos.raw.fins_raw import
 from src.contexts.data_quality_triage.application.educa.dtos.raw.dj_raw import DjRaw
 from src.contexts.data_quality_triage.application.educa.dtos.raw.dni_raw import DniRaw
 
+from src.contexts.data_quality_triage.domain.educa.value_objects.document_code import EducaDocumentCode
+
 class EducaInscriptionPolicy(DossierPolicy):
     """
     Política específica para la actividad Educa Inscription.
@@ -13,10 +15,22 @@ class EducaInscriptionPolicy(DossierPolicy):
     def evaluate(self, raw_docs: Dict[str, Any]) -> List[str]:
         errors = []
 
+        # 1. Validación de Documentos Obligatorios
+        required_docs = {
+            EducaDocumentCode.FINS.value: "Ficha de Inscripción (FINS)",
+            EducaDocumentCode.DJ.value: "Declaración Jurada (DJ)",
+            EducaDocumentCode.DNI_BENEFICIARY.value: "DNI del Beneficiario (Niño/a)",
+            EducaDocumentCode.DNI_APODERADO.value: "DNI del Apoderado"
+        }
+        
+        for doc_code, doc_name in required_docs.items():
+            if not raw_docs.get(doc_code):
+                errors.append(f"Falta procesar o adjuntar el documento obligatorio: {doc_name}.")
+
         # Hidratar diccionarios hacia modelos Pydantic
-        fins_dict = raw_docs.get("FINS") or {}
-        dj_dict = raw_docs.get("DJ") or {}
-        dnibef_dict = raw_docs.get("DNIBE") or {} # Corregido a DNIBE
+        fins_dict = raw_docs.get(EducaDocumentCode.FINS.value) or {}
+        dj_dict = raw_docs.get(EducaDocumentCode.DJ.value) or {}
+        dnibef_dict = raw_docs.get(EducaDocumentCode.DNI_BENEFICIARY.value) or {}
         
         fins_raw = FinsRaw(**fins_dict)
         dj_raw = DjRaw(**dj_dict)

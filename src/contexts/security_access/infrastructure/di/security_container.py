@@ -33,7 +33,7 @@ class SecurityAccessContainer:
             
             # Instanciamos AuthService
             self.auth_service = AuthService(
-                GoogleIdentityAdapter(settings.GOOGLE_CLIENT_ID),
+                GoogleIdentityAdapter(settings.GOOGLE_CLIENT_ID, settings.GOOGLE_CLIENT_SECRET),
                 self.user_repo,
                 self.token_repo,
                 self.token_provider,

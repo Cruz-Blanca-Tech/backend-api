@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # OAuth Google (Security & Access)
     GOOGLE_CLIENT_ID: str =""
     GOOGLE_CLIENT_SECRET: str=""
+    GOOGLE_SERVICE_ACCOUNT_JSON: str=""
     GOOGLE_DRIVE_TEMPORARY_CUSTODY_ID: str=""
     GOOGLE_DRIVE_CONSOLIDATED_DOSSIERS_ID: str=""
 

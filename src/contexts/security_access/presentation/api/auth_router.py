@@ -18,7 +18,7 @@ async def login(
 ):
     try:
         # 1. Llamamos a nuestro Application Service
-        token_pair = await auth_service.authenticate_user(request.google_token)
+        token_pair = await auth_service.authenticate_user(request.auth_code)
         
         # 2. Inyectamos el Refresh Token en una Cookie Segura
         response.set_cookie(

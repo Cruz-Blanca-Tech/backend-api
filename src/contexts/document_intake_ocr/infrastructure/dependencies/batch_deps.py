@@ -41,11 +41,11 @@ def get_batch_repository(db = Depends(get_async_db)) -> SqlBatchRepository:
 # PROVEEDORES DE ADAPTADORES (NUBE)
 # ==========================================
 def get_storage_adapter() -> GoogleDriveStorageAdapter:
-    # Si settings.google_client_secret es el string JSON, lo parseamos aquí
-    if isinstance(settings.GOOGLE_CLIENT_SECRET, str):
-        credentials_info = json.loads(settings.GOOGLE_CLIENT_SECRET)
+    # Parseamos el JSON de la cuenta de servicio (Robot)
+    if isinstance(settings.GOOGLE_SERVICE_ACCOUNT_JSON, str):
+        credentials_info = json.loads(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
     else:
-        credentials_info = settings.GOOGLE_CLIENT_SECRET
+        credentials_info = settings.GOOGLE_SERVICE_ACCOUNT_JSON
 
     return GoogleDriveStorageAdapter(
         credentials_info=credentials_info,
