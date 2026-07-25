@@ -54,6 +54,7 @@ class BatchItemSchema(BaseModel):
     created_at: Optional[str] = None
     documents_failed_count: int
     documents_approved_count: int
+    documents_total_count: int = 0
     description: Optional[str] = None
     activity_name: Optional[str] = None
     program_name: Optional[str] = None

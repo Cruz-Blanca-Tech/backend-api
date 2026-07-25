@@ -23,7 +23,8 @@ class GetBatchesSummaryUseCase:
         if request.program_id:
             stmt = stmt.join(ActivityModel).where(ActivityModel.program_id == request.program_id)
         if request.status:
-            stmt = stmt.where(ExtractionBatchModel.status == request.status)
+            statuses = [s.strip() for s in request.status.split(',')]
+            stmt = stmt.where(ExtractionBatchModel.status.in_(statuses))
             
             
         stmt = stmt.group_by(ExtractionBatchModel.status)

@@ -27,7 +27,8 @@ class ListBatchesUseCase:
         if request.program_id:
             base_stmt = base_stmt.join(ActivityModel).where(ActivityModel.program_id == request.program_id)
         if request.status:
-            base_stmt = base_stmt.where(ExtractionBatchModel.status == request.status)
+            statuses = [s.strip() for s in request.status.split(',')]
+            base_stmt = base_stmt.where(ExtractionBatchModel.status.in_(statuses))
             
         # 2. Get global total count
         count_stmt = select(func.count()).select_from(base_stmt.subquery())
@@ -58,6 +59,7 @@ class ListBatchesUseCase:
                     "created_at": b.created_at.isoformat() if b.created_at else None,
                     "documents_failed_count": sum(1 for d in getattr(b, 'documents', []) if d.status == DocumentStatus.FAILED),
                     "documents_approved_count": sum(1 for d in getattr(b, 'documents', []) if d.status == DocumentStatus.APPROVED),
+                    "documents_total_count": len(getattr(b, 'documents', [])),
                     "description": b.description,
                     "activity_name": b.activity.name if getattr(b, 'activity', None) else None,
                     "program_name": b.activity.program.name if getattr(b, 'activity', None) and getattr(b.activity, 'program', None) else None,

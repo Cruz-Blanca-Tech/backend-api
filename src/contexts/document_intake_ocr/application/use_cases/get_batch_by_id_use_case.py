@@ -43,6 +43,7 @@ class GetBatchByIdUseCase:
             created_at=b.created_at.isoformat() if b.created_at else None,
             documents_failed_count=sum(1 for d in getattr(b, 'documents', []) if d.status == DocumentStatus.FAILED),
             documents_approved_count=sum(1 for d in getattr(b, 'documents', []) if d.status == DocumentStatus.APPROVED),
+            documents_total_count=len(getattr(b, 'documents', [])),
             description=b.description,
             activity_name=b.activity.name if getattr(b, 'activity', None) else None,
             program_name=b.activity.program.name if getattr(b, 'activity', None) and getattr(b.activity, 'program', None) else None,
