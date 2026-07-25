@@ -18,9 +18,13 @@ class GetBatchByIdUseCase:
         self.triage_service = triage_service
 
     async def execute(self, batch_id: UUID) -> BatchItemSchema:
+        from sqlalchemy.orm import selectinload
         stmt = (
             select(ExtractionBatchModel)
-            .options(joinedload(ExtractionBatchModel.activity).joinedload(ActivityModel.program))
+            .options(
+                joinedload(ExtractionBatchModel.activity).joinedload(ActivityModel.program),
+                selectinload(ExtractionBatchModel.documents)
+            )
             .where(ExtractionBatchModel.id == batch_id)
         )
         

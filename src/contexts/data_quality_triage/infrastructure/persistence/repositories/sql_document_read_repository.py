@@ -16,11 +16,13 @@ class SqlDocumentReadRepository(DocumentReadRepository):
 
     async def get_by_dni(
         self,
+        batch_id: UUID,
         dni_reference: str
     ) -> List[DocumentDTO]:
 
         stmt = select(DocumentItemModel).where(
-            DocumentItemModel.dni_reference == dni_reference
+            DocumentItemModel.dni_reference == dni_reference,
+            DocumentItemModel.batch_id == batch_id
         )
         result = await self.session.execute(stmt)
         rows = result.scalars().all()

@@ -14,6 +14,9 @@ from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dos
 from src.contexts.document_intake_ocr.application.use_cases.get_document_image_use_case import GetDocumentImageUseCase
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
 from src.contexts.document_intake_ocr.application.use_cases.get_batch_by_id_use_case import GetBatchByIdUseCase
+from src.contexts.data_quality_triage.application.shared.services.dossier_processor import ProcessDossierUseCase
+from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import get_process_dossier_use_case
+from src.contexts.document_intake_ocr.application.use_cases.revalidate_dossier_use_case import RevalidateDossierUseCase
 from src.contexts.document_intake_ocr.infrastructure.dependencies.activity_deps import get_activity_repository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_activity_repository import SqlActivityRepository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
@@ -99,6 +102,8 @@ def get_batch_orchestrator(
 # ==========================================
 # PROVEEDOR DEL CASO DE USO PRINCIPAL
 # ==========================================
+from src.contexts.document_intake_ocr.application.use_cases.upload_missing_document_use_case import UploadMissingDocumentUseCase
+
 def get_process_batch_use_case(
     activity_repo: SqlActivityRepository = Depends(get_activity_repository),
     batch_repo: SqlBatchRepository = Depends(get_batch_repository),
@@ -112,6 +117,19 @@ def get_process_batch_use_case(
         activity_repo=activity_repo,
         batch_repo=batch_repo,
         batch_orchestrator=orchestrator
+    )
+
+def get_upload_missing_document_use_case(
+    batch_repo: SqlBatchRepository = Depends(get_batch_repository),
+    activity_repo: SqlActivityRepository = Depends(get_activity_repository),
+    single_document_processor: SingleDocumentProcessor = Depends(get_single_document_processor),
+    event_publisher: DossierEventPublisher = Depends(get_dossier_event_publisher)
+) -> UploadMissingDocumentUseCase:
+    return UploadMissingDocumentUseCase(
+        batch_repo=batch_repo, 
+        activity_repo=activity_repo, 
+        single_document_processor=single_document_processor, 
+        event_publisher=event_publisher
     )
 
 def get_documents_by_dossier_use_case(session: AsyncSession = Depends(get_async_db)) -> GetDocumentsByDossierUseCase:
@@ -148,3 +166,9 @@ def get_batch_by_id_use_case(session: AsyncSession = Depends(get_async_db)) -> G
     triage_service = TriageServiceAdapter(get_batches_summaries_use_case=triage_use_case)
     
     return GetBatchByIdUseCase(session=session, triage_service=triage_service)
+
+def get_revalidate_dossier_use_case(
+    process_dossier_uc: ProcessDossierUseCase = Depends(get_process_dossier_use_case),
+    get_batch_uc: GetBatchByIdUseCase = Depends(get_batch_by_id_use_case),
+) -> RevalidateDossierUseCase:
+    return RevalidateDossierUseCase(process_dossier_uc=process_dossier_uc, get_batch_uc=get_batch_uc)

@@ -19,6 +19,8 @@ class ActivityBase(BaseModel):
 
 class ActivityRequirementResponse(BaseModel):
     document_type_config_id: UUID
+    code: str
+    name: str
     is_required: bool
     confidence_threshold: float
 

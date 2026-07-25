@@ -17,6 +17,10 @@ class TriageCaseListItem(BaseModel):
     error_count: int
     warning_count: int
     discrepancies: List[DiscrepancySchema] = []
+    rejection_reason: Optional[str] = None
+    # Mapa código → UUID de los documentos YA cargados. El frontend lo usa
+    # para comparar contra los requisitos de la actividad y construir el checklist.
+    document_ids: Dict[str, str] = {}
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -32,6 +36,7 @@ class TriageCaseDetailResponse(BaseModel):
     dossier_data: Dict[str, Any]
     discrepancies: List[DiscrepancySchema]
     rejection_reason: Optional[str] = None
+    document_ids: Dict[str, str] = {}
     resolved_by: Optional[UUID] = None
     resolved_at: Optional[datetime] = None
     created_at: datetime

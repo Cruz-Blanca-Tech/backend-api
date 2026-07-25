@@ -1,14 +1,14 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
-from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins, EnrichedDj, EnrichedDni
+from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins, EnrichedDj
 
 class MissingDocumentsRule:
     def evaluate(
         self,
         enriched_fins: Optional[EnrichedFins],
         enriched_dj: Optional[EnrichedDj],
-        enriched_dnibe: Optional[EnrichedDni],
-        enriched_dniap: Optional[EnrichedDni]
+        enriched_dnibe: Optional[Any],
+        enriched_dniap: Optional[Any]
     ) -> List[FieldDiscrepancy]:
         
         discrepancies = []

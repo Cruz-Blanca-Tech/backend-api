@@ -1,0 +1,67 @@
+﻿Fecha;Qué hice ayer?;Qué haré hoy?;Impedimentos
+27/03/2026;Reunión de kickoff, análisis de requerimientos del sistema OCR;Diseñar arquitectura C4 y diagramas de BD;Ninguno
+30/03/2026;Reunión de kickoff, análisis de requerimientos del sistema OCR;Diseñar arquitectura C4 y diagramas de BD;Ninguno
+31/03/2026;Diseñar arquitectura C4 y diagramas de BD;Definir entidades de Dominio (Dossier, Activity);Falta confirmación de reglas de negocio
+01/04/2026;Diseñar arquitectura C4 y diagramas de BD;Definir entidades de Dominio (Dossier, Activity);Falta confirmación de reglas de negocio
+02/04/2026;Definir entidades de Dominio;Diseñar modelo de base de datos relacional;Ninguno
+03/04/2026;Definir entidades de Dominio;Diseñar modelo de base de datos relacional;Ninguno
+06/04/2026;Diseñar modelo de base de datos relacional;Configurar proyecto FastAPI y SQLAlchemy;Ninguno
+07/04/2026;Diseñar modelo de base de datos relacional;Configurar proyecto FastAPI y SQLAlchemy;Ninguno
+08/04/2026;Configurar proyecto FastAPI y SQLAlchemy;Implementar repositorios base SQL;Ninguno
+09/04/2026;Configurar proyecto FastAPI y SQLAlchemy;Implementar repositorios base SQL;Ninguno
+10/04/2026;Implementar repositorios base SQL;Desarrollar migraciones de BD (Alembic);Ninguno
+13/04/2026;Implementar repositorios base SQL;Desarrollar migraciones de BD (Alembic);Ninguno
+14/04/2026;Desarrollar migraciones de BD (Alembic);Crear Endpoints CRUD para Activity y Configuración;Ninguno
+15/04/2026;Desarrollar migraciones de BD (Alembic);Crear Endpoints CRUD para Activity y Configuración;Ninguno
+16/04/2026;Crear Endpoints CRUD para Activity y Configuración;Definir Value Objects (DNI, DocumentCode);Ninguno
+17/04/2026;Crear Endpoints CRUD para Activity y Configuración;Definir Value Objects (DNI, DocumentCode);Ninguno
+20/04/2026;Definir Value Objects;Refactorizar entidades aplicando DDD;Dudas sobre límites de agregados
+21/04/2026;Definir Value Objects;Refactorizar entidades aplicando DDD;Dudas sobre límites de agregados
+22/04/2026;Refactorizar entidades aplicando DDD;Investigar SDK de Azure Document Intelligence;Ninguno
+23/04/2026;Refactorizar entidades aplicando DDD;Investigar SDK de Azure Document Intelligence;Ninguno
+24/04/2026;Investigar SDK de Azure Document Intelligence;Implementar AzureOCRAdapter;Credenciales de Azure pendientes
+27/04/2026;Investigar SDK de Azure Document Intelligence;Implementar AzureOCRAdapter;Credenciales de Azure pendientes
+28/04/2026;Implementar AzureOCRAdapter;Crear Worker asíncrono para OCR;Ninguno
+29/04/2026;Implementar AzureOCRAdapter;Crear Worker asíncrono para OCR;Ninguno
+30/04/2026;Crear Worker asíncrono para OCR;Integrar RabbitMQ/Eventos para OCR;Ninguno
+01/05/2026;Crear Worker asíncrono para OCR;Integrar RabbitMQ/Eventos para OCR;Ninguno
+04/05/2026;Integrar RabbitMQ/Eventos para OCR;Desarrollar UploadBatchUseCase;Ninguno
+05/05/2026;Integrar RabbitMQ/Eventos para OCR;Desarrollar UploadBatchUseCase;Ninguno
+06/05/2026;Desarrollar UploadBatchUseCase;Validación de subida de archivos (mimetypes);Ninguno
+07/05/2026;Desarrollar UploadBatchUseCase;Validación de subida de archivos (mimetypes);Ninguno
+08/05/2026;Validación de subida de archivos;Implementar lógica de extracción por lotes;Ninguno
+11/05/2026;Validación de subida de archivos;Implementar lógica de extracción por lotes;Ninguno
+12/05/2026;Implementar lógica de extracción por lotes;Mapear respuestas JSON de Azure a Raw DTOs;Ninguno
+13/05/2026;Mapear respuestas JSON de Azure a Raw DTOs;Desarrollar motor de reglas (Triage Engine);Ninguno
+14/05/2026;Mapear respuestas JSON de Azure a Raw DTOs;Desarrollar motor de reglas (Triage Engine);Ninguno
+15/05/2026;Desarrollar motor de reglas (Triage Engine);Implementar EducaRawToEnrichedMapper;Ninguno
+18/05/2026;Desarrollar motor de reglas (Triage Engine);Implementar EducaRawToEnrichedMapper;Ninguno
+19/05/2026;Implementar EducaRawToEnrichedMapper;Implementar NormalizerRegistry (Fechas, Nombres);Ninguno
+20/05/2026;Implementar EducaRawToEnrichedMapper;Implementar NormalizerRegistry (Fechas, Nombres);Ninguno
+21/05/2026;Implementar NormalizerRegistry;Desarrollar DniFormatRule y Crosscheck Rules;Complejidad en validación cruzada
+22/05/2026;Implementar NormalizerRegistry;Desarrollar DniFormatRule y Crosscheck Rules;Complejidad en validación cruzada
+25/05/2026;Desarrollar DniFormatRule y Crosscheck Rules;Implementar MissingDocumentsRule;Ninguno
+26/05/2026;Desarrollar DniFormatRule y Crosscheck Rules;Implementar MissingDocumentsRule;Ninguno
+27/05/2026;Implementar MissingDocumentsRule;Crear TriageCase entity y estados (PENDING_REVIEW);Ninguno
+28/05/2026;Implementar MissingDocumentsRule;Crear TriageCase entity y estados (PENDING_REVIEW);Ninguno
+29/05/2026;Crear TriageCase entity y estados;Desarrollar endpoint GetTriageCaseById;Ninguno
+01/06/2026;Crear TriageCase entity y estados;Desarrollar endpoint GetTriageCaseById;Ninguno
+02/06/2026;Desarrollar endpoint GetTriageCaseById;Integrar Frontend (React) con GetTriageCase;CORS issues
+03/06/2026;Desarrollar endpoint GetTriageCaseById;Integrar Frontend (React) con GetTriageCase;CORS issues
+04/06/2026;Integrar Frontend con GetTriageCase;Diseñar UI de validación de documentos;Ninguno
+05/06/2026;Integrar Frontend con GetTriageCase;Diseñar UI de validación de documentos;Ninguno
+08/06/2026;Diseñar UI de validación de documentos;Implementar corrección de discrepancias;Ninguno
+09/06/2026;Diseñar UI de validación de documentos;Implementar corrección de discrepancias;Ninguno
+10/06/2026;Implementar corrección de discrepancias;Desarrollar SubmitTriageCorrectionUseCase;Ninguno
+11/06/2026;Implementar corrección de discrepancias;Desarrollar SubmitTriageCorrectionUseCase;Ninguno
+12/06/2026;Desarrollar SubmitTriageCorrectionUseCase;Añadir soporte para Documentos Faltantes;Ninguno
+15/06/2026;Desarrollar SubmitTriageCorrectionUseCase;Añadir soporte para Documentos Faltantes;Ninguno
+16/06/2026;Añadir soporte para Documentos Faltantes;Crear estado INCOMPLETE en Triage;Ninguno
+17/06/2026;Añadir soporte para Documentos Faltantes;Crear estado INCOMPLETE en Triage;Ninguno
+18/06/2026;Crear estado INCOMPLETE en Triage;Desarrollar UploadMissingDocumentUseCase;Ninguno
+19/06/2026;Crear estado INCOMPLETE en Triage;Desarrollar UploadMissingDocumentUseCase;Ninguno
+22/06/2026;Desarrollar UploadMissingDocumentUseCase;Actualizar TriageStrategy con short-circuit;Ninguno
+23/06/2026;Desarrollar UploadMissingDocumentUseCase;Actualizar TriageStrategy con short-circuit;Ninguno
+24/06/2026;Actualizar TriageStrategy con short-circuit;Corregir errores de tipado (Value Objects);Ninguno
+25/06/2026;Actualizar TriageStrategy con short-circuit;Corregir errores de tipado (Value Objects);Ninguno
+26/06/2026;Corregir errores de tipado;Solucionar bug de contaminación cross-batch en BD;Falta refinar consultas SQLAlchemy

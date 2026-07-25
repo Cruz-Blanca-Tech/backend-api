@@ -19,3 +19,22 @@ class TriageStrategyFactory:
             return InscriptionTriageStrategy()
             
         return GenericTriageStrategy()
+
+    @classmethod
+    def get_required_codes(cls, activity_type_str: str) -> set[str]:
+        from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
+        from src.contexts.data_quality_triage.domain.educa.value_objects.document_code import EducaDocumentCode
+        
+        try:
+            activity_type = ActivityType(activity_type_str) if activity_type_str else None
+        except ValueError:
+            activity_type = None
+            
+        if activity_type == ActivityType.EDUCA_INSCRIPTION:
+            return {
+                EducaDocumentCode.FINS.value,
+                EducaDocumentCode.DJ.value,
+                EducaDocumentCode.DNIBE.value,
+                EducaDocumentCode.DNIAP.value
+            }
+        return set()

@@ -28,7 +28,7 @@ class ProcessDossierUseCase:
 
     async def execute(self, dni: str, batch_id: UUID, activity_type_str: str) -> TriageCase:
         # 1. Recuperar los documentos enriquecidos
-        docs = await self.doc_repo.get_by_dni(dni)
+        docs = await self.doc_repo.get_by_dni(batch_id=batch_id, dni_reference=dni)
         if not docs:
             logger.warning(f"No se encontraron documentos para el DNI {dni} en el lote {batch_id}")
             raise Exception("No documents found")
@@ -44,6 +44,15 @@ class ProcessDossierUseCase:
         
         # 3. Ejecutar la validación cruzada y construir el caso
         case = strategy.execute(batch_id=batch_id, activity_type=activity_type, dni_reference=dni, documents=docs)
+
+        # 3.5. Si ya existía un caso para este DNI en este Batch, reusar su ID para actualizarlo en lugar de duplicarlo
+        existing_case = await self.triage_repo.get_by_dossier(batch_id=batch_id, dni_reference=dni)
+        if existing_case:
+            case.id = existing_case.id
+            case.created_at = existing_case.created_at
+            # Preserve resolved_by and resolved_at if someone manually corrected it before
+            case.resolved_by = existing_case.resolved_by
+            case.resolved_at = existing_case.resolved_at
 
         # 4. Persistencia y Eventos
         await self.triage_repo.save(case)

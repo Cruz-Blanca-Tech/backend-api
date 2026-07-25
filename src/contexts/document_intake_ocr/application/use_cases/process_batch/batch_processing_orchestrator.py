@@ -85,3 +85,5 @@ class BatchProcessingOrchestrator:
             await self.batch_repo.save(batch)
         except Exception as e:
             logger.critical(f"[BATCH CRITICAL] Error fatal inesperado: {str(e)}")
+            batch.mark_as_failed(reason=f"Error fatal inesperado: {str(e)}")
+            await self.batch_repo.save(batch)

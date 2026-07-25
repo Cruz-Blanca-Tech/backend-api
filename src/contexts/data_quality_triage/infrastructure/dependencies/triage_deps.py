@@ -24,6 +24,22 @@ def get_strategy_factory() -> TriageStrategyFactory:
 def get_dossier_processor(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository), doc_repo: SqlDocumentReadRepository = Depends(get_document_read_repository)) -> ProcessDossierUseCase:
     return ProcessDossierUseCase(triage_repo=triage_repo, doc_repo=doc_repo, strategy_factory=TriageStrategyFactory(), session=session)
 
+def get_process_dossier_use_case(
+    session: AsyncSession = Depends(get_async_db),
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository),
+    doc_repo: SqlDocumentReadRepository = Depends(get_document_read_repository)
+) -> ProcessDossierUseCase:
+    """Factory that provides ProcessDossierUseCase for revalidation.
+
+    Mirrors get_dossier_processor but has a distinct name required by batch_deps injection.
+    """
+    return ProcessDossierUseCase(
+        triage_repo=triage_repo,
+        doc_repo=doc_repo,
+        strategy_factory=TriageStrategyFactory(),
+        session=session,
+    )
+
 def get_submit_correction_use_case(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> SubmitCorrectionUseCase:
     return SubmitCorrectionUseCase(triage_repo=triage_repo, session=session)
 

@@ -8,6 +8,8 @@ class QualityRuleResult:
     discrepancies: List[FieldDiscrepancy] = field(default_factory=list)
     confidence_passed: bool = True
     enriched_docs: Dict[str, Any] = field(default_factory=dict)
+    is_incomplete: bool = False
+    has_document_errors: bool = False
 
     @property
     def has_errors(self) -> bool:

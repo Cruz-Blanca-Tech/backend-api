@@ -56,15 +56,22 @@ class TriageCase:
         document_ids = {}
         confidence_scores = {}
         for doc in documents:
-            document_ids[doc.document_code] = doc.id
-            confidence_scores[doc.document_code] = doc.confidence_score or 0.0
+            if doc.document_code:  # ignorar documentos sin código asignado
+                document_ids[doc.document_code] = doc.id
+                confidence_scores[doc.document_code] = doc.confidence_score or 0.0
 
         if quality_result.is_valid:
             status = TriageStatus.APPROVED
             verdict = TriageVerdict.AUTO_APPROVED
+        elif getattr(quality_result, "is_incomplete", False):
+            status = TriageStatus.INCOMPLETE
+            verdict = TriageVerdict.MISSING_DOCUMENTS
+        elif getattr(quality_result, "has_document_errors", False):
+            status = TriageStatus.PENDING_REVIEW
+            verdict = TriageVerdict.DOCUMENT_ERROR
         else:
             status = TriageStatus.PENDING_REVIEW
-            verdict = TriageVerdict.REQUIRES_TRIAGE
+            verdict = TriageVerdict.DATA_DISCREPANCY
 
         case = cls(
             id=uuid4(),

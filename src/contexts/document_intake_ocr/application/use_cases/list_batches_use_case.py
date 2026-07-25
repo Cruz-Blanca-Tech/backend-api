@@ -35,8 +35,10 @@ class ListBatchesUseCase:
         total_count = total_result.scalar() or 0
             
         # 3. Get paginated results with relationships
+        from sqlalchemy.orm import selectinload
         stmt = base_stmt.options(
-            joinedload(ExtractionBatchModel.activity).joinedload(ActivityModel.program)
+            joinedload(ExtractionBatchModel.activity).joinedload(ActivityModel.program),
+            selectinload(ExtractionBatchModel.documents)
         )
         stmt = stmt.order_by(ExtractionBatchModel.created_at.desc()).offset(request.skip).limit(request.limit)
         

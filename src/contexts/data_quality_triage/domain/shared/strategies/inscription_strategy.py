@@ -33,44 +33,54 @@ class InscriptionTriageStrategy(TriageStrategy):
 
         enriched_docs = self._mapper.map(documents)
 
-        discrepancies = self._validator.validate(
+        discrepancies, is_incomplete, has_doc_errors = self._validator.validate(
             enriched_docs=enriched_docs
         )
         
-        try:
-            domain_entity = DossierFactory.create_from_enriched(
-                activity_type=activity_type,
-                **enriched_docs
-            )
-            from dataclasses import asdict
-            dossier_data = asdict(domain_entity)
-            is_complete, domain_issues = domain_entity.validate_completeness()
-            if not is_complete:
-                discrepancies.extend(domain_issues)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error construyendo entidad de dominio para batch {batch_id}, dni {dni_reference}: {e}")
-            from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
-            discrepancies.append(FieldDiscrepancy(
-                field_name="domain_entity",
-                expected_pattern="Entidad válida",
-                actual_value="Error",
-                rule_description=f"Excepción al crear la entidad de dominio: {str(e)}",
-                severity="ERROR"
-            ))
+        if is_incomplete:
+            # Short-circuit: No mapear la entidad de dominio si faltan documentos
             from dataclasses import asdict
             fallback_entity = DossierFactory.create_empty(activity_type)
             dossier_data = asdict(fallback_entity)
+            has_errors = True
+            has_warnings = False
+        else:
+            try:
+                domain_entity = DossierFactory.create_from_enriched(
+                    activity_type=activity_type,
+                    **enriched_docs
+                )
+                from dataclasses import asdict
+                dossier_data = asdict(domain_entity)
+                is_complete, domain_issues = domain_entity.validate_completeness()
+                if not is_complete:
+                    discrepancies.extend(domain_issues)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error construyendo entidad de dominio para batch {batch_id}, dni {dni_reference}: {e}")
+                from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+                discrepancies.append(FieldDiscrepancy(
+                    field_name="domain_entity",
+                    expected_pattern="Entidad válida",
+                    actual_value="Error",
+                    rule_description=f"Excepción al crear la entidad de dominio: {str(e)}",
+                    severity="ERROR"
+                ))
+                from dataclasses import asdict
+                fallback_entity = DossierFactory.create_empty(activity_type)
+                dossier_data = asdict(fallback_entity)
 
-        has_errors = any(d.severity == "ERROR" for d in discrepancies)
-        has_warnings = any(d.severity == "WARNING" for d in discrepancies)
+            has_errors = any(d.severity == "ERROR" for d in discrepancies)
+            has_warnings = any(d.severity == "WARNING" for d in discrepancies)
 
         result = QualityRuleResult(
             is_valid=(not has_errors and not has_warnings),
             discrepancies=discrepancies,
             confidence_passed=True,
             enriched_docs=enriched_docs,
+            is_incomplete=is_incomplete,
+            has_document_errors=has_doc_errors
         )
         
         return TriageCase.create_from_quality_result(

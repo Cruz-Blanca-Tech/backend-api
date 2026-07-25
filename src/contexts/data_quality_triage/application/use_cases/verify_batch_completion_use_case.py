@@ -54,8 +54,8 @@ class VerifyBatchCompletionUseCase:
             verdict_name = case.verdict.name if hasattr(case.verdict, 'name') else case.verdict
             verdict_summary[verdict_name] = verdict_summary.get(verdict_name, 0) + 1
             
-            # The only pending status that blocks completion is REQUIRES_TRIAGE
-            if case.verdict == TriageVerdict.REQUIRES_TRIAGE:
+            # Un caso bloquea la finalización del lote si NO está en estado finalizado (APPROVED o REJECTED)
+            if not case.is_finalized:
                 all_processed = False
                 pending_cases += 1
                 

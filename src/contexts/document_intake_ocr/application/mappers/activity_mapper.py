@@ -41,6 +41,8 @@ class ActivityMapper:
             requirements=[
                 ActivityRequirementResponse(
                     document_type_config_id=req.document_config.id,
+                    code=str(req.document_config.code),
+                    name=req.document_config.name,
                     is_required=req.is_required,
                     confidence_threshold=req.confidence_threshold
                 ) for req in entity.required_documents
