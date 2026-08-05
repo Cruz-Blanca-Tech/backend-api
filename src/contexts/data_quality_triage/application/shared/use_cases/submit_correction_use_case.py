@@ -8,12 +8,19 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status 
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.core.events.event_dispatcher import EventDispatcher
-from src.core.validators.exceptions import EntityNotFoundException
+from src.core.validators.exceptions import ConflictException, EntityNotFoundException
 from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
 from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 
 logger = logging.getLogger(__name__)
+
+# El mensaje va directo al toast del operador, así que se muestra el estado en
+# castellano y no el valor crudo del enum.
+STATUS_LABELS = {
+    TriageStatus.APPROVED: "aprobado",
+    TriageStatus.REJECTED: "rechazado",
+}
 
 class SubmitCorrectionUseCase:
     def __init__(self, triage_repo: SqlTriageRepository, session: AsyncSession):
@@ -26,7 +33,13 @@ class SubmitCorrectionUseCase:
             raise EntityNotFoundException(f"No se encontró el caso de triaje con ID: {case_id}")
             
         if case.is_finalized:
-            raise ValueError("No se puede editar un caso de triaje que ya ha sido finalizado (aprobado o rechazado).")
+            # Regla de negocio, NO fallo técnico. Un ValueError pelado no lo captura
+            # ningún handler y termina en el atrapalotodo como 500 "Contacte a
+            # soporte técnico", que no le dice nada al operador.
+            raise ConflictException(
+                f"Este expediente ya fue finalizado ({STATUS_LABELS.get(case.status, case.status.value)}) "
+                "y no admite más correcciones."
+            )
 
         previous_status = case.status.value
         case.submit_correction(corrected_data, user_id)

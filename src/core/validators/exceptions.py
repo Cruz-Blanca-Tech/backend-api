@@ -14,6 +14,16 @@ class DomainValidationError(DomainException):
     """Se lanza cuando los datos de entrada violan una regla de negocio (ej. documentos incompletos)."""
     pass
 
+class ConflictException(DomainException):
+    """
+    Se lanza cuando la petición es válida pero el recurso está en un estado que no
+    admite la operación (ej. corregir un expediente ya aprobado). HTTP 409.
+
+    Distinta de DomainValidationError (400): ahí el problema son los DATOS que manda
+    el cliente; acá los datos están bien y el problema es el ESTADO del recurso.
+    """
+    pass
+
 class ExternalServiceException(Exception):
     """Se lanza cuando un proveedor externo (Google Drive, Azure, etc.) falla de forma técnica o de red."""
     def __init__(self, service_name: str, operation: str, details: str):
