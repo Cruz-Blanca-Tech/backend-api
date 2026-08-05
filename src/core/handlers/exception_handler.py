@@ -1,13 +1,17 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from src.core.validators.exceptions import DomainValidationError, EntityNotFoundException, ExternalServiceException, ForbiddenException, UnauthorizedException
+from src.core.validators.exceptions import ConflictException, DomainValidationError, EntityNotFoundException, ExternalServiceException, ForbiddenException, UnauthorizedException
 
 
 # src/core/exception_handlers.py
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 
 def configure_exception_handlers(application: FastAPI):
@@ -48,6 +52,16 @@ def configure_exception_handlers(application: FastAPI):
             content={"error": "Business Rule Violation", "message": exc.message}
         )
 
+    # 4.b Manejador para Conflictos de Estado del Recurso (409)
+    @application.exception_handler(ConflictException)
+    async def conflict_handler(request: Request, exc: ConflictException):
+        # `message` es lo que el api-client del frontend levanta para el toast
+        # (ver api-client.ts: prioriza errors[] > message > error > detail).
+        return JSONResponse(
+            status_code=409,
+            content={"error": "Conflict", "message": exc.message}
+        )
+
     # 5. Manejador para Caídas de Infraestructura Externa (502 Bad Gateway)
     @application.exception_handler(ExternalServiceException)
     async def external_service_handler(request: Request, exc: ExternalServiceException):
@@ -60,8 +74,15 @@ def configure_exception_handlers(application: FastAPI):
     # 6. Manejador Global (El "Atrapalotodo" para errores de código inesperados - 500)
     @application.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        # En producción, aquí deberías enviar el log a un sistema como Sentry o Datadog
-        print(f"[CRÍTICO] Error no controlado: {exc}") 
+        # En producción, aquí deberías enviar el log a un sistema como Sentry o Datadog.
+        # `logger.exception` deja el traceback COMPLETO en el log: sin él, el 500
+        # genérico que ve el cliente es lo único que queda y el error real se pierde.
+        logger.exception(
+            "[CRÍTICO] Error no controlado en %s %s: %s",
+            request.method,
+            request.url.path,
+            exc,
+        )
         return JSONResponse(
             status_code=500,
             content={"message": "Error interno del sistema", "detail": "Contacte a soporte técnico"},
