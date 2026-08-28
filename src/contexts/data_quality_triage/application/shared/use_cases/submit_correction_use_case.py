@@ -13,32 +13,29 @@ from src.contexts.data_quality_triage.application.shared.factories.dossier_facto
 from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 
+from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
+
 logger = logging.getLogger(__name__)
 
-# El mensaje va directo al toast del operador, así que se muestra el estado en
-# castellano y no el valor crudo del enum.
-STATUS_LABELS = {
-    TriageStatus.APPROVED: "aprobado",
-    TriageStatus.REJECTED: "rechazado",
-}
-
 class SubmitCorrectionUseCase:
-    def __init__(self, triage_repo: SqlTriageRepository, session: AsyncSession):
+    def __init__(
+        self,
+        triage_repo: SqlTriageRepository,
+        session: AsyncSession,
+        batch_status_validator: Optional[BatchStatusValidatorPort] = None
+    ):
         self.triage_repo = triage_repo
         self.session = session
+        self.batch_status_validator = batch_status_validator
 
     async def execute(self, case_id: UUID, user_id: UUID, corrected_data: Dict[str, Any]) -> TriageCase:
         case = await self.triage_repo.get_by_id(case_id)
         if not case:
             raise EntityNotFoundException(f"No se encontró el caso de triaje con ID: {case_id}")
             
-        if case.is_finalized:
-            # Regla de negocio, NO fallo técnico. Un ValueError pelado no lo captura
-            # ningún handler y termina en el atrapalotodo como 500 "Contacte a
-            # soporte técnico", que no le dice nada al operador.
+        if self.batch_status_validator and await self.batch_status_validator.is_batch_completed(case.batch_id):
             raise ConflictException(
-                f"Este expediente ya fue finalizado ({STATUS_LABELS.get(case.status, case.status.value)}) "
-                "y no admite más correcciones."
+                "El lote al que pertenece este expediente ya fue procesado y cerrado, no admite más correcciones."
             )
 
         previous_status = case.status.value
