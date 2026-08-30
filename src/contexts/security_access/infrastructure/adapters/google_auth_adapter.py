@@ -18,7 +18,10 @@ class GoogleIdentityAdapter(IdentityProviderPort):
                 picture_url="https://example.com/pic.jpg"
             )
         
-        id_info = id_token.verify_oauth2_token(google_token, requests.Request(), self.client_id)
+        try:
+            id_info = id_token.verify_oauth2_token(google_token, requests.Request(), self.client_id)
+        except Exception as e:
+            raise ValueError("Token de Google inválido o malformado.") from e
         
         return ExternalUserIdentity(
             email=id_info["email"],
