@@ -1,8 +1,10 @@
 import logging
+from typing import Optional
 from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
+from src.contexts.data_quality_triage.domain.shared.rules.dossier_status_validator import DossierStatusValidator
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.core.events.event_dispatcher import EventDispatcher
@@ -11,14 +13,22 @@ from src.core.validators.exceptions import EntityNotFoundException
 logger = logging.getLogger(__name__)
 
 class RejectDossierUseCase:
-    def __init__(self, triage_repo: SqlTriageRepository, session: AsyncSession):
+    def __init__(
+        self,
+        triage_repo: SqlTriageRepository,
+        session: AsyncSession,
+        status_validator: Optional[DossierStatusValidator] = None
+    ):
         self.triage_repo = triage_repo
         self.session = session
+        self.status_validator = status_validator or DossierStatusValidator()
 
     async def execute(self, case_id: UUID, user_id: UUID, reason: str) -> TriageCase:
         case = await self.triage_repo.get_by_id(case_id)
         if not case:
             raise EntityNotFoundException(f"No se encontró el caso de triaje con ID: {case_id}")
+
+        await self.status_validator.validate_can_be_rejected(case)
 
         previous_status = case.status.value
         case.reject(user_id, reason)

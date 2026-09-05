@@ -14,12 +14,12 @@ from src.contexts.data_quality_triage.application.shared.use_cases.submit_correc
 from src.contexts.data_quality_triage.application.shared.use_cases.reject_dossier_use_case import RejectDossierUseCase
 from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
 from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
+from src.contexts.security_access.infrastructure.dependencies import get_current_user
+from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 from dataclasses import asdict
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/educa", tags=["Educa Triage"])
-
-HARDCODED_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 @router.get("/{case_id}", response_model=EducaTriageCasePreviewResponse)
 async def get_educa_triage_case(
@@ -58,7 +58,8 @@ async def submit_correction(
     case_id: UUID,
     payload: EducaInscriptionData,
     submit_correction_uc: SubmitCorrectionUseCase = Depends(get_submit_correction_use_case),
-    triage_repo: SqlTriageRepository = Depends(get_triage_repository)
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository),
+    current_user: TokenClaims = Depends(get_current_user),
 ):
     """
     Guarda las correcciones manuales hechas sobre un expediente de Educa.
@@ -76,7 +77,7 @@ async def submit_correction(
 
     case = await submit_correction_uc.execute(
         case_id=case_id, 
-        user_id=HARDCODED_USER_ID,
+        user_id=current_user.user_id,
         corrected_data=payload.model_dump()
     )
 
@@ -97,7 +98,8 @@ async def reject_triage_case(
     case_id: UUID,
     payload: TriageRejectRequest,
     reject_uc: RejectDossierUseCase = Depends(get_reject_dossier_use_case),
-    triage_repo: SqlTriageRepository = Depends(get_triage_repository)
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository),
+    current_user: TokenClaims = Depends(get_current_user),
 ):
     """
     Rechaza un expediente específico de Educa, indicando un motivo.
@@ -112,7 +114,7 @@ async def reject_triage_case(
             detail=f"Este endpoint es exclusivo para EDUCA_INSCRIPTION. El expediente pertenece a {case_record.activity_type}."
         )
 
-    await reject_uc.execute(case_id=case_id, user_id=HARDCODED_USER_ID, reason=payload.reason)
+    await reject_uc.execute(case_id=case_id, user_id=current_user.user_id, reason=payload.reason)
     
     return {"case_id": str(case_id), "message": "Expediente rechazado correctamente"}
 
