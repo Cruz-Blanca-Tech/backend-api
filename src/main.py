@@ -79,7 +79,7 @@ def custom_openapi():
         version="1.0.0",
         routes=app.routes,
     )
-    openapi_schema["components"]["securitySchemes"] = {
+    openapi_schema.setdefault("components", {})["securitySchemes"] = {
         "Bearer Auth": {
             "type": "http",
             "scheme": "bearer",
