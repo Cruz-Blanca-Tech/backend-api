@@ -13,6 +13,7 @@ from src.contexts.data_quality_triage.application.shared.factories.dossier_facto
 from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 
+from src.contexts.data_quality_triage.domain.shared.rules.dossier_status_validator import DossierStatusValidator
 from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
 
 logger = logging.getLogger(__name__)
@@ -22,21 +23,24 @@ class SubmitCorrectionUseCase:
         self,
         triage_repo: SqlTriageRepository,
         session: AsyncSession,
+        status_validator: Optional[DossierStatusValidator] = None,
         batch_status_validator: Optional[BatchStatusValidatorPort] = None
     ):
         self.triage_repo = triage_repo
         self.session = session
-        self.batch_status_validator = batch_status_validator
+        if status_validator:
+            self.status_validator = status_validator
+        elif batch_status_validator:
+            self.status_validator = DossierStatusValidator(batch_status_validator=batch_status_validator)
+        else:
+            self.status_validator = DossierStatusValidator()
 
     async def execute(self, case_id: UUID, user_id: UUID, corrected_data: Dict[str, Any]) -> TriageCase:
         case = await self.triage_repo.get_by_id(case_id)
         if not case:
             raise EntityNotFoundException(f"No se encontró el caso de triaje con ID: {case_id}")
             
-        if self.batch_status_validator and await self.batch_status_validator.is_batch_completed(case.batch_id):
-            raise ConflictException(
-                "El lote al que pertenece este expediente ya fue procesado y cerrado, no admite más correcciones."
-            )
+        await self.status_validator.validate_can_be_corrected(case)
 
         previous_status = case.status.value
         case.submit_correction(corrected_data, user_id)
