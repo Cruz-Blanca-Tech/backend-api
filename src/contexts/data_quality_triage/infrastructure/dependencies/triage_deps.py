@@ -4,6 +4,7 @@ from src.core.database import get_async_db
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_document_read_repository import SqlDocumentReadRepository
 from src.contexts.data_quality_triage.domain.shared.strategies.triage_strategy_factory import TriageStrategyFactory
+from src.contexts.data_quality_triage.domain.shared.rules.dossier_status_validator import DossierStatusValidator
 from src.contexts.data_quality_triage.application.shared.services.dossier_processor import ProcessDossierUseCase
 from src.contexts.data_quality_triage.application.shared.use_cases.submit_correction_use_case import SubmitCorrectionUseCase
 from src.contexts.data_quality_triage.application.shared.use_cases.reject_batch_use_case import RejectBatchUseCase
@@ -24,13 +25,20 @@ def get_strategy_factory() -> TriageStrategyFactory:
 def get_dossier_processor(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository), doc_repo: SqlDocumentReadRepository = Depends(get_document_read_repository)) -> ProcessDossierUseCase:
     return ProcessDossierUseCase(triage_repo=triage_repo, doc_repo=doc_repo, strategy_factory=TriageStrategyFactory(), session=session)
 
-def get_submit_correction_use_case(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> SubmitCorrectionUseCase:
+def get_dossier_status_validator(session: AsyncSession = Depends(get_async_db)) -> DossierStatusValidator:
     from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
     from src.contexts.data_quality_triage.infrastructure.adapters.batch_status_validator_adapter import BatchStatusValidatorAdapter
 
     batch_repo = SqlBatchRepository(session=session)
-    validator = BatchStatusValidatorAdapter(batch_repository=batch_repo)
-    return SubmitCorrectionUseCase(triage_repo=triage_repo, session=session, batch_status_validator=validator)
+    batch_validator = BatchStatusValidatorAdapter(batch_repository=batch_repo)
+    return DossierStatusValidator(batch_status_validator=batch_validator)
+
+def get_submit_correction_use_case(
+    session: AsyncSession = Depends(get_async_db),
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository),
+    status_validator: DossierStatusValidator = Depends(get_dossier_status_validator)
+) -> SubmitCorrectionUseCase:
+    return SubmitCorrectionUseCase(triage_repo=triage_repo, session=session, status_validator=status_validator)
 
 def get_reject_batch_use_case(
     session: AsyncSession = Depends(get_async_db),
@@ -43,8 +51,12 @@ def get_reject_batch_use_case(
     validator = BatchStatusValidatorAdapter(batch_repository=batch_repo)
     return RejectBatchUseCase(triage_repo=triage_repo, session=session, batch_status_validator=validator)
 
-def get_reject_dossier_use_case(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> RejectDossierUseCase:
-    return RejectDossierUseCase(triage_repo=triage_repo, session=session)
+def get_reject_dossier_use_case(
+    session: AsyncSession = Depends(get_async_db),
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository),
+    status_validator: DossierStatusValidator = Depends(get_dossier_status_validator)
+) -> RejectDossierUseCase:
+    return RejectDossierUseCase(triage_repo=triage_repo, session=session, status_validator=status_validator)
 
 def get_cases_by_batch_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> GetCasesByBatchUseCase:
     return GetCasesByBatchUseCase(triage_repo=triage_repo)
