@@ -13,19 +13,23 @@ from src.contexts.data_quality_triage.application.shared.use_cases.reject_batch_
 from src.contexts.data_quality_triage.application.shared.use_cases.get_cases_by_batch_use_case import GetCasesByBatchUseCase
 from src.contexts.data_quality_triage.application.use_cases.verify_batch_completion_use_case import VerifyBatchCompletionUseCase
 from src.contexts.data_quality_triage.application.use_cases.get_batch_summary_use_case import GetBatchSummaryUseCase
+from src.contexts.security_access.infrastructure.dependencies import get_current_user
+from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/batch", tags=["Triage Batches"])
 
-HARDCODED_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
-
-
 
 @router.post("/{batch_id}/reject")
-async def reject_batch(batch_id: UUID, payload: TriageRejectRequest, reject_uc: RejectBatchUseCase = Depends(get_reject_batch_use_case)):
+async def reject_batch(
+    batch_id: UUID,
+    payload: TriageRejectRequest,
+    reject_uc: RejectBatchUseCase = Depends(get_reject_batch_use_case),
+    current_user: TokenClaims = Depends(get_current_user),
+):
     """Rechaza masivamente todos los casos pendientes de un lote."""
     try:
-        rejected_count = await reject_uc.execute(batch_id=batch_id, user_id=HARDCODED_USER_ID, reason=payload.reason)
+        rejected_count = await reject_uc.execute(batch_id=batch_id, user_id=current_user.user_id, reason=payload.reason)
         return {"batch_id": str(batch_id), "rejected_count": rejected_count, "message": f"{rejected_count} expedientes rechazados"}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
