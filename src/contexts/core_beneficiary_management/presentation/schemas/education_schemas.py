@@ -16,3 +16,12 @@ class EducationRecordPatchRequest(BaseModel):
     knows_how_to_write: Optional[bool] = None
     has_repeated_grade: Optional[bool] = None
     has_learning_difficulties: Optional[bool] = None
+
+class EducationRecordCreateRequest(BaseModel):
+    school: Optional[str] = None
+    grade: Optional[str] = None
+    knows_how_to_read: Optional[bool] = None
+    knows_how_to_write: Optional[bool] = None
+    has_repeated_grade: Optional[bool] = None
+    has_learning_difficulties: Optional[bool] = None
+

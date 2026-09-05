@@ -32,18 +32,29 @@ class GetBatchByIdUseCase:
         
         triage_summaries = await self.triage_service.get_triage_summaries([b.id])
         
+        failed_docs = [d for d in getattr(b, 'documents', []) if d.status == DocumentStatus.FAILED]
+        failure_reason = getattr(b, 'failure_reason', None)
+        if not failure_reason and failed_docs:
+            doc_reasons = [f"{d.file_name}: {d.failure_reason}" for d in failed_docs if d.failure_reason]
+            if doc_reasons:
+                failure_reason = " · ".join(doc_reasons[:3])
+            else:
+                failure_reason = f"{len(failed_docs)} documento(s) fallido(s)"
+
         return BatchItemSchema(
             id=b.id,
             activity_id=b.activity_id,
             status=b.status,
             created_at=b.created_at.isoformat() if b.created_at else None,
-            documents_failed_count=sum(1 for d in getattr(b, 'documents', []) if d.status == DocumentStatus.FAILED),
+            documents_failed_count=len(failed_docs),
             documents_approved_count=sum(1 for d in getattr(b, 'documents', []) if d.status == DocumentStatus.APPROVED),
+            total_documents_count=len(getattr(b, 'documents', [])),
             description=b.description,
             activity_name=b.activity.name if getattr(b, 'activity', None) else None,
             program_name=b.activity.program.name if getattr(b, 'activity', None) and getattr(b.activity, 'program', None) else None,
             triage_summary=triage_summaries.get(b.id, {
                 "total_cases": 0,
                 "verdicts": {}
-            })
+            }),
+            failure_reason=failure_reason
         )
