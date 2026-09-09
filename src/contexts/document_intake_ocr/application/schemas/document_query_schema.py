@@ -8,5 +8,10 @@ class DocumentDossierItemResponse(BaseModel):
     file_name: str
     source_id: Optional[str]
 
+class PendingDocumentItemResponse(BaseModel):
+    code: str
+    name: Optional[str] = None
+
 class GetDocumentsByDossierResponse(BaseModel):
     documents: List[DocumentDossierItemResponse]
+    pending_documents: List[PendingDocumentItemResponse] = []

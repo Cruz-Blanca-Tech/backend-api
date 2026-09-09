@@ -43,18 +43,22 @@ class ProcessDossierUseCase:
         activity_type = ActivityType(activity_type_str)
         
         # 3. Ejecutar la validación cruzada y construir el caso
+        existing_case = await self.triage_repo.get_by_dossier(batch_id, dni)
         case = strategy.execute(batch_id=batch_id, activity_type=activity_type, dni_reference=dni, documents=docs)
+        if existing_case:
+            case.id = existing_case.id
+            case.created_at = existing_case.created_at
 
         # 4. Persistencia y Eventos
         await self.triage_repo.save(case)
-        await self._audit_and_dispatch(case)
+        await self._audit_and_dispatch(case, is_new=(existing_case is None))
         await self.session.commit()
         return case
 
-    async def _audit_and_dispatch(self, case: TriageCase) -> None:
+    async def _audit_and_dispatch(self, case: TriageCase, is_new: bool = True) -> None:
         self.session.add(TriageAuditLogModel(
             id=uuid4(), triage_case_id=case.id,
-            action="CREATED", performed_by=SYSTEM_UUID,
+            action="CREATED" if is_new else "EVALUATED", performed_by=SYSTEM_UUID,
             previous_status=None, new_status=case.status.value,
             details={
                 "verdict":       case.verdict.value,
