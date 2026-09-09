@@ -4,7 +4,7 @@ from src.core.events.event_dispatcher import EventDispatcher
 from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
 from src.contexts.document_intake_ocr.application.use_cases.generate_dossier_pdf_use_case import GenerateDossierPdfUseCase
 from src.contexts.document_intake_ocr.infrastructure.adapters.google_drive_storage_adapter import GoogleDriveStorageAdapter
-from src.core.config.settings import settings
+from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 

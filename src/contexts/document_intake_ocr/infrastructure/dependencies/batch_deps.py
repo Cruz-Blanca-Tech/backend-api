@@ -148,3 +148,19 @@ def get_batch_by_id_use_case(session: AsyncSession = Depends(get_async_db)) -> G
     triage_service = TriageServiceAdapter(get_batches_summaries_use_case=triage_use_case)
     
     return GetBatchByIdUseCase(session=session, triage_service=triage_service)
+
+def get_append_documents_use_case(
+    activity_repo: SqlActivityRepository = Depends(get_activity_repository),
+    batch_repo: SqlBatchRepository = Depends(get_batch_repository),
+    storage: GoogleDriveStorageAdapter = Depends(get_storage_adapter),
+    doc_processor: SingleDocumentProcessor = Depends(get_single_document_processor),
+    event_publisher: DossierEventPublisher = Depends(get_dossier_event_publisher),
+):
+    from src.contexts.document_intake_ocr.application.use_cases.append_documents_use_case import AppendDocumentsUseCase
+    return AppendDocumentsUseCase(
+        activity_repo=activity_repo,
+        batch_repo=batch_repo,
+        storage_adapter=storage,
+        single_doc_processor=doc_processor,
+        event_publisher=event_publisher,
+    )

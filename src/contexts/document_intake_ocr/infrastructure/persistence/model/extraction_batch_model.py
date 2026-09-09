@@ -1,7 +1,7 @@
 # src/contexts/document_intake_ocr/infrastructure/persistence/models/batch_model.py
 from uuid import UUID
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from sqlalchemy import ForeignKey, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,6 +16,7 @@ class ExtractionBatchModel(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))    
     description: Mapped[str] = mapped_column(String(500), nullable=False, server_default="")
+    failure_reason: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     
     documents: Mapped[List["DocumentItemModel"]] = relationship( # type: ignore
         "DocumentItemModel", 
