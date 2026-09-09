@@ -131,3 +131,79 @@ class TestCreateBeneficiaryUseCase(unittest.IsolatedAsyncioTestCase):
             await self.use_case.execute(request)
 
         self.mock_repo.save.assert_not_called()
+
+
+from src.contexts.core_beneficiary_management.application.dtos.educa_dossier_dto import (
+    EducaDossierDTO, EducaBeneficiaryDTO, EducaRelatedAdultsDTO, EducaAdultDTO
+)
+from src.contexts.core_beneficiary_management.application.mappers.educa_dossier_mapper import EducaDossierMapper
+from src.contexts.core_beneficiary_management.domain.entities.beneficiary import Beneficiary
+from src.contexts.core_beneficiary_management.domain.entities.adult import Adult
+from src.contexts.core_beneficiary_management.domain.value_objects.dni import DNI
+from src.contexts.core_beneficiary_management.domain.value_objects.relationship_role import RelationshipRole
+
+
+class TestEducaDossierMapper(unittest.TestCase):
+    def test_map_to_entity_deduplicates_adults_by_dni(self):
+        dto = EducaDossierDTO(
+            beneficiary=EducaBeneficiaryDTO(
+                dni="12345678",
+                first_name="Juan",
+                last_name="Perez",
+                gender="M"
+            ),
+            related_adults=EducaRelatedAdultsDTO(
+                adults=[
+                    EducaAdultDTO(dni="87654321", full_name="Papa Perez", role="FATHER", phone="999111222"),
+                    EducaAdultDTO(dni="87654321", full_name="Papa Perez Duplicate", role="OTHER", phone="999111222"),
+                    EducaAdultDTO(dni="11223344", full_name="Mama Perez", role="MOTHER", phone="999333444")
+                ],
+                emergency_contact_dni="87654321"
+            )
+        )
+
+        beneficiary = EducaDossierMapper.map_to_entity(dto)
+
+        # Should only have 2 unique adults, not 3
+        self.assertEqual(len(beneficiary.relatives), 2)
+        dnis = [r.dni.value for r in beneficiary.relatives]
+        self.assertEqual(dnis, ["87654321", "11223344"])
+
+    def test_map_to_entity_preserves_existing_relative_id(self):
+        existing_adult_id = uuid4()
+        existing_beneficiary = Beneficiary(
+            id=uuid4(),
+            dni=DNI("12345678"),
+            first_name="Juan",
+            last_name="Perez"
+        )
+        existing_beneficiary.relatives = [
+            Adult(
+                id=existing_adult_id,
+                dni=DNI("87654321"),
+                first_name="Papa",
+                last_name="Perez",
+                beneficiary_id=existing_beneficiary.id,
+                role=RelationshipRole.FATHER
+            )
+        ]
+
+        dto = EducaDossierDTO(
+            beneficiary=EducaBeneficiaryDTO(
+                dni="12345678",
+                first_name="Juan",
+                last_name="Perez",
+                gender="M"
+            ),
+            related_adults=EducaRelatedAdultsDTO(
+                adults=[
+                    EducaAdultDTO(dni="87654321", full_name="Papa Perez Updated", role="FATHER")
+                ]
+            )
+        )
+
+        updated_beneficiary = EducaDossierMapper.map_to_entity(dto, existing_beneficiary)
+
+        self.assertEqual(len(updated_beneficiary.relatives), 1)
+        self.assertEqual(updated_beneficiary.relatives[0].id, existing_adult_id)
+

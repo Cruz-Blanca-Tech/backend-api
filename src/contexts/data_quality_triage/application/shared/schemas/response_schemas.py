@@ -16,6 +16,8 @@ class TriageCaseListItem(BaseModel):
     confidence_threshold: float
     error_count: int
     warning_count: int
+    sync_status: Optional[str] = None
+    sync_error: Optional[str] = None
     discrepancies: List[DiscrepancySchema] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -27,6 +29,8 @@ class TriageCaseDetailResponse(BaseModel):
     dni_reference: str
     status: str
     verdict: str
+    sync_status: Optional[str] = None
+    sync_error: Optional[str] = None
     confidence_scores: Dict[str, float]
     confidence_threshold: float
     dossier_data: Dict[str, Any]

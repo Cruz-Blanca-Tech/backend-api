@@ -25,6 +25,9 @@ class TriageCaseModel(Base):
 
     rejection_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
+    sync_status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="PENDING")
+    sync_error: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+
     resolved_by: Mapped[Optional[PyUUID]] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 

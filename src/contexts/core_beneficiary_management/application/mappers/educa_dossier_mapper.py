@@ -132,9 +132,21 @@ class EducaDossierMapper:
 
         # Map Relatives (Adults)
         # We replace the current relatives with what comes in the DTO for this specific update
+        existing_relatives_by_dni = {
+            r.dni.value: r for r in existing_beneficiary.relatives if r.dni
+        } if existing_beneficiary and existing_beneficiary.relatives else {}
+
         beneficiary.relatives = []
-        
+        seen_dnis = set()
+
         for ad_dto in dto.related_adults.adults:
+            ad_dni_raw = (ad_dto.dni or "").strip()
+            if not ad_dni_raw or not (ad_dni_raw.isdigit() and len(ad_dni_raw) == 8):
+                continue
+            if ad_dni_raw in seen_dnis:
+                continue
+            seen_dnis.add(ad_dni_raw)
+
             parts = ad_dto.full_name.split(" ", 1)
             ad_first_name = parts[0] if parts else ""
             ad_last_name = parts[1] if len(parts) > 1 else ""
@@ -145,9 +157,9 @@ class EducaDossierMapper:
                 role_enum = RelationshipRole.OTHER
                 
             try:
-                ad_dni = DNI(ad_dto.dni)
+                ad_dni = DNI(ad_dni_raw)
             except ValueError:
-                ad_dni = DNI("00000000")
+                continue
                 
             ad_phone = None
             if ad_dto.phone:
@@ -160,8 +172,11 @@ class EducaDossierMapper:
             if dto.related_adults.emergency_contact_dni and ad_dto.dni == dto.related_adults.emergency_contact_dni:
                 is_emergency = True
 
+            # Preserve existing relative ID if already tracked for this beneficiary
+            adult_id = existing_relatives_by_dni[ad_dni_raw].id if ad_dni_raw in existing_relatives_by_dni else uuid.uuid4()
+
             beneficiary.relatives.append(Adult(
-                id=uuid.uuid4(),
+                id=adult_id,
                 dni=ad_dni,
                 first_name=ad_first_name,
                 last_name=ad_last_name,
