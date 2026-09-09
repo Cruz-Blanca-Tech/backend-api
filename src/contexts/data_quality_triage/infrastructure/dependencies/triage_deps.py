@@ -12,6 +12,8 @@ from src.contexts.data_quality_triage.application.shared.use_cases.reject_dossie
 from src.contexts.data_quality_triage.application.shared.use_cases.get_cases_by_batch_use_case import GetCasesByBatchUseCase
 from src.contexts.data_quality_triage.application.use_cases.verify_batch_completion_use_case import VerifyBatchCompletionUseCase
 from src.contexts.data_quality_triage.application.use_cases.get_batch_summary_use_case import GetBatchSummaryUseCase
+from src.contexts.data_quality_triage.application.use_cases.retry_batch_sync_use_case import RetryBatchSyncUseCase
+from src.contexts.data_quality_triage.application.use_cases.retry_case_sync_use_case import RetryCaseSyncUseCase
 
 def get_triage_repository(session: AsyncSession = Depends(get_async_db)) -> SqlTriageRepository:
     return SqlTriageRepository(session=session)
@@ -74,3 +76,9 @@ def get_verify_batch_completion_use_case(
 
 def get_batch_summary_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> GetBatchSummaryUseCase:
     return GetBatchSummaryUseCase(triage_repository=triage_repo)
+
+def get_retry_batch_sync_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> RetryBatchSyncUseCase:
+    return RetryBatchSyncUseCase(triage_repo=triage_repo)
+
+def get_retry_case_sync_use_case(triage_repo: SqlTriageRepository = Depends(get_triage_repository)) -> RetryCaseSyncUseCase:
+    return RetryCaseSyncUseCase(triage_repo=triage_repo)

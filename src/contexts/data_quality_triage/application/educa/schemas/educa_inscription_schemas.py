@@ -85,6 +85,8 @@ class EducaTriageCasePreviewResponse(BaseModel):
     Respuesta simplificada para la vista previa en el Frontend.
     """
     status: str
+    sync_status: Optional[str] = None
+    sync_error: Optional[str] = None
     dossier_data: EducaInscriptionData
     discrepancies: List[DiscrepancySchema]
 
@@ -97,6 +99,8 @@ class EducaTriageCaseDetailResponse(BaseModel):
     dni_reference: str
     status: str
     verdict: str
+    sync_status: Optional[str] = None
+    sync_error: Optional[str] = None
     confidence_scores: Dict[str, float]
     dossier_data: EducaInscriptionData
     discrepancies: List[DiscrepancySchema]

@@ -16,6 +16,8 @@ class BatchStatus(str, Enum):
     FAILED = "FAILED"
     REJECTED = "REJECTED"
     FINALIZED = "FINALIZED"
+    SYNCING = "SYNCING"
+    SYNC_FAILED = "SYNC_FAILED"
 
 @dataclass
 class ExtractionBatch:

@@ -7,11 +7,12 @@ from src.contexts.data_quality_triage.application.shared.schemas.triage_schemas 
 )
 from src.contexts.data_quality_triage.application.educa.schemas.educa_inscription_schemas import EducaInscriptionData, EducaTriageCaseDetailResponse, EducaTriageCasePreviewResponse
 from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import (
-    get_submit_correction_use_case, get_triage_repository, get_reject_dossier_use_case
+    get_submit_correction_use_case, get_triage_repository, get_reject_dossier_use_case, get_retry_case_sync_use_case
 )
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.application.shared.use_cases.submit_correction_use_case import SubmitCorrectionUseCase
 from src.contexts.data_quality_triage.application.shared.use_cases.reject_dossier_use_case import RejectDossierUseCase
+from src.contexts.data_quality_triage.application.use_cases.retry_case_sync_use_case import RetryCaseSyncUseCase
 from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
 from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
 from src.contexts.security_access.infrastructure.dependencies import get_current_user
@@ -49,6 +50,8 @@ async def get_educa_triage_case(
 
     return EducaTriageCasePreviewResponse(
         status=case.status.value,
+        sync_status=case.sync_status,
+        sync_error=case.sync_error,
         dossier_data=asdict(domain_entity),
         discrepancies=discrepancies,
     )
@@ -88,10 +91,23 @@ async def submit_correction(
     return EducaTriageCaseDetailResponse(
         id=str(case.id), batch_id=str(case.batch_id), dni_reference=case.dni_reference,
         status=case.status.value, verdict=case.verdict.value,
+        sync_status=case.sync_status,
+        sync_error=case.sync_error,
         confidence_scores=case.confidence_scores,
         dossier_data=case.dossier_data,
         discrepancies=discrepancies,
     )
+
+@router.post("/{case_id}/retry-sync")
+async def retry_case_sync(
+    case_id: UUID,
+    retry_uc: RetryCaseSyncUseCase = Depends(get_retry_case_sync_use_case)
+):
+    """Reintenta la sincronización con Beneficiarios de un expediente aprobado."""
+    try:
+        return await retry_uc.execute(case_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{case_id}/reject")
 async def reject_triage_case(
@@ -117,6 +133,19 @@ async def reject_triage_case(
     await reject_uc.execute(case_id=case_id, user_id=current_user.user_id, reason=payload.reason)
     
     return {"case_id": str(case_id), "message": "Expediente rechazado correctamente"}
+
+@router.post("/{case_id}/retry-sync")
+async def retry_case_sync(
+    case_id: UUID,
+    uc: RetryCaseSyncUseCase = Depends(get_retry_case_sync_use_case)
+):
+    """
+    Reintenta la sincronización con Beneficiarios (MDM) de un expediente específico aprobado.
+    """
+    try:
+        return await uc.execute(case_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/manual-trigger", status_code=202)
 async def manual_triage_trigger(batch_id: UUID, dni_reference: str):
