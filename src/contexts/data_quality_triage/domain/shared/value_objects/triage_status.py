@@ -35,3 +35,5 @@ class BatchVerificationStatus(str, Enum):
     COMPLETED = "COMPLETED"
     PENDING = "PENDING"
     NOT_FOUND = "NOT_FOUND"
+    SYNCING = "SYNCING"
+    SYNC_FAILED = "SYNC_FAILED"

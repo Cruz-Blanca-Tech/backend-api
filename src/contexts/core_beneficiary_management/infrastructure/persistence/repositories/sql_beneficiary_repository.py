@@ -68,6 +68,19 @@ class SqlBeneficiaryRepository:
         return result.scalar() or 0
 
     async def save(self, beneficiary: Beneficiary) -> None:
+        from src.contexts.core_beneficiary_management.infrastructure.persistence.model.person_model import PersonModel
+
+        # Ensure that any relatives (adults) with existing DNIs in the persons table reuse that person's ID
+        # to prevent unique constraint violations on ix_persons_dni
+        dnis = [r.dni.value for r in beneficiary.relatives if r.dni and r.dni.value]
+        if dnis:
+            stmt = select(PersonModel.id, PersonModel.dni).where(PersonModel.dni.in_(dnis))
+            res = await self.session.execute(stmt)
+            existing_persons = {row.dni: row.id for row in res.all()}
+            for r in beneficiary.relatives:
+                if r.dni and r.dni.value in existing_persons:
+                    r.id = existing_persons[r.dni.value]
+
         model = BeneficiaryMapper.to_persistence(beneficiary)
         # Merge is usually safer when we have complex detached graphs, or add if it's new
         # But if we just extracted from mapper, it is detached. Let's merge.
