@@ -21,9 +21,37 @@ class RevalidateTriageCaseUseCase:
 
         inscription = DossierFactory.reconstitute(case.dossier_data, ActivityType(case.activity_type))
 
-        is_valid, issues = inscription.validate_completeness()
+        # Validar documentos obligatorios
+        missing_doc_discrepancies = []
+        if case.activity_type == "EDUCA_INSCRIPTION":
+            required_doc_map = {
+                "FINS": "Ficha de Inscripción",
+                "DJ": "Declaración Jurada",
+                "DNIBE": "DNI del Beneficiario",
+                "DNIAP": "DNI del Apoderado",
+            }
+            present_doc_codes = set(case.document_ids.keys()) if case.document_ids else set()
+            for code, name in required_doc_map.items():
+                if code not in present_doc_codes:
+                    missing_doc_discrepancies.append(FieldDiscrepancy(
+                        field_name=f"documents.{code}",
+                        expected_pattern=f"Documento {name} ({code}) adjunto",
+                        actual_value="Faltante",
+                        rule_description=f"Falta el documento obligatorio: {name} ({code}). Debe adjuntar el documento para continuar.",
+                        severity="ERROR",
+                        document_code=code
+                    ))
 
-        if is_valid:
+        if missing_doc_discrepancies:
+            case.status = TriageStatus.INCOMPLETE
+            case.discrepancies = missing_doc_discrepancies + [
+                FieldDiscrepancy(
+                    field_name="completeness", expected_pattern="Completitud de datos",
+                    actual_value="Falta información", rule_description=issue,
+                    severity="ERROR", document_code="GLOBAL"
+                ) for issue in issues
+            ]
+        elif is_valid:
             case.approve(reviewer_id)
             case.discrepancies = []
         else:

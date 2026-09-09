@@ -73,9 +73,16 @@ class TriageCase:
             document_ids[doc.document_code] = doc.id
             confidence_scores[doc.document_code] = doc.confidence_score or 0.0
 
+        has_missing_docs = any(
+            d.field_name.startswith("documents.") for d in quality_result.discrepancies
+        )
+
         if quality_result.is_valid:
             status = TriageStatus.APPROVED
             verdict = TriageVerdict.AUTO_APPROVED
+        elif has_missing_docs:
+            status = TriageStatus.INCOMPLETE
+            verdict = TriageVerdict.REQUIRES_TRIAGE
         else:
             status = TriageStatus.PENDING_REVIEW
             verdict = TriageVerdict.REQUIRES_TRIAGE

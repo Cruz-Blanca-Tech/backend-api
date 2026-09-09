@@ -62,7 +62,7 @@ class VerifyBatchCompletionUseCase:
             verdict_name = case.verdict.name if hasattr(case.verdict, 'name') else case.verdict
             verdict_summary[verdict_name] = verdict_summary.get(verdict_name, 0) + 1
             
-            if case.verdict == TriageVerdict.REQUIRES_TRIAGE:
+            if case.status not in (TriageStatus.APPROVED, TriageStatus.REJECTED) or case.verdict == TriageVerdict.REQUIRES_TRIAGE:
                 all_processed = False
                 pending_cases += 1
                 
