@@ -10,7 +10,7 @@ from src.contexts.document_intake_ocr.domain.repositories.batch_repository impor
 from src.contexts.document_intake_ocr.domain.factories.extraction_batch_factory import ExtractionBatchFactory
 from src.contexts.document_intake_ocr.application.mappers.raw_file_mapper import RawFileMapper
 from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse
-from src.core.validators.exceptions import EntityNotFoundException
+from src.core.validators.exceptions import EntityNotFoundException, DomainValidationError
 
 class ProcessBatchUseCase:
     """
@@ -50,6 +50,18 @@ class ProcessBatchUseCase:
             user_id=user_id,
             description=request.description
         )
+
+        # Si el 100% de los archivos fueron rechazados por formato o código, abortamos tempranamente
+        if len(batch.dossiers) == 0:
+            reasons = [
+                f"{d.file_name}: {d.failure_reason or 'Código o formato no reconocido'}"
+                for d in batch.rejected_documents
+            ]
+            detail_str = "; ".join(reasons) if reasons else "No se identificaron archivos válidos."
+            raise DomainValidationError(
+                f"Ninguno de los archivos cumple con la nomenclatura requerida para la actividad '{activity.name}'. "
+                f"Detalle: {detail_str}"
+            )
 
         # 4. Persistencia transaccional inicial
         # Marcamos el lote como "En proceso" antes de disparar el worker

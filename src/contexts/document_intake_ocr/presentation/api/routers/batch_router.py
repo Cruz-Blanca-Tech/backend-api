@@ -3,14 +3,22 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
-from src.contexts.document_intake_ocr.application.schemas.batch_schema import ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest, ListBatchesResponse, BatchItemSchema
+from src.contexts.document_intake_ocr.application.schemas.batch_schema import (
+    ProcessBatchRequest, ProcessBatchResponse, ListBatchesRequest, GetBatchesSummaryRequest,
+    ListBatchesResponse, BatchItemSchema, AppendDocumentsRequest, AppendDocumentsResponse
+)
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.process_batch import ProcessBatchUseCase
 from src.contexts.document_intake_ocr.application.schemas.document_query_schema import GetDocumentsByDossierResponse
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import GetDocumentsByDossierUseCase
 from src.contexts.document_intake_ocr.application.use_cases.get_document_image_use_case import GetDocumentImageUseCase
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
 from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
-from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_process_batch_use_case, get_documents_by_dossier_use_case, get_document_image_use_case, get_list_batches_use_case, get_batches_summary_use_case, get_batch_by_id_use_case
+from src.contexts.document_intake_ocr.application.use_cases.append_documents_use_case import AppendDocumentsUseCase
+from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import (
+    get_process_batch_use_case, get_documents_by_dossier_use_case, get_document_image_use_case,
+    get_list_batches_use_case, get_batches_summary_use_case, get_batch_by_id_use_case,
+    get_append_documents_use_case
+)
 from src.contexts.document_intake_ocr.application.use_cases.get_batch_by_id_use_case import GetBatchByIdUseCase
 from uuid import UUID
 from typing import Optional
@@ -51,6 +59,32 @@ async def get_documents_by_dossier(
     Retorna la data cruda útil para el frontend (IDs, nombres de archivo y URLs).
     """
     return await use_case.execute(batch_id=batch_id, dni_reference=dni_reference)
+
+@router.post(
+    "/{batch_id}/dossiers/{dni_reference}/documents",
+    response_model=AppendDocumentsResponse,
+    summary="Anexa o reintenta documentos en un expediente específico del lote",
+)
+async def append_documents_to_dossier(
+    batch_id: UUID,
+    dni_reference: str,
+    request: AppendDocumentsRequest,
+    background_tasks: BackgroundTasks,
+    current_user: TokenClaims = Depends(get_current_user),
+    use_case: AppendDocumentsUseCase = Depends(get_append_documents_use_case),
+):
+    """
+    Permite anexar o reintentar documentos faltantes o rechazados en un expediente
+    específico identificado por su DNI dentro de un lote ya existente.
+    """
+    return await use_case.execute(
+        batch_id=batch_id,
+        dni_reference=dni_reference,
+        request=request,
+        user_id=current_user.user_id,
+        user_email=current_user.email.value,
+        background_tasks=background_tasks,
+    )
 
 @router.get(
     "/{batch_id}/dossiers/{dni_reference}/documents/{document_id}/image",

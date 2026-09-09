@@ -1,6 +1,8 @@
 from typing import Optional
 from src.contexts.core_beneficiary_management.domain.value_objects.medical_record import MedicalRecord
-from src.contexts.core_beneficiary_management.presentation.schemas.medical_schemas import MedicalRecordResponse, MedicalRecordPatchRequest
+from src.contexts.core_beneficiary_management.presentation.schemas.medical_schemas import (
+    MedicalRecordResponse, MedicalRecordPatchRequest, MedicalRecordCreateRequest
+)
 import uuid
 
 class MedicalDtoMapper:
@@ -44,3 +46,22 @@ class MedicalDtoMapper:
             setattr(domain_entity, field, value)
             
         return domain_entity
+
+    @staticmethod
+    def from_create_request(request: Optional[MedicalRecordCreateRequest], beneficiary_id: uuid.UUID) -> Optional[MedicalRecord]:
+        if not request:
+            return None
+        return MedicalRecord(
+            id=uuid.uuid4(),
+            beneficiary_id=beneficiary_id,
+            has_been_hospitalized=request.has_been_hospitalized,
+            hospitalization_reason=request.hospitalization_reason,
+            has_been_operated=request.has_been_operated,
+            operation_reason=request.operation_reason,
+            vaccines=request.vaccines,
+            medications=request.medications,
+            allergies=request.allergies,
+            diseases=request.diseases,
+            insurance=request.insurance
+        )
+
