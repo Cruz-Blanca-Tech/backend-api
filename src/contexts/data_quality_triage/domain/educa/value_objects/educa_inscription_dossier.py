@@ -28,7 +28,7 @@ class EducaInscriptionDossier(DossierData):
         
         # Importamos las reglas ultra-modulares
         from src.contexts.data_quality_triage.domain.educa.rules.domain.beneficiary_rules import BeneficiaryCompletenessRule, AgeCoherenceRule, GenderCoherenceRule
-        from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import GuardianPresenceRule, EmergencyContactRule
+        from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import GuardianPresenceRule, EmergencyContactRule, FamilyDniUniquenessRule, AdultsDniFormatRule
         from src.contexts.data_quality_triage.domain.educa.rules.domain.medical_rules import MedicalRules
         from src.contexts.data_quality_triage.domain.educa.rules.domain.education_rules import EducationRules
         
@@ -38,6 +38,8 @@ class EducaInscriptionDossier(DossierData):
             BeneficiaryCompletenessRule(),
             AgeCoherenceRule(),
             GenderCoherenceRule(),
+            AdultsDniFormatRule(),
+            FamilyDniUniquenessRule(),
             EmergencyContactRule(),
             GuardianPresenceRule(),
             MedicalRules(),

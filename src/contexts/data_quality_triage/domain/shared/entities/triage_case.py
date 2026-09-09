@@ -23,6 +23,8 @@ class TriageCase:
         rejection_reason: Optional[str] = None,
         resolved_by: Optional[UUID] = None,
         resolved_at: Optional[datetime] = None,
+        sync_status: Optional[str] = "PENDING",
+        sync_error: Optional[str] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
     ):
@@ -37,11 +39,23 @@ class TriageCase:
         self.verdict = verdict
         self.discrepancies = list(discrepancies)
         self.rejection_reason = rejection_reason
+        self.sync_status = sync_status or "PENDING"
+        self.sync_error = sync_error
         self.resolved_by = resolved_by
         self.resolved_at = resolved_at
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
         self._pending_events: List[Any] = []
+
+    def mark_sync_success(self) -> None:
+        self.sync_status = "SYNCED"
+        self.sync_error = None
+        self.updated_at = datetime.now(timezone.utc)
+
+    def mark_sync_failure(self, error_message: str) -> None:
+        self.sync_status = "FAILED"
+        self.sync_error = error_message
+        self.updated_at = datetime.now(timezone.utc)
 
     @classmethod
     def create_from_quality_result(

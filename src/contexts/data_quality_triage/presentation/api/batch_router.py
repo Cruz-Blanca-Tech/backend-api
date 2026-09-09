@@ -7,12 +7,13 @@ from src.contexts.data_quality_triage.application.shared.schemas.triage_schemas 
 )
 from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
 from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import (
-    get_reject_batch_use_case, get_cases_by_batch_use_case, get_verify_batch_completion_use_case, get_batch_summary_use_case
+    get_reject_batch_use_case, get_cases_by_batch_use_case, get_verify_batch_completion_use_case, get_batch_summary_use_case, get_retry_batch_sync_use_case
 )
 from src.contexts.data_quality_triage.application.shared.use_cases.reject_batch_use_case import RejectBatchUseCase
 from src.contexts.data_quality_triage.application.shared.use_cases.get_cases_by_batch_use_case import GetCasesByBatchUseCase
 from src.contexts.data_quality_triage.application.use_cases.verify_batch_completion_use_case import VerifyBatchCompletionUseCase
 from src.contexts.data_quality_triage.application.use_cases.get_batch_summary_use_case import GetBatchSummaryUseCase
+from src.contexts.data_quality_triage.application.use_cases.retry_batch_sync_use_case import RetryBatchSyncUseCase
 from src.contexts.security_access.infrastructure.dependencies import get_current_user
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 
@@ -46,7 +47,15 @@ async def get_cases_by_batch(
 
 @router.post("/{batch_id}/verify-completion")
 async def verify_batch_completion(batch_id: UUID, uc: VerifyBatchCompletionUseCase = Depends(get_verify_batch_completion_use_case)):
-    """Verifica si todos los expedientes de un lote están aprobados y emite un evento si es así."""
+    """Verifica si todos los expedientes de un lote están aprobados y sincroniza los beneficiarios."""
+    return await uc.execute(batch_id)
+
+@router.post("/{batch_id}/retry-sync")
+async def retry_batch_sync(
+    batch_id: UUID,
+    uc: RetryBatchSyncUseCase = Depends(get_retry_batch_sync_use_case)
+):
+    """Reintenta la sincronización con Beneficiarios de todos los expedientes con fallas en un lote."""
     return await uc.execute(batch_id)
 
 @router.get("/{batch_id}/summary")
