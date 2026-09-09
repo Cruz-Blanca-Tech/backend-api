@@ -5,6 +5,7 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.document_code i
 from src.contexts.data_quality_triage.domain.educa.rules.document.dni_rules import (
     DniFormatRule, BeneficiaryDniCrosscheckRule, GuardianDniCrosscheckRule,
 )
+from src.contexts.data_quality_triage.domain.educa.rules.document.required_documents_rule import RequiredDocumentsRule
 
 
 class EducaDocumentRulesValidator:
@@ -14,6 +15,7 @@ class EducaDocumentRulesValidator:
     """
 
     _rules = [
+        RequiredDocumentsRule,
         DniFormatRule,
         BeneficiaryDniCrosscheckRule,
         GuardianDniCrosscheckRule,

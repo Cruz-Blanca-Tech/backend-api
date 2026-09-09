@@ -59,7 +59,33 @@ class SubmitCorrectionUseCase:
                 )
             ]
 
-        if is_complete:
+        # Validar documentos obligatorios
+        missing_doc_discrepancies = []
+        if case.activity_type == "EDUCA_INSCRIPTION":
+            required_doc_map = {
+                "FINS": "Ficha de Inscripción",
+                "DJ": "Declaración Jurada",
+                "DNIBE": "DNI del Beneficiario",
+                "DNIAP": "DNI del Apoderado",
+            }
+            present_doc_codes = set(case.document_ids.keys()) if case.document_ids else set()
+            for code, name in required_doc_map.items():
+                if code not in present_doc_codes:
+                    missing_doc_discrepancies.append(FieldDiscrepancy(
+                        field_name=f"documents.{code}",
+                        expected_pattern=f"Documento {name} ({code}) adjunto",
+                        actual_value="Faltante",
+                        rule_description=f"Falta el documento obligatorio: {name} ({code}). Debe adjuntar el documento para continuar.",
+                        severity="ERROR",
+                        document_code=code
+                    ))
+
+        if missing_doc_discrepancies:
+            all_issues = missing_doc_discrepancies + domain_issues
+            case.update_discrepancies(all_issues)
+            case.status = TriageStatus.INCOMPLETE
+            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {"corrected_fields": corrected_data, "missing_documents": [d.document_code for d in missing_doc_discrepancies]})
+        elif is_complete:
             case.approve(user_id)
             case.discrepancies = []
             self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, TriageStatus.CORRECTED.value, {"corrected_fields": corrected_data})
