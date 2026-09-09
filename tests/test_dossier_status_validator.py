@@ -44,14 +44,12 @@ class TestDossierStatusValidator(unittest.IsolatedAsyncioTestCase):
         self.assertIn("cerrado", ctx.exception.message)
         self.assertIn("correcciones", ctx.exception.message)
 
-    async def test_correction_blocked_when_case_is_approved(self):
+    async def test_correction_allowed_when_batch_open_and_case_approved(self):
         self.mock_batch_validator.is_batch_completed.return_value = False
         case = self._create_case(TriageStatus.APPROVED, TriageVerdict.AUTO_APPROVED)
 
-        with self.assertRaises(ConflictException) as ctx:
-            await self.validator.validate_can_be_corrected(case)
-        self.assertIn("aprobado", ctx.exception.message)
-        self.assertIn("correcciones", ctx.exception.message)
+        # No debe lanzar excepción: un caso aprobado puede corregirse mientras el lote no esté cerrado
+        await self.validator.validate_can_be_corrected(case)
 
     async def test_correction_blocked_when_case_is_rejected(self):
         self.mock_batch_validator.is_batch_completed.return_value = False
@@ -80,14 +78,12 @@ class TestDossierStatusValidator(unittest.IsolatedAsyncioTestCase):
         self.assertIn("cerrado", ctx.exception.message)
         self.assertIn("rechazos", ctx.exception.message)
 
-    async def test_rejection_blocked_when_case_is_approved(self):
+    async def test_rejection_allowed_when_batch_open_and_case_approved(self):
         self.mock_batch_validator.is_batch_completed.return_value = False
         case = self._create_case(TriageStatus.APPROVED, TriageVerdict.AUTO_APPROVED)
 
-        with self.assertRaises(ConflictException) as ctx:
-            await self.validator.validate_can_be_rejected(case)
-        self.assertIn("aprobado", ctx.exception.message)
-        self.assertIn("rechazos", ctx.exception.message)
+        # No debe lanzar excepción: un caso aprobado puede rechazarse mientras el lote no esté cerrado
+        await self.validator.validate_can_be_rejected(case)
 
     async def test_rejection_blocked_when_case_is_already_rejected(self):
         self.mock_batch_validator.is_batch_completed.return_value = False
