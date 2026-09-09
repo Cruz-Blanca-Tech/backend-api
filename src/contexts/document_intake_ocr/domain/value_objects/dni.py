@@ -10,3 +10,6 @@ class DNI:
     def __post_init__(self):
         if not re.match(r"^\d{8}$", self.value):
             raise ValueError(f"DNI '{self.value}' inválido: debe tener 8 dígitos numéricos.")
+
+    def __str__(self) -> str:
+        return self.value

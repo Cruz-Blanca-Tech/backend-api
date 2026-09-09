@@ -22,3 +22,15 @@ class MedicalRecordPatchRequest(BaseModel):
     allergies: Optional[List[str]] = None
     diseases: Optional[List[str]] = None
     insurance: Optional[List[str]] = None
+
+class MedicalRecordCreateRequest(BaseModel):
+    has_been_hospitalized: bool = False
+    hospitalization_reason: Optional[str] = None
+    has_been_operated: bool = False
+    operation_reason: Optional[str] = None
+    vaccines: List[str] = []
+    medications: List[str] = []
+    allergies: List[str] = []
+    diseases: List[str] = []
+    insurance: List[str] = []
+

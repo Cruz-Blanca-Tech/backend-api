@@ -40,7 +40,7 @@ class SingleDossierProcessor:
             await self.single_doc_processor.execute(doc, model_id, target_folder_id, user_email)
             procesados += 1
             
-        # AQUÍ PODRÍAS AGREGAR LÓGICA DE DOSSIER:
-        # Ej: dossier.evaluate_completion_status() si todos sus docs terminaron bien
+        # Actualizamos el estado del expediente (COMPLETE o INCOMPLETE) en base a los requisitos
+        dossier.update_status(activity.required_documents)
             
         return procesados

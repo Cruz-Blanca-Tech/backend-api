@@ -1,8 +1,14 @@
+import uuid
 from datetime import date
 from typing import Optional
 from src.contexts.core_beneficiary_management.domain.entities.beneficiary import Beneficiary
 from src.contexts.core_beneficiary_management.domain.value_objects.gender import Gender
-from src.contexts.core_beneficiary_management.presentation.schemas.beneficiary_schemas import BeneficiaryResponse, BeneficiaryPatchRequest, BeneficiarySummaryResponse
+from src.contexts.core_beneficiary_management.domain.value_objects.dni import DNI
+from src.contexts.core_beneficiary_management.domain.value_objects.religion_record import ReligionRecord
+from src.contexts.core_beneficiary_management.domain.value_objects.permissions_record import PermissionsRecord
+from src.contexts.core_beneficiary_management.presentation.schemas.beneficiary_schemas import (
+    BeneficiaryResponse, BeneficiaryPatchRequest, BeneficiarySummaryResponse, BeneficiaryCreateRequest
+)
 
 from .medical_dto_mapper import MedicalDtoMapper
 from .education_dto_mapper import EducationDtoMapper
@@ -83,3 +89,56 @@ class BeneficiaryDtoMapper:
             )
             
         return domain_entity
+
+    @staticmethod
+    def from_create_request(request: BeneficiaryCreateRequest, explicit_id: Optional[uuid.UUID] = None) -> Beneficiary:
+        beneficiary_id = explicit_id or request.id or uuid.uuid4()
+        
+        try:
+            dni = DNI(request.dni)
+        except ValueError as e:
+            raise ValueError(f"DNI inválido: {str(e)}")
+
+        gender = None
+        if request.gender:
+            try:
+                g_str = request.gender.upper()
+                if g_str == "F":
+                    g_str = "FEMALE"
+                elif g_str == "M":
+                    g_str = "MALE"
+                gender = Gender(g_str)
+            except ValueError:
+                gender = Gender.UNKNOWN
+
+        relatives = AdultDtoMapper.from_create_request_list(beneficiary_id, request.related_adults)
+        medical_record = MedicalDtoMapper.from_create_request(request.medical, beneficiary_id)
+        education_record = EducationDtoMapper.from_create_request(request.education, beneficiary_id)
+
+        religion_record = ReligionRecord(
+            baptized=request.baptized,
+            first_communion=request.first_communion
+        ) if (request.baptized is not None or request.first_communion is not None) else None
+
+        permissions_record = PermissionsRecord(
+            haircut_permission=request.haircut_permission,
+            medical_exams_permission=request.medical_exams_permission
+        ) if (request.haircut_permission is not None or request.medical_exams_permission is not None) else None
+
+        return Beneficiary(
+            id=beneficiary_id,
+            dni=dni,
+            first_name=request.first_name,
+            last_name=request.last_name,
+            birth_date=request.birth_date,
+            gender=gender,
+            address=request.address,
+            religion_record=religion_record,
+            permissions_record=permissions_record,
+            medical_record=medical_record,
+            education_record=education_record,
+            relatives=relatives,
+            historical_documents=[],
+            enrollments=[]
+        )
+

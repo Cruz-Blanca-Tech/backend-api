@@ -54,11 +54,25 @@ class BatchItemSchema(BaseModel):
     created_at: Optional[str] = None
     documents_failed_count: int
     documents_approved_count: int
+    total_documents_count: Optional[int] = None
     description: Optional[str] = None
     activity_name: Optional[str] = None
     program_name: Optional[str] = None
     triage_summary: TriageSummarySchema
+    failure_reason: Optional[str] = None
 
 class ListBatchesResponse(BaseModel):
     total: int
     batches: List[BatchItemSchema]
+
+class AppendDocumentsRequest(BaseModel):
+    files: List[FileItemSchema] = Field(..., description="Lista de archivos a anexar al expediente")
+
+class AppendDocumentsResponse(BaseModel):
+    batch_id: UUID
+    dni_reference: str
+    dossier_status: str
+    added_documents_count: int
+    rejected_documents_count: int
+    failed_files: List[FailedDocumentDetail]
+    message: str
