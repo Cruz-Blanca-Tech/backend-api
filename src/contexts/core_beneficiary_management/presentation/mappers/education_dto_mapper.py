@@ -1,7 +1,9 @@
 from typing import Optional
 from src.contexts.core_beneficiary_management.domain.value_objects.education_record import EducationRecord
 from src.contexts.core_beneficiary_management.domain.value_objects.grade import Grade
-from src.contexts.core_beneficiary_management.presentation.schemas.education_schemas import EducationRecordResponse, EducationRecordPatchRequest
+from src.contexts.core_beneficiary_management.presentation.schemas.education_schemas import (
+    EducationRecordResponse, EducationRecordPatchRequest, EducationRecordCreateRequest
+)
 import uuid
 
 class EducationDtoMapper:
@@ -34,3 +36,25 @@ class EducationDtoMapper:
                 setattr(domain_entity, field, value)
             
         return domain_entity
+
+    @staticmethod
+    def from_create_request(request: Optional[EducationRecordCreateRequest], beneficiary_id: uuid.UUID) -> Optional[EducationRecord]:
+        if not request:
+            return None
+        grade_vo = None
+        if request.grade:
+            try:
+                grade_vo = Grade(request.grade)
+            except ValueError:
+                grade_vo = None
+        return EducationRecord(
+            id=uuid.uuid4(),
+            beneficiary_id=beneficiary_id,
+            school=request.school,
+            grade=grade_vo,
+            knows_how_to_read=request.knows_how_to_read,
+            knows_how_to_write=request.knows_how_to_write,
+            has_repeated_grade=request.has_repeated_grade,
+            has_learning_difficulties=request.has_learning_difficulties
+        )
+

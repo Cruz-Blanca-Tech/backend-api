@@ -3,9 +3,9 @@ from typing import Optional, List
 from datetime import date
 from uuid import UUID
 
-from .medical_schemas import MedicalRecordResponse, MedicalRecordPatchRequest
-from .education_schemas import EducationRecordResponse, EducationRecordPatchRequest
-from .adult_schemas import AdultResponse, AdultPatchRequest
+from .medical_schemas import MedicalRecordResponse, MedicalRecordPatchRequest, MedicalRecordCreateRequest
+from .education_schemas import EducationRecordResponse, EducationRecordPatchRequest, EducationRecordCreateRequest
+from .adult_schemas import AdultResponse, AdultPatchRequest, AdultCreateRequest
 from .historical_document_schemas import HistoricalDocumentResponse
 
 class BeneficiaryResponse(BaseModel):
@@ -47,3 +47,20 @@ class BeneficiaryPatchRequest(BaseModel):
     medical: Optional[MedicalRecordPatchRequest] = None
     education: Optional[EducationRecordPatchRequest] = None
     related_adults: Optional[List[AdultPatchRequest]] = None
+
+class BeneficiaryCreateRequest(BaseModel):
+    id: Optional[UUID] = None
+    dni: str
+    first_name: str
+    last_name: str
+    birth_date: Optional[date] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    baptized: Optional[bool] = None
+    first_communion: Optional[bool] = None
+    haircut_permission: Optional[bool] = None
+    medical_exams_permission: Optional[bool] = None
+    medical: Optional[MedicalRecordCreateRequest] = None
+    education: Optional[EducationRecordCreateRequest] = None
+    related_adults: Optional[List[AdultCreateRequest]] = None
+

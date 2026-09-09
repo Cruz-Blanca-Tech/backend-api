@@ -1,9 +1,12 @@
 from typing import Optional, List
 from src.contexts.core_beneficiary_management.domain.entities.adult import Adult
+from src.contexts.core_beneficiary_management.domain.value_objects.dni import DNI
 from src.contexts.core_beneficiary_management.domain.value_objects.relationship_role import RelationshipRole
 from src.contexts.core_beneficiary_management.domain.value_objects.phone import Phone
 from src.contexts.core_beneficiary_management.domain.value_objects.gender import Gender
-from src.contexts.core_beneficiary_management.presentation.schemas.adult_schemas import AdultResponse, AdultPatchRequest
+from src.contexts.core_beneficiary_management.presentation.schemas.adult_schemas import (
+    AdultResponse, AdultPatchRequest, AdultCreateRequest
+)
 import uuid
 
 class AdultDtoMapper:
@@ -46,3 +49,40 @@ class AdultDtoMapper:
                         setattr(adult, field, value)
                         
         return list(adult_dict.values())
+
+    @staticmethod
+    def from_create_request_list(beneficiary_id: uuid.UUID, create_requests: Optional[List[AdultCreateRequest]]) -> List[Adult]:
+        if not create_requests:
+            return []
+        adults = []
+        for req in create_requests:
+            try:
+                gender = Gender(req.gender.upper()) if req.gender else None
+            except ValueError:
+                gender = None
+            try:
+                role = RelationshipRole(req.role.upper()) if req.role else RelationshipRole.OTHER
+            except ValueError:
+                role = RelationshipRole.OTHER
+            try:
+                phone = Phone(req.phone) if req.phone else None
+            except ValueError:
+                phone = None
+            try:
+                dni = DNI(req.dni) if req.dni else DNI("00000000")
+            except ValueError:
+                dni = DNI("00000000")
+            adults.append(Adult(
+                id=req.id or uuid.uuid4(),
+                dni=dni,
+                first_name=req.first_name,
+                last_name=req.last_name,
+                birth_date=req.birth_date,
+                gender=gender,
+                beneficiary_id=beneficiary_id,
+                role=role,
+                phone=phone,
+                is_emergency_contact=req.is_emergency_contact
+            ))
+        return adults
+

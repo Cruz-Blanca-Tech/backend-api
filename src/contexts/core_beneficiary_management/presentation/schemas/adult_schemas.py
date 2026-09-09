@@ -23,3 +23,15 @@ class AdultPatchRequest(BaseModel):
     role: Optional[str] = None
     phone: Optional[str] = None
     is_emergency_contact: Optional[bool] = None
+
+class AdultCreateRequest(BaseModel):
+    id: Optional[UUID] = None
+    dni: Optional[str] = None
+    first_name: str
+    last_name: str
+    birth_date: Optional[date] = None
+    gender: Optional[str] = None
+    role: str = "OTHER"
+    phone: Optional[str] = None
+    is_emergency_contact: bool = False
+
