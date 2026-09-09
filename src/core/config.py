@@ -35,6 +35,12 @@ class Settings(BaseSettings):
             elif url.startswith("postgres://"):
                 url = url.replace("postgres://", "postgresql+asyncpg://", 1)
             return url
+            
+        # Hardcoded for Production (Connection Pooler)
+        if self.ENVIRONMENT == "production":
+            return "postgresql+asyncpg://postgres.panujqoelvpjebiiohjf:NZqjyYr0yZ4oGQZS@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
+            
+        # Fallback para local
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # Security & Access (OAuth2 & RBAC)
