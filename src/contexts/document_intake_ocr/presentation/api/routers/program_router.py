@@ -48,7 +48,7 @@ async def update_program(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get("/", response_model=List[ProgramResponse],dependencies=[Depends(ALLOW_ANY_STAFF)])
+@router.get("", response_model=List[ProgramResponse],dependencies=[Depends(ALLOW_ANY_STAFF)])
 async def list_programs(use_case: ListProgramsUseCase = Depends(get_list_programs_use_case)):
     """Lista todos los programas institucionales vigentes."""
     return await use_case.execute()
