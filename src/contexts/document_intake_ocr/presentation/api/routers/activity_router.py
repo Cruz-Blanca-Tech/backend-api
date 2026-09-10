@@ -50,7 +50,7 @@ async def update_activity(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get("/", response_model=List[ActivityResponse])
+@router.get("", response_model=List[ActivityResponse])
 async def list_activities(
     # program_id es opcional. Por defecto es None.
     program_id: Optional[UUID] = Query(None, description="ID del programa para filtrar actividades"),
