@@ -42,7 +42,7 @@ async def update_document_config(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get("/", response_model=List[DocumentTypeConfigResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
+@router.get("", response_model=List[DocumentTypeConfigResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
 async def list_catalog(use_case: ListDocumentCatalogUseCase = Depends(get_list_document_catalog_use_case)):
     """Retorna los formatos documentales vigentes soportados por el motor de visión artificial."""
     return await use_case.execute()
