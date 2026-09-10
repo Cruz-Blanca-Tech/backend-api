@@ -30,7 +30,7 @@ from src.contexts.security_access.infrastructure.dependencies import get_current
 
 router = APIRouter(prefix="/api/v1/batches", tags=["Batch Extractor Process"])
 
-@router.post("/", response_model=ProcessBatchResponse, summary="Inicia el procesamiento masivo de un lote documental")
+@router.post("", response_model=ProcessBatchResponse, summary="Inicia el procesamiento masivo de un lote documental")
 async def create_batch(
     request: ProcessBatchRequest,
     background_tasks: BackgroundTasks,
