@@ -120,7 +120,7 @@ async def get_document_image(
         headers={"Cache-Control": "private, max-age=3600"},
     )
 
-@router.get("/", response_model=ListBatchesResponse, summary="Obtiene la lista de lotes y sus estados")
+@router.get("", response_model=ListBatchesResponse, summary="Obtiene la lista de lotes y sus estados")
 async def list_batches(
     skip: int = 0,
     limit: int = 100,
