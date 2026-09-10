@@ -18,7 +18,7 @@ from src.core.validators.exceptions import ConflictException, DomainValidationEr
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/beneficiaries", tags=["Master Data - Beneficiaries"])
 
-@router.get("/", response_model=PaginatedBeneficiaryResponse)
+@router.get("", response_model=PaginatedBeneficiaryResponse)
 async def get_beneficiaries(
     skip: int = 0,
     limit: int = 100,
