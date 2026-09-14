@@ -3,6 +3,7 @@ from src.contexts.document_intake_ocr.presentation.api.routers.program_router im
 from src.contexts.document_intake_ocr.presentation.api.routers.document_catalog_router import router as catalog_router
 from src.contexts.document_intake_ocr.presentation.api.routers.activity_router import router as activity_router
 from src.contexts.document_intake_ocr.presentation.api.routers.batch_router import router as batch_router
+from src.contexts.document_intake_ocr.presentation.api.routers.sync_extraction_router import router as sync_extraction_router
 
 from fastapi.openapi.utils import get_openapi
 
@@ -46,3 +47,4 @@ intake_app.include_router(program_router)
 intake_app.include_router(catalog_router)
 intake_app.include_router(activity_router)
 intake_app.include_router(batch_router)
+intake_app.include_router(sync_extraction_router)
