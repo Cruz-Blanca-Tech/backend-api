@@ -114,9 +114,11 @@ class AppendDocumentsUseCase:
             if existing_doc:
                 existing_doc.source_id = f.source_id
                 existing_doc.file_name = f.file_name
-                existing_doc.status = DocumentStatus.PENDING
-                existing_doc.extracted_data = {}
-                existing_doc.failure_reason = None
+                # Si el usuario NO pidio saltarse el OCR, reseteamos los datos para procesarlos
+                if not getattr(request, 'skip_ocr', False):
+                    existing_doc.status = DocumentStatus.PENDING
+                    existing_doc.extracted_data = {}
+                    existing_doc.failure_reason = None
                 added_docs.append(existing_doc)
             else:
                 new_doc = DocumentItem.create_valid(
@@ -143,13 +145,16 @@ class AppendDocumentsUseCase:
         target_dossier.update_status(activity.required_documents)
         await self.batch_repo.save(batch)
 
-        # 7. Disparar OCR en segundo plano para los nuevos documentos
-        background_tasks.add_task(
-            self._process_appended_documents,
-            batch_id=batch.id,
-            dni_reference=dni_reference,
-            user_email=user_email,
-        )
+        # 7. Disparar OCR de forma SINCRONA para los nuevos documentos, salvo que se pida saltarlo
+        if not getattr(request, 'skip_ocr', False):
+            await self._process_appended_documents(
+                batch_id=batch.id,
+                dni_reference=dni_reference,
+                user_email=user_email,
+            )
+            msg = f"Se anexaron {len(added_docs)} documento(s) al expediente {dni_reference} y el OCR se procesó correctamente."
+        else:
+            msg = f"Se anexó la nueva imagen al expediente {dni_reference} sin re-procesar los datos."
 
         failed_details = [
             FailedDocumentDetail(file_name=r.file.file_name, reason=r.reason)
@@ -163,10 +168,7 @@ class AppendDocumentsUseCase:
             added_documents_count=len(added_docs),
             rejected_documents_count=len(rejected_files),
             failed_files=failed_details,
-            message=(
-                f"Se anexaron {len(added_docs)} documento(s) al expediente {dni_reference}. "
-                f"El procesamiento OCR se está ejecutando en segundo plano."
-            ),
+            message=msg,
         )
 
     async def _process_appended_documents(
