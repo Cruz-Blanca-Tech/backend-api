@@ -34,6 +34,13 @@ class ExtractionBatchFactory:
                 activity=activity, 
                 batch_id=batch.id
             )
+            
+            # BLOQUEO ESTRICTO: Shift-Left Validation en la capa de Dominio
+            # Si el expediente no tiene todos los documentos obligatorios, abortamos la creación del lote.
+            from src.contexts.document_intake_ocr.domain.value_objects.dossier_status import DossierStatus
+            if dossier.status == DossierStatus.INCOMPLETE:
+                raise ValueError(f"Expediente incompleto para el DNI {dossier.dni_reference}. Faltan documentos obligatorios para la actividad.")
+                
             batch.add_dossier(dossier)
 
         # 5. Adjuntar Rechazados

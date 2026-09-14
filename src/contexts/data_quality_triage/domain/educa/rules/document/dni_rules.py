@@ -10,28 +10,30 @@ class DniFormatRule(DocumentRule):
         discrepancies = []
         dnis_to_evaluate = []
         
+        msg_format = "Atención: El número de DNI que la IA logró leer en este documento parece estar incompleto o tener caracteres extraños. Por favor, dale un vistazo a la imagen y corrígelo si es necesario."
+        
         if enriched_fins:
-            dnis_to_evaluate.append((enriched_fins.child_dni, "El DNI del niño escaneado en FINS no tiene un formato válido", EducaDocumentCode.FINS.value))
+            dnis_to_evaluate.append((enriched_fins.child_dni, f"Ficha FINS (Niño): {msg_format}", EducaDocumentCode.FINS.value))
             dnis_to_evaluate.extend([
-                (adult.dni, f"DNI de adulto escaneado ({adult.role}) no es válido", EducaDocumentCode.FINS.value) 
+                (adult.dni, f"Ficha FINS (Adulto - {adult.role}): {msg_format}", EducaDocumentCode.FINS.value) 
                 for adult in enriched_fins.adults
             ])
             
         if enriched_dj:
-            dnis_to_evaluate.append((enriched_dj.child_dni, "El DNI del niño en DJ no tiene un formato válido", EducaDocumentCode.DJ.value))
-            dnis_to_evaluate.append((enriched_dj.guardian_dni, "El DNI del apoderado en DJ no tiene un formato válido", EducaDocumentCode.DJ.value))
+            dnis_to_evaluate.append((enriched_dj.child_dni, f"DJ (Niño): {msg_format}", EducaDocumentCode.DJ.value))
+            dnis_to_evaluate.append((enriched_dj.guardian_dni, f"DJ (Apoderado): {msg_format}", EducaDocumentCode.DJ.value))
             
         if enriched_dnibe:
-            dnis_to_evaluate.append((enriched_dnibe.document_number, "El documento DNI del beneficiario no es válido", "DNIBE"))
+            dnis_to_evaluate.append((enriched_dnibe.document_number, f"Copia de DNI (Niño): {msg_format}", "DNIBE"))
             
         if enriched_dniap:
-            dnis_to_evaluate.append((enriched_dniap.document_number, "El documento DNI del apoderado no es válido", "DNIAP"))
+            dnis_to_evaluate.append((enriched_dniap.document_number, f"Copia de DNI (Apoderado): {msg_format}", "DNIAP"))
 
         for dni_field, error_msg, doc_code in dnis_to_evaluate:
             # Si el campo tiene un error de formato (ej. no es válido)
             if not dni_field.is_valid:
                 discrepancies.append(FieldDiscrepancy(
-                    field_name=dni_field.name, expected_pattern="Formato de DNI válido", 
+                    field_name=dni_field.name, expected_pattern="DNI de 8 dígitos", 
                     actual_value=str(dni_field.raw_value),
                     rule_description=error_msg, 
                     severity="WARNING", document_code=doc_code
@@ -52,7 +54,7 @@ class BeneficiaryDniCrosscheckRule(DocumentRule):
         return validate_exact_match(
             dnis_to_check, 
             field_name="beneficiary_dni_crosscheck", 
-            rule_description="Existe una discrepancia de DNI del beneficiario entre los documentos presentados."
+            rule_description="Atención: La IA extrajo un DNI para el niño en una ficha y uno diferente en otra. Por favor, revisa rápidamente las imágenes y dinos cuál es el número correcto."
         )
 
 class GuardianDniCrosscheckRule(DocumentRule):
@@ -70,7 +72,7 @@ class GuardianDniCrosscheckRule(DocumentRule):
         discrepancies.extend(validate_exact_match(
             dnis_to_check_exact, 
             field_name="guardian_dni_crosscheck_exact", 
-            rule_description="El DNI del apoderado en la DJ no coincide con el documento DNIAP."
+            rule_description="Atención: El DNI del apoderado que se leyó en la DJ no coincide con el número extraído de su copia de identidad (DNIAP). Verifica cuál de los dos leyó mal la IA."
         ))
 
         # 2. Verificar que el apoderado (de DJ o DNIAP) esté en el FINS
@@ -84,9 +86,9 @@ class GuardianDniCrosscheckRule(DocumentRule):
             if adult_dnis and dj_guardian_val not in adult_dnis:
                 discrepancies.append(FieldDiscrepancy(
                     field_name="guardian_dni_crosscheck_fins", 
-                    expected_pattern=f"Coincidir con adultos de FINS: {adult_dnis}",
+                    expected_pattern=f"DNI asociado: {adult_dnis}",
                     actual_value=dj_guardian_val,
-                    rule_description="El DNI del declarante en la DJ no coincide con ninguno de los padres/apoderados declarados en la ficha FINS.", 
+                    rule_description="Atención: El DNI del apoderado en la DJ no coincide con el de los padres mencionados en la ficha FINS. Échale un vistazo para ver si la IA se confundió al leer algún número.", 
                     severity="WARNING", 
                     document_code="CROSS_CHECK"
                 ))

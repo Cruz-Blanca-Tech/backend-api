@@ -67,6 +67,7 @@ class ListBatchesResponse(BaseModel):
 
 class AppendDocumentsRequest(BaseModel):
     files: List[FileItemSchema] = Field(..., description="Lista de archivos a anexar al expediente")
+    skip_ocr: bool = Field(False, description="Si es True, solo reemplaza el archivo fsico y no ejecuta OCR.")
 
 class AppendDocumentsResponse(BaseModel):
     batch_id: UUID

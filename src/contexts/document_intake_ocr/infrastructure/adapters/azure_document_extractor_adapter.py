@@ -42,18 +42,24 @@ class AzureDocumentExtractor(DocumentExtractor):
             extracted_fields = {}
             confidences = []
 
+            from src.contexts.document_intake_ocr.domain.value_objects.ocr_extracted_field import OcrExtractedField
+
             # Azure puede devolver múltiples "documentos" lógicos en un solo archivo
             for analyzed_document in result.documents:
                 for name, field in analyzed_document.fields.items():
-                    # Extraemos el valor limpio (sea string, date, number, etc.)
-                    extracted_fields[name] = field.value
+                    # Usamos el Value Object en lugar de un diccionario suelto
+                    ocr_field = OcrExtractedField(
+                        value=field.value,
+                        confidence=field.confidence if field.confidence is not None else 0.0
+                    )
                     
-                    # Guardamos la confianza si existe
+                    # Lo serializamos a dict para que SQLAlchemy JSONB lo acepte
+                    extracted_fields[name] = ocr_field.to_dict()
+                    
                     if field.confidence is not None:
                         confidences.append(field.confidence)
 
             # 4. Calcular el "Global Confidence Score" del documento
-            # Promediamos la confianza de todos los campos extraídos
             global_confidence = 0.0
             if confidences:
                 global_confidence = sum(confidences) / len(confidences)
