@@ -11,6 +11,7 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.field_mapping 
 from src.contexts.data_quality_triage.application.shared.normalizers.type.name_normalizer import NameNormalizer
 from src.contexts.data_quality_triage.application.shared.normalizers.type.gender_normalizer import GenderNormalizer
 from src.contexts.data_quality_triage.application.shared.normalizers.type.phone_normalizer import PhoneNormalizer
+from src.contexts.data_quality_triage.application.shared.normalizers.type.grade_normalizer import GradeNormalizer
 
 class NormalizerRegistry:
 
@@ -24,6 +25,7 @@ class NormalizerRegistry:
             DataType.NAME: NameNormalizer(),
             DataType.GENDER: GenderNormalizer(),
             DataType.PHONE: PhoneNormalizer(),
+            DataType.GRADE: GradeNormalizer(),
         }
 
     def get(self, data_type):
