@@ -37,7 +37,7 @@ class ExtractionBatchFactory:
             
             # BLOQUEO ESTRICTO: Shift-Left Validation en la capa de Dominio
             # Si el expediente no tiene todos los documentos obligatorios, abortamos la creación del lote.
-            from src.contexts.document_intake_ocr.domain.value_objects.dossier_status import DossierStatus
+            from src.contexts.document_intake_ocr.domain.entities.dossier import DossierStatus
             if dossier.status == DossierStatus.INCOMPLETE:
                 raise ValueError(f"Expediente incompleto para el DNI {dossier.dni_reference}. Faltan documentos obligatorios para la actividad.")
                 
