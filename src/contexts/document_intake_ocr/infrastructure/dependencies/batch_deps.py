@@ -114,6 +114,16 @@ def get_process_batch_use_case(
         batch_orchestrator=orchestrator
     )
 
+def get_retry_batch_use_case(
+    batch_repo: SqlBatchRepository = Depends(get_batch_repository),
+    orchestrator: BatchProcessingOrchestrator = Depends(get_batch_orchestrator)
+):
+    from src.contexts.document_intake_ocr.application.use_cases.process_batch.retry_batch_use_case import RetryBatchUseCase
+    return RetryBatchUseCase(
+        batch_repo=batch_repo,
+        batch_orchestrator=orchestrator
+    )
+
 def get_documents_by_dossier_use_case(session: AsyncSession = Depends(get_async_db)) -> GetDocumentsByDossierUseCase:
     return GetDocumentsByDossierUseCase(session=session)
 

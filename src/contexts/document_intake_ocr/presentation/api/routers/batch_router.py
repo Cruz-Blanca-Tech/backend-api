@@ -17,7 +17,7 @@ from src.contexts.document_intake_ocr.application.use_cases.append_documents_use
 from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import (
     get_process_batch_use_case, get_documents_by_dossier_use_case, get_document_image_use_case,
     get_list_batches_use_case, get_batches_summary_use_case, get_batch_by_id_use_case,
-    get_append_documents_use_case
+    get_append_documents_use_case, get_retry_batch_use_case
 )
 from src.contexts.document_intake_ocr.application.use_cases.get_batch_by_id_use_case import GetBatchByIdUseCase
 from uuid import UUID
@@ -49,6 +49,24 @@ async def create_batch(
         return response
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{batch_id}/retry", summary="Reintenta un lote que ha fallado")
+async def retry_batch(
+    batch_id: UUID,
+    background_tasks: BackgroundTasks,
+    current_user: TokenClaims = Depends(get_current_user),
+    use_case = Depends(get_retry_batch_use_case)
+):
+    try:
+        return await use_case.execute(
+            batch_id=batch_id,
+            user_email=current_user.email.value,
+            background_tasks=background_tasks
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{batch_id}/dossiers/{dni_reference}/documents", response_model=GetDocumentsByDossierResponse)
 async def get_documents_by_dossier(
