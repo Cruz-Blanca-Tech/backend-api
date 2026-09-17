@@ -39,14 +39,16 @@ async def create_batch(
     # Inyección del Caso de Uso (el orquestador)
     use_case: ProcessBatchUseCase = Depends(get_process_batch_use_case)
 ):
-    # El Caso de Uso es totalmente agnóstico a la seguridad; recibe datos puros
-    response = await use_case.execute(
-        request=request,
-        user_id=current_user.user_id,
-        user_email=current_user.email.value,
-        background_tasks=background_tasks
-    )
-    return response
+    try:
+        response = await use_case.execute(
+            request=request,
+            user_id=current_user.user_id,
+            user_email=current_user.email.value,
+            background_tasks=background_tasks
+        )
+        return response
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/{batch_id}/dossiers/{dni_reference}/documents", response_model=GetDocumentsByDossierResponse)
 async def get_documents_by_dossier(
