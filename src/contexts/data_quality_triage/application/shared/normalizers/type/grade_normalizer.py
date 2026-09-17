@@ -31,7 +31,7 @@ class GradeNormalizer(BaseNormalizer):
                     return f"{sec_map[digit]}_SECUNDARIA"
             
             # Detectar si menciona inicial / anios
-            elif 'INI' in text or 'AÑ' in text or 'AN' in text:
+            elif 'INI' in text or 'AÃ‘' in text or 'AN' in text:
                 if digit in ['3', '4', '5']:
                     return f"INICIAL_{digit}"
             
