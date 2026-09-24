@@ -1,11 +1,15 @@
-import asyncio
-
-from sqlalchemy import engine
-
 from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from src.core.config import settings
+
+# El esquema se migra EXCLUSIVAMENTE con Alembic (`alembic upgrade head`), que
+# aplica las revisiones de `alembic/versions/` y registra cada una en la tabla
+# `alembic_version`. No crear tablas con `Base.metadata.create_all` (vía dual):
+# deja tablas que Alembic no conoce y descuadra la cadena de migraciones.
+# Los modelos SQLAlchemy (`Base.metadata`) se usan como `target_metadata` en
+# `alembic/env.py` para generar nuevas revisiones con `--autogenerate`.
 
 # 1. Crear el motor asíncrono (SQLAlchemy 2.0)
 engine = create_async_engine(
@@ -30,13 +34,3 @@ class Base(DeclarativeBase):
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
         yield session
-
-
-async def init_db():
-    async with engine.begin() as conn:
-        print("Creando tablas...")
-        await conn.run_sync(Base.metadata.create_all)
-        print("Tablas creadas.")
-
-if __name__ == "__main__":
-    asyncio.run(init_db())
