@@ -1,11 +1,21 @@
 from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
 from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
 from src.contexts.core_beneficiary_management.application.shared.factories.dossier_processor_factory import DossierProcessorFactory
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ProcessApprovedTriageCaseUseCase:
     """
-    Orchestrates the processing of an approved triage dossier by delegating 
-    to the appropriate strategy based on the activity_type.
+    Orquesta el alta o la ACTUALIZACIÓN PARCIAL de un beneficiario en el MDM cuando
+    un expediente de triaje es aprobado.
+
+    - Beneficiario NUEVO (no existe por DNI): alta completa (identidad + familiares
+      + registros) y matrícula de la actividad.
+    - Beneficiario YA EXISTENTE (misma persona, nueva actividad): solo se actualizan
+      los datos operativos (religión, permisos, ficha médica, educación), se añade la
+      nueva matrícula y se PRESERVAN identidad y familiares (los gestiona la pantalla
+      MDM). Ver EducaDossierMapper.map_to_entity.
     """
     def __init__(self, beneficiary_repo: SqlBeneficiaryRepository):
         self.beneficiary_repo = beneficiary_repo
@@ -45,9 +55,19 @@ class ProcessApprovedTriageCaseUseCase:
                     activity_id = str(row[0])
         except Exception as e:
             print(f"Failed to fetch activity_id for batch {event.batch_id}: {e}")
-            
-        # 4. Delegate the heavy lifting to the specific processor (DTO validation, Mapping, etc.)
+
+        # 4. CASO DE USO: alta completa vs actualización parcial (ver docstring).
+        if existing_beneficiary:
+            logger.info(
+                "[MDM] Beneficiario DNI %s ya existía: actualización parcial "
+                "(solo datos operativos + matrícula %s). Identidad y familiares preservados.",
+                dni, activity_id or "EDUCA",
+            )
+        else:
+            logger.info("[MDM] Beneficiario DNI %s nuevo: alta completa desde expediente aprobado.", dni)
+
+        # 5. Delegate the heavy lifting to the specific processor (DTO validation, Mapping, etc.)
         updated_beneficiary = processor.process(data, existing_beneficiary, activity_id=activity_id)
 
-        # 5. Persist the updated/new domain entity
+        # 6. Persist the updated/new domain entity
         await self.beneficiary_repo.save(updated_beneficiary)
