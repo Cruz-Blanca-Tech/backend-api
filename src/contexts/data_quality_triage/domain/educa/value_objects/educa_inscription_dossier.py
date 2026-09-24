@@ -28,7 +28,7 @@ class EducaInscriptionDossier(DossierData):
         
         # Importamos las reglas ultra-modulares
         from src.contexts.data_quality_triage.domain.educa.rules.domain.beneficiary_rules import BeneficiaryCompletenessRule, AgeCoherenceRule, GenderCoherenceRule
-        from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import GuardianPresenceRule, EmergencyContactRule, FamilyDniUniquenessRule, AdultsDniFormatRule
+        from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import GuardianPresenceRule, EmergencyContactRule, FamilyDniUniquenessRule, AdultsDniFormatRule, UniqueParentRoleRule, ParentLastNameCoherenceRule, DjFinsSignerCoherenceRule, DjSignerPresenceRule
         from src.contexts.data_quality_triage.domain.educa.rules.domain.medical_rules import MedicalRules
         from src.contexts.data_quality_triage.domain.educa.rules.domain.education_rules import EducationRules
         
@@ -40,6 +40,10 @@ class EducaInscriptionDossier(DossierData):
             GenderCoherenceRule(),
             AdultsDniFormatRule(),
             FamilyDniUniquenessRule(),
+            UniqueParentRoleRule(),
+            ParentLastNameCoherenceRule(),
+            DjFinsSignerCoherenceRule(),
+            DjSignerPresenceRule(),
             EmergencyContactRule(),
             GuardianPresenceRule(),
             MedicalRules(),
@@ -56,5 +60,7 @@ class EducaInscriptionDossier(DossierData):
         self.religion.validation_issues = [i.rule_description for i in issues if "religion" in i.field_name]
         self.permissions.validation_issues = [i.rule_description for i in issues if "permissions" in i.field_name]
         
-        is_valid = len(issues) == 0
+        # Un expediente se considera "completo/vǭlido" si no tiene discrepancias de severidad ERROR.
+        # Las advertencias (WARNING) o sugerencias (AI_INSIGHT) no bloquean la aprobacin.
+        is_valid = not any(i.severity == "ERROR" for i in issues)
         return is_valid, issues

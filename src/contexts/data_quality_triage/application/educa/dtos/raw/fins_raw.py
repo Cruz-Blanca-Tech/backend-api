@@ -84,8 +84,14 @@ class FinsRaw(BaseModel):
             flattened = {}
             for key, val in data.items():
                 if isinstance(val, dict) and "value" in val:
-                    flattened[key] = val["value"]
+                    extracted_val = val["value"]
                 else:
-                    flattened[key] = val
+                    extracted_val = val
+                
+                if extracted_val is not None and not isinstance(extracted_val, (list, dict)):
+                    flattened[key] = str(extracted_val)
+                else:
+                    flattened[key] = extracted_val
+                    
             return flattened
         return data

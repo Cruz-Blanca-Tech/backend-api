@@ -45,7 +45,7 @@ async def login(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Token de Google inválido o malformado."
+            detail=str(e)
         )
 
 

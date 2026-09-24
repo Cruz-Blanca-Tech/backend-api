@@ -1,6 +1,6 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from src.contexts.document_intake_ocr.application.schemas.file_item_schema import FileItemSchema
 from src.contexts.document_intake_ocr.domain.value_objects.file_item import FileItem
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1/sync-extract", tags=["Sync Extraction"])
 
 class SyncExtractRequest(BaseModel):
     file: FileItemSchema
-    model_id: str = None 
+    model_id: Optional[str] = None 
 
 class SyncExtractResponse(BaseModel):
     fields: Dict[str, Any]
@@ -29,7 +29,7 @@ async def extract_document_sync(
     try:
         model_id_to_use = request.model_id or settings.AZURE_CUSTOM_MODEL_ID
         
-        file_item = FileItem(file_id=request.file.file_id, file_name=request.file.file_name)
+        file_item = FileItem(file_id=request.file.source_id, file_name=request.file.file_name)
         file_bytes = await storage.download_file(file_item, current_user.email.value)
         
         ocr_result = await extractor.extract_data(file_bytes, model_id_to_use)
