@@ -1,8 +1,8 @@
 from typing import Any
 import re
-from src.contexts.data_quality_triage.application.shared.normalizers.base_normalizer import BaseNormalizer
+from src.contexts.data_quality_triage.application.shared.normalizers.base import FieldNormalizer
 
-class GradeNormalizer(BaseNormalizer):
+class GradeNormalizer(FieldNormalizer):
     def normalize(self, raw_value: Any) -> Any:
         if not raw_value or not isinstance(raw_value, str):
             return raw_value

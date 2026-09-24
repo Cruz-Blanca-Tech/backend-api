@@ -28,7 +28,8 @@ class InscriptionTriageStrategy(TriageStrategy):
         batch_id: UUID,
         activity_type: ActivityType,
         dni_reference: str,
-        documents: List[DocumentDTO]
+        documents: List[DocumentDTO],
+        context: dict = None
     ) -> TriageCase:
 
         enriched_docs = self._mapper.map(documents)
@@ -40,6 +41,7 @@ class InscriptionTriageStrategy(TriageStrategy):
         try:
             domain_entity = DossierFactory.create_from_enriched(
                 activity_type=activity_type,
+                context=context or {},
                 **enriched_docs
             )
             from dataclasses import asdict

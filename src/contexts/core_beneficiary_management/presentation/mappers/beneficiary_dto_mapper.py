@@ -23,7 +23,7 @@ def calculate_age(birth_date: Optional[date]) -> Optional[int]:
 
 class BeneficiaryDtoMapper:
     @staticmethod
-    def to_response(domain_entity: Optional[Beneficiary]) -> Optional[BeneficiaryResponse]:
+    def to_response(domain_entity: Optional[Beneficiary], active_activity_ids: Optional[set] = None) -> Optional[BeneficiaryResponse]:
         if not domain_entity:
             return None
             
@@ -34,7 +34,12 @@ class BeneficiaryDtoMapper:
             last_name=domain_entity.last_name,
             birth_date=domain_entity.birth_date,
             gender=domain_entity.gender.value if domain_entity.gender else None,
-            is_active=True,
+            address=domain_entity.address,
+            baptized=domain_entity.religion_record.baptized if domain_entity.religion_record else None,
+            first_communion=domain_entity.religion_record.first_communion if domain_entity.religion_record else None,
+            haircut_permission=domain_entity.permissions_record.haircut_permission if domain_entity.permissions_record else None,
+            medical_exams_permission=domain_entity.permissions_record.medical_exams_permission if domain_entity.permissions_record else None,
+            is_active=any(e.activity_code in (active_activity_ids or set()) for e in domain_entity.enrollments) if active_activity_ids is not None else True,
             medical=MedicalDtoMapper.to_response(domain_entity.medical_record),
             education=EducationDtoMapper.to_response(domain_entity.education_record),
             related_adults=[AdultDtoMapper.to_response(adult) for adult in domain_entity.relatives],
@@ -42,7 +47,7 @@ class BeneficiaryDtoMapper:
         )
 
     @staticmethod
-    def to_summary_response(domain_entity: Optional[Beneficiary]) -> Optional[BeneficiarySummaryResponse]:
+    def to_summary_response(domain_entity: Optional[Beneficiary], active_activity_ids: Optional[set] = None) -> Optional[BeneficiarySummaryResponse]:
         if not domain_entity:
             return None
             
@@ -58,7 +63,7 @@ class BeneficiaryDtoMapper:
             birth_date=domain_entity.birth_date,
             age=calculate_age(domain_entity.birth_date),
             gender=domain_entity.gender.value if domain_entity.gender else None,
-            is_active=True,
+            is_active=any(e.activity_code in (active_activity_ids or set()) for e in domain_entity.enrollments) if active_activity_ids is not None else True,
             grade=grade_str
         )
 

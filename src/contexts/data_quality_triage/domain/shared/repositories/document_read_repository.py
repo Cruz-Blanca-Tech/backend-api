@@ -11,6 +11,7 @@ class DocumentReadRepository(Protocol):
 
     async def get_by_dni(
         self,
-        dni_reference: str
+        dni_reference: str,
+        batch_id: UUID
     ) -> List[DocumentDTO]:
         ...
