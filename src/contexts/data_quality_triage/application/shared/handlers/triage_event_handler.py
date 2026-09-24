@@ -69,5 +69,7 @@ async def handle_batch_ocr_completed(event: BatchOcrCompletedEvent) -> None:
         from src.contexts.data_quality_triage.infrastructure.dependencies.triage_deps import get_triage_repository
         repo = get_triage_repository(session)
         use_case = get_verify_batch_completion_use_case(session=session, triage_repo=repo)
-        result = await use_case.execute(event.batch_id)
-        logger.info(f"[Triage Event Handler] Resultado de la verificación automática: {result}")
+        # DESACTIVADO: Evitar cierre automático del lote
+        # result = await use_case.execute(event.batch_id)
+        # logger.info(f"[Triage Event Handler] Resultado de la verificación automática: {result}")
+        logger.info(f"[Triage Event Handler] Auto-cierre de lote desactivado para batch {event.batch_id}")

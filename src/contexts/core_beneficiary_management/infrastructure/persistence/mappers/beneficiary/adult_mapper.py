@@ -43,14 +43,14 @@ class AdultMapper:
             last_name=model.last_name,
             birth_date=model.birth_date,
             gender=gender,
-            beneficiary_id=model.beneficiary_id,
             role=role_enum,
             phone=phone,
-            is_emergency_contact=model.is_emergency_contact
+            is_emergency_contact=model.is_emergency_contact,
+            is_guardian=getattr(model, 'is_guardian', False)
         )
 
     @staticmethod
-    def to_persistence(entity: Optional[Adult], beneficiary_id) -> Optional[AdultModel]:
+    def to_persistence(entity: Optional[Adult]) -> Optional[AdultModel]:
         if not entity:
             return None
             
@@ -61,8 +61,8 @@ class AdultMapper:
             last_name=entity.last_name,
             birth_date=entity.birth_date,
             gender=entity.gender.value if entity.gender else None,
-            beneficiary_id=beneficiary_id,
             role=entity.role.value,
             phone=entity.phone.value if entity.phone else None,
-            is_emergency_contact=entity.is_emergency_contact
+            is_emergency_contact=entity.is_emergency_contact,
+            is_guardian=getattr(entity, 'is_guardian', False)
         )

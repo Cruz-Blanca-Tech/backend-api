@@ -5,6 +5,7 @@ from .medical_record_model import MedicalRecordModel
 from .education_record_model import EducationRecordModel
 from .historical_document_model import HistoricalDocumentModel
 from .enrollment_model import EnrollmentModel
+from .school_model import SchoolModel
 
 __all__ = [
     "PersonModel",
@@ -13,5 +14,6 @@ __all__ = [
     "MedicalRecordModel",
     "EducationRecordModel",
     "HistoricalDocumentModel",
-    "EnrollmentModel"
+    "EnrollmentModel",
+    "SchoolModel"
 ]

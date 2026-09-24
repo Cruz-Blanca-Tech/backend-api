@@ -15,6 +15,11 @@ class BeneficiaryResponse(BaseModel):
     last_name: str
     birth_date: Optional[date]
     gender: Optional[str]
+    address: Optional[str]
+    baptized: Optional[bool]
+    first_communion: Optional[bool]
+    haircut_permission: Optional[bool]
+    medical_exams_permission: Optional[bool]
     is_active: bool
     medical: Optional[MedicalRecordResponse]
     education: Optional[EducationRecordResponse]

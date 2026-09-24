@@ -8,10 +8,10 @@ from src.contexts.core_beneficiary_management.domain.value_objects.phone import 
 
 @dataclass
 class Adult(Person):
-    beneficiary_id: UUID = None
     role: RelationshipRole = RelationshipRole.OTHER
     phone: Optional[Phone] = None
     is_emergency_contact: bool = False
+    is_guardian: bool = False
 
     def __post_init__(self):
         self.type = "adult"
