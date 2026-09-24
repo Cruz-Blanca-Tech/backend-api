@@ -10,20 +10,23 @@ from src.contexts.core_beneficiary_management.domain.value_objects.enrollment im
 
 class EducaDossierProcessor(DossierProcessorStrategy):
     
-    def process(self, dossier_data: dict, existing_beneficiary: Optional[Beneficiary]) -> Beneficiary:
+    def process(self, dossier_data: dict, existing_beneficiary: Optional[Beneficiary], activity_id: Optional[str] = None) -> Beneficiary:
         # 1. Parse and validate using Pydantic DTO
         dto = EducaDossierDTO(**dossier_data)
         
         # 2. Map DTO to Domain Entity
         beneficiary = EducaDossierMapper.map_to_entity(dto, existing_beneficiary)
 
-        # 3. Add Enrollment for EDUCA if it does not exist
-        has_enrollment = any(e.activity_code == "EDUCA" for e in beneficiary.enrollments)
+        # 3. Add Enrollment for the specific activity if it does not exist
+        # If no activity_id is provided, fallback to EDUCA
+        enrollment_code = activity_id if activity_id else "EDUCA"
+        
+        has_enrollment = any(e.activity_code == enrollment_code for e in beneficiary.enrollments)
         if not has_enrollment:
             beneficiary.enrollments.append(Enrollment(
                 id=uuid.uuid4(),
                 beneficiary_id=beneficiary.id,
-                activity_code="EDUCA",
+                activity_code=enrollment_code,
                 enrollment_date=datetime.utcnow().date()
             ))
 

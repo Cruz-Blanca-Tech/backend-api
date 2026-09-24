@@ -7,6 +7,7 @@ from src.contexts.document_intake_ocr.infrastructure.persistence.model.activity_
 from src.contexts.document_intake_ocr.domain.ports.triage_service import TriageServicePort
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentStatus
 from src.contexts.document_intake_ocr.application.schemas.batch_schema import ListBatchesRequest, ListBatchesResponse
+from src.contexts.security_access.infrastructure.persistence.models.user_model import UserModel
 from sqlalchemy import func
 from uuid import UUID
 from typing import Optional
@@ -46,6 +47,15 @@ class ListBatchesUseCase:
         batch_ids = [b.id for b in batches]
         triage_summaries = await self.triage_service.get_triage_summaries(batch_ids) if batch_ids else {}
         
+        # Obtener los usuarios
+        user_ids = list(set([b.created_by for b in batches]))
+        user_map = {}
+        if user_ids:
+            users_stmt = select(UserModel).where(UserModel.id.in_(user_ids))
+            users_res = await self.session.execute(users_stmt)
+            for u in users_res.scalars():
+                user_map[u.id] = u.full_name or u.email.split('@')[0]
+        
         batch_items = []
         for b in batches:
             failed_docs = [d for d in getattr(b, 'documents', []) if d.status == DocumentStatus.FAILED]
@@ -68,6 +78,7 @@ class ListBatchesUseCase:
                 "description": b.description,
                 "activity_name": b.activity.name if getattr(b, 'activity', None) else None,
                 "program_name": b.activity.program.name if getattr(b, 'activity', None) and getattr(b.activity, 'program', None) else None,
+                "created_by_name": user_map.get(b.created_by, "Desconocido"),
                 "triage_summary": triage_summaries.get(b.id, {
                     "total_cases": 0,
                     "verdicts": {}

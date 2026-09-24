@@ -14,6 +14,7 @@ class TriageStrategy(ABC):
         batch_id: UUID,
         activity_type: ActivityType,
         dni_reference: str,
-        documents: List[DocumentDTO]
+        documents: List[DocumentDTO],
+        context: Dict[str, Any] = None
     ) -> TriageCase:
         pass
