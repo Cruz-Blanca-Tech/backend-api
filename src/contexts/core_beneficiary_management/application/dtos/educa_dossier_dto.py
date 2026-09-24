@@ -39,7 +39,7 @@ class EducaEducationDTO(BaseModel):
 class EducaAdultDTO(BaseModel):
     dni: str = ""
     full_name: str = ""
-    role: str = "OTHER"
+    relationship: str = "OTHER"
     phone: Optional[str] = None
 
 class EducaRelatedAdultsDTO(BaseModel):

@@ -87,7 +87,7 @@ class SubmitCorrectionUseCase:
             self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {"corrected_fields": corrected_data, "missing_documents": [d.document_code for d in missing_doc_discrepancies]})
         elif is_complete:
             case.approve(user_id)
-            case.discrepancies = []
+            case.update_discrepancies([i for i in domain_issues if i.severity != "ERROR"])
             self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, TriageStatus.CORRECTED.value, {"corrected_fields": corrected_data})
             self._add_audit_log(case_id, "AUTO_APPROVED", user_id, TriageStatus.CORRECTED.value, case.status.value, {"verdict": case.verdict.value, "reason": "Validación manual exitosa"})
         else:

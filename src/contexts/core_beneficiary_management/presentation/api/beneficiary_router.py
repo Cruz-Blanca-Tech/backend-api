@@ -14,9 +14,41 @@ from src.contexts.core_beneficiary_management.application.use_cases.get_benefici
 from src.contexts.core_beneficiary_management.application.use_cases.patch_beneficiary_use_case import PatchBeneficiaryUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.create_beneficiary_use_case import CreateBeneficiaryUseCase
 from src.core.validators.exceptions import ConflictException, DomainValidationError
+from src.core.database import get_async_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from src.contexts.core_beneficiary_management.infrastructure.persistence.model.adult_model import AdultModel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/beneficiaries", tags=["Master Data - Beneficiaries"])
+
+from sqlalchemy import or_
+
+@router.get("/adults/search")
+async def search_adult(query: str, db: AsyncSession = Depends(get_async_db)):
+    """Busca un adulto por su DNI o Nombre/Apellido para autocompletar formularios."""
+    stmt = select(AdultModel).where(
+        or_(
+            AdultModel.dni.ilike(f"{query}%"),
+            AdultModel.first_name.ilike(f"%{query}%"),
+            AdultModel.last_name.ilike(f"%{query}%")
+        )
+    ).limit(10)
+    
+    result = await db.execute(stmt)
+    adults = result.scalars().all()
+    
+    return [
+        {
+            "id": adult.id,
+            "dni": adult.dni,
+            "first_name": adult.first_name,
+            "last_name": adult.last_name,
+            "phone": adult.phone,
+            "role": adult.role
+        }
+        for adult in adults
+    ]
 
 @router.get("/", response_model=PaginatedBeneficiaryResponse)
 async def get_beneficiaries(

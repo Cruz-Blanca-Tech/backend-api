@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+﻿from pydantic import BaseModel, Field
 from typing import List, Optional
 from uuid import UUID
+from datetime import date
 
 # --- 1. Base Class (Shared definitions) ---
 # Aquí definimos los campos comunes. 
@@ -13,6 +14,9 @@ class ActivityRequirementRequest(BaseModel):
 
 class ActivityBase(BaseModel):
     name: Optional[str] = Field(None, min_length=3, max_length=100)
+    activity_type: Optional[str] = Field(None, max_length=50)
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     is_active: Optional[bool] = True
     program_id: Optional[UUID] = None
     requirements: Optional[List[ActivityRequirementRequest]] = None
@@ -28,6 +32,7 @@ class ActivityCreateRequest(ActivityBase):
     """Para crear una actividad nueva. Se heredan los opcionales y se añaden los obligatorios."""
     program_id: UUID = Field(...) # Obligatorio
     name: str = Field(..., min_length=3) # Sobrescribimos para obligar
+    activity_type: str = Field(...) # Obligatorio
     requirements: List[ActivityRequirementRequest] # Obligatorio
 
 
@@ -43,6 +48,9 @@ class ActivityResponse(BaseModel):
     id: UUID
     program_id: UUID
     name: str
+    activity_type: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     requirements: List[ActivityRequirementResponse]
     is_active: bool
 

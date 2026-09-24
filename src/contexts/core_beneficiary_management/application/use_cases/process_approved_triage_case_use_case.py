@@ -21,6 +21,9 @@ class ProcessApprovedTriageCaseUseCase:
         # 2. Get existing beneficiary if any
         existing_beneficiary = await self.beneficiary_repo.get_by_dni(dni)
         
+        from sqlalchemy import text
+        from src.core.database import async_session_maker
+        
         # 3. Get the correct strategy processor for this program (e.g. "EDUCA")
         try:
             processor = DossierProcessorFactory.get_processor(event.activity_type)
@@ -29,8 +32,22 @@ class ProcessApprovedTriageCaseUseCase:
             print(f"Warning: {e}")
             return
             
+        # Get activity_id from the batch
+        activity_id = None
+        try:
+            async with async_session_maker() as session:
+                res = await session.execute(
+                    text("SELECT activity_id FROM extraction_batches WHERE id = :bid"),
+                    {"bid": event.batch_id}
+                )
+                row = res.fetchone()
+                if row and row[0]:
+                    activity_id = str(row[0])
+        except Exception as e:
+            print(f"Failed to fetch activity_id for batch {event.batch_id}: {e}")
+            
         # 4. Delegate the heavy lifting to the specific processor (DTO validation, Mapping, etc.)
-        updated_beneficiary = processor.process(data, existing_beneficiary)
+        updated_beneficiary = processor.process(data, existing_beneficiary, activity_id=activity_id)
 
         # 5. Persist the updated/new domain entity
         await self.beneficiary_repo.save(updated_beneficiary)

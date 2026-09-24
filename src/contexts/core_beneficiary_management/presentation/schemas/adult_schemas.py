@@ -13,6 +13,7 @@ class AdultResponse(BaseModel):
     role: str
     phone: Optional[str]
     is_emergency_contact: bool = False
+    is_guardian: bool = False
 
 class AdultPatchRequest(BaseModel):
     id: UUID  # Required to know which adult to update
@@ -23,6 +24,7 @@ class AdultPatchRequest(BaseModel):
     role: Optional[str] = None
     phone: Optional[str] = None
     is_emergency_contact: Optional[bool] = None
+    is_guardian: Optional[bool] = None
 
 class AdultCreateRequest(BaseModel):
     id: Optional[UUID] = None
@@ -34,4 +36,5 @@ class AdultCreateRequest(BaseModel):
     role: str = "OTHER"
     phone: Optional[str] = None
     is_emergency_contact: bool = False
+    is_guardian: bool = False
 

@@ -32,5 +32,5 @@ class MedicalEnrichedMapper(BaseEnrichedMapper):
             medical_insurance_sis=self.build_field(raw_dto.medical_insurance_sis, "SIS", DataType.BOOL),
             medical_insurance_essalud=self.build_field(raw_dto.medical_insurance_essalud, "EsSalud", DataType.BOOL),
             medical_insurance_fospoli=self.build_field(raw_dto.medical_insurance_fospoli, "Fospoli", DataType.BOOL),
-            medical_insurance_other=self.build_field(raw_dto.medical_insurance_other, "Otro Seguro", DataType.BOOL)
+            medical_insurance_other=self.build_field(raw_dto.medical_insurance_other, "Otro Seguro", DataType.STRING)
         )

@@ -11,7 +11,22 @@ class GetBeneficiariesUseCase:
         total = await self.repo.count()
         beneficiaries = await self.repo.get_all(skip=skip, limit=limit)
         
-        items = [BeneficiaryDtoMapper.to_summary_response(b) for b in beneficiaries]
+        # Determine active activity IDs
+        active_activity_ids = set()
+        try:
+            from sqlalchemy import text
+            from datetime import date
+            today = date.today()
+            res = await self.repo.session.execute(
+                text("SELECT id FROM activities WHERE is_active = true AND (start_date IS NULL OR start_date <= :t) AND (end_date IS NULL OR end_date >= :t)"),
+                {"t": today}
+            )
+            for row in res.fetchall():
+                active_activity_ids.add(str(row[0]))
+        except Exception as e:
+            pass # Fallback to true if we can't fetch
+
+        items = [BeneficiaryDtoMapper.to_summary_response(b, active_activity_ids) for b in beneficiaries]
         
         return PaginatedBeneficiaryResponse(
             items=items,

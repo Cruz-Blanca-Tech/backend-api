@@ -1,11 +1,11 @@
-from abc import ABC, abstractmethod
+﻿from abc import ABC, abstractmethod
 from typing import Optional
 
 from src.contexts.core_beneficiary_management.domain.entities.beneficiary import Beneficiary
 
 class DossierProcessorStrategy(ABC):
     @abstractmethod
-    def process(self, dossier_data: dict, existing_beneficiary: Optional[Beneficiary]) -> Beneficiary:
+    def process(self, dossier_data: dict, existing_beneficiary: Optional[Beneficiary], activity_id: Optional[str] = None) -> Beneficiary:
         """
         Process the raw dossier_data and update/create a Beneficiary domain entity.
         :param dossier_data: The raw JSON dictionary from the event.

@@ -89,3 +89,7 @@ class EnrichedFins:
 class EnrichedDj:
     child_dni: EnrichedField
     guardian_dni: EnrichedField
+    parents_father_dni: Optional[EnrichedField] = None
+    parents_father_name: Optional[EnrichedField] = None
+    parents_mother_dni: Optional[EnrichedField] = None
+    parents_mother_name: Optional[EnrichedField] = None
