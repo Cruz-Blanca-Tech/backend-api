@@ -1,4 +1,11 @@
-"""Update TriageCaseModel with JSONB fields
+"""Eslabón vacío de la cadena de migraciones (NO eliminarlo).
+
+Generada con `alembic revision --autogenerate` cuando no había diferencias
+reales contra la metadata, quedó como eslabón no-op. Ya está aplicada (su
+revisión figura en la tabla `alembic_version` de los entornos existentes);
+borrarla rompería `alembic upgrade head` en bases que la registraron.
+
+Originalmente autogenerada como: Update TriageCaseModel with JSONB fields
 
 Revision ID: 594a3c071341
 Revises: dc2c95bedcb2
