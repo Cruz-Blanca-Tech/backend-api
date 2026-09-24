@@ -4,6 +4,7 @@ from src.core.database import get_async_db
 from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
 from src.contexts.core_beneficiary_management.application.use_cases.get_beneficiaries_use_case import GetBeneficiariesUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.get_beneficiary_by_id_use_case import GetBeneficiaryByIdUseCase
+from src.contexts.core_beneficiary_management.application.use_cases.get_beneficiary_by_dni_use_case import GetBeneficiaryByDniUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.patch_beneficiary_use_case import PatchBeneficiaryUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.create_beneficiary_use_case import CreateBeneficiaryUseCase
 
@@ -15,6 +16,9 @@ def get_beneficiaries_use_case(repo: SqlBeneficiaryRepository = Depends(get_bene
 
 def get_beneficiary_by_id_use_case(repo: SqlBeneficiaryRepository = Depends(get_beneficiary_repository)) -> GetBeneficiaryByIdUseCase:
     return GetBeneficiaryByIdUseCase(repo)
+
+def get_beneficiary_by_dni_use_case(repo: SqlBeneficiaryRepository = Depends(get_beneficiary_repository)) -> GetBeneficiaryByDniUseCase:
+    return GetBeneficiaryByDniUseCase(repo)
 
 def get_patch_beneficiary_use_case(repo: SqlBeneficiaryRepository = Depends(get_beneficiary_repository)) -> PatchBeneficiaryUseCase:
     return PatchBeneficiaryUseCase(repo)

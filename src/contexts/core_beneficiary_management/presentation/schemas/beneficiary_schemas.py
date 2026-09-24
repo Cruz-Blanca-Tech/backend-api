@@ -26,6 +26,35 @@ class BeneficiaryResponse(BaseModel):
     related_adults: List[AdultResponse]
     historical_documents: List[HistoricalDocumentResponse]
 
+class MdmRelativeSnapshot(BaseModel):
+    """Familiar (adulto) del beneficiario en el dato máster, para el triaje."""
+    relationship: str
+    dni: str
+    full_name: str
+    phone: Optional[str] = None
+    is_emergency_contact: bool = False
+    is_guardian: bool = False
+
+class MdmBeneficiarySnapshot(BaseModel):
+    """Snapshot de identidad + familiares de un beneficiario YA registrado en el MDM.
+
+    Lo consume la pantalla de corrección de triaje: cuando el DNI del expediente
+    coincide con un beneficiario existente, la UI muestra estos valores (los del
+    máster son la verdad) y bloquea su edición.
+    """
+    dni: str
+    first_name: str
+    last_name: str
+    birth_date: Optional[date] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    relatives: List[MdmRelativeSnapshot] = []
+
+class MdmBeneficiaryMatchResponse(BaseModel):
+    """Respuesta de GET /beneficiaries/by-dni/{dni}: existe o no en el máster."""
+    exists: bool
+    beneficiary: Optional[MdmBeneficiarySnapshot] = None
+
 class BeneficiarySummaryResponse(BaseModel):
     id: UUID
     dni: str
