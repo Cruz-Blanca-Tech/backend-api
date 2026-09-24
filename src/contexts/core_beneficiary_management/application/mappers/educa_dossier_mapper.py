@@ -151,10 +151,14 @@ class EducaDossierMapper:
             ad_first_name = parts[0] if parts else ""
             ad_last_name = parts[1] if len(parts) > 1 else ""
             
-            try:
-                role_enum = RelationshipRole(ad_dto.role.upper())
-            except ValueError:
-                role_enum = RelationshipRole.OTHER
+            raw_rel = ad_dto.relationship.upper()
+            if raw_rel == "APODERADO":
+                role_enum = RelationshipRole.TUTOR
+            else:
+                try:
+                    role_enum = RelationshipRole(raw_rel)
+                except ValueError:
+                    role_enum = RelationshipRole.OTHER
                 
             try:
                 ad_dni = DNI(ad_dni_raw)
@@ -172,6 +176,10 @@ class EducaDossierMapper:
             if dto.related_adults.emergency_contact_dni and ad_dto.dni == dto.related_adults.emergency_contact_dni:
                 is_emergency = True
 
+            is_guardian = False
+            if getattr(dto.related_adults, 'guardian_dni', None) and ad_dto.dni == dto.related_adults.guardian_dni:
+                is_guardian = True
+
             # Preserve existing relative ID if already tracked for this beneficiary
             adult_id = existing_relatives_by_dni[ad_dni_raw].id if ad_dni_raw in existing_relatives_by_dni else uuid.uuid4()
 
@@ -182,10 +190,10 @@ class EducaDossierMapper:
                 last_name=ad_last_name,
                 birth_date=None,  # We usually don't get the adult's birth date in Educa
                 gender=None,
-                beneficiary_id=beneficiary.id,
                 role=role_enum,
                 phone=ad_phone,
-                is_emergency_contact=is_emergency
+                is_emergency_contact=is_emergency,
+                is_guardian=is_guardian
             ))
 
         return beneficiary

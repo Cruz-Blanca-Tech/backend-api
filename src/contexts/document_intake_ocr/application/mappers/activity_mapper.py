@@ -1,5 +1,4 @@
-
-from typing import Dict, List
+﻿from typing import Dict, List
 from uuid import uuid4
 from src.contexts.document_intake_ocr.application.schemas.activity_schema import (
     ActivityCreateRequest, 
@@ -27,6 +26,9 @@ class ActivityMapper:
             id=uuid4(),
             program_id=request.program_id,
             name=request.name,
+            activity_type=request.activity_type,
+            start_date=request.start_date,
+            end_date=request.end_date,
             required_documents=requirements,
             is_active=True
         )
@@ -37,6 +39,9 @@ class ActivityMapper:
             id=entity.id,
             program_id=entity.program_id,
             name=entity.name,
+            activity_type=entity.activity_type,
+            start_date=entity.start_date,
+            end_date=entity.end_date,
             is_active=entity.is_active,
             requirements=[
                 ActivityRequirementResponse(
@@ -58,7 +63,7 @@ class ActivityMapper:
             if hasattr(entity, key):
                 setattr(entity, key, value)
         # B. Reemplazo de requerimientos (si se enviaron)
-        if configs:
+        if configs and getattr(request, 'requirements', None):
             config_map = {c.id: c for c in configs}
             entity.required_documents = [
                 ActivityRequirement(

@@ -77,6 +77,8 @@ def configure_exception_handlers(application: FastAPI):
         # En producción, aquí deberías enviar el log a un sistema como Sentry o Datadog.
         # `logger.exception` deja el traceback COMPLETO en el log: sin él, el 500
         # genérico que ve el cliente es lo único que queda y el error real se pierde.
+        import traceback
+        traceback.print_exc()
         logger.exception(
             "[CRÍTICO] Error no controlado en %s %s: %s",
             request.method,

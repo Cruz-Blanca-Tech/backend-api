@@ -58,6 +58,7 @@ class BatchItemSchema(BaseModel):
     description: Optional[str] = None
     activity_name: Optional[str] = None
     program_name: Optional[str] = None
+    created_by_name: Optional[str] = None
     triage_summary: TriageSummarySchema
     failure_reason: Optional[str] = None
 

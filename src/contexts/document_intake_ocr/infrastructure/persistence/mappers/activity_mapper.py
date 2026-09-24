@@ -1,4 +1,4 @@
-# src/contexts/document_intake_ocr/infrastructure/persistence/mappers/activity_mapper.py
+﻿# src/contexts/document_intake_ocr/infrastructure/persistence/mappers/activity_mapper.py
 
 from src.contexts.document_intake_ocr.domain.entities.activity import Activity
 from src.contexts.document_intake_ocr.infrastructure.persistence.mappers.activity_requirement_mapper import ActivityRequirementMapper
@@ -18,6 +18,9 @@ class ActivityMapper:
             id=model.id,
             program_id=model.program_id,
             name=model.name,
+            activity_type=model.activity_type,
+            start_date=model.start_date,
+            end_date=model.end_date,
             required_documents=requirements_domain,
             is_active=model.is_active
         )
@@ -29,6 +32,9 @@ class ActivityMapper:
             id=entity.id,
             program_id=entity.program_id,
             name=entity.name,
+            activity_type=entity.activity_type,
+            start_date=entity.start_date,
+            end_date=entity.end_date,
             is_active=entity.is_active
         )
         

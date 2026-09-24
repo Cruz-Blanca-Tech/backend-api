@@ -18,9 +18,15 @@ class SaveHistoricalDocumentUseCase:
             print(f"Warning: Beneficiary with DNI {event.dni} not found when saving historical document.")
             return
 
-        # 2. Create the HistoricalDocument Value Object
+        # 2. Search for existing historical document for the same document_type and year
+        existing_doc = next((d for d in beneficiary.historical_documents if d.document_type == event.document_type and d.year == event.year), None)
+        
+        if existing_doc:
+            beneficiary.historical_documents.remove(existing_doc)
+
+        # 3. Create the HistoricalDocument Value Object
         doc = HistoricalDocument(
-            id=uuid.uuid4(),
+            id=existing_doc.id if existing_doc else uuid.uuid4(),
             beneficiary_id=beneficiary.id,
             batch_id=event.batch_id,
             document_type=event.document_type,
@@ -28,8 +34,8 @@ class SaveHistoricalDocumentUseCase:
             file_id=event.file_id
         )
 
-        # 3. Append to beneficiary
+        # 4. Append to beneficiary
         beneficiary.historical_documents.append(doc)
 
-        # 4. Save beneficiary
+        # 5. Save beneficiary
         await self.beneficiary_repo.save(beneficiary)

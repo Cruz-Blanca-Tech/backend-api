@@ -1,3 +1,4 @@
+from src.contexts.document_intake_ocr.application.use_cases.reprocess_dossier_use_case import ReprocessDossierUseCase
 # Puedes agregar esto al final de tu archivo dependencies.py actual
 
 import json
@@ -16,13 +17,18 @@ from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_cas
 from src.contexts.document_intake_ocr.application.use_cases.get_batch_by_id_use_case import GetBatchByIdUseCase
 from src.contexts.document_intake_ocr.infrastructure.dependencies.activity_deps import get_activity_repository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_activity_repository import SqlActivityRepository
+from src.contexts.document_intake_ocr.domain.repositories.activity_repository import ActivityRepository
 from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
+from src.contexts.document_intake_ocr.domain.repositories.batch_repository import BatchRepository
 
 # 2. Adaptadores de Infraestructura Externa
 from src.contexts.document_intake_ocr.infrastructure.adapters.google_drive_storage_adapter import GoogleDriveStorageAdapter
+from src.contexts.document_intake_ocr.domain.ports.document_storage import DocumentStorage
 
 # 3. Servicios de Aplicación (Los nuevos que creamos hoy)
 from src.contexts.document_intake_ocr.application.services.single_document_processor import SingleDocumentProcessor
+from src.contexts.document_intake_ocr.infrastructure.adapters.llm_data_normalizer import LLMDataNormalizer
+import os
 from src.contexts.document_intake_ocr.application.services.single_dossier_processor import SingleDossierProcessor
 from src.core.config import settings
 
@@ -33,14 +39,14 @@ from src.core.config import settings
 # PROVEEDORES DE REPOSITORIOS (BD)
 # ==========================================
 
-def get_batch_repository(db = Depends(get_async_db)) -> SqlBatchRepository:
-    return SqlBatchRepository(db)
+def get_batch_repository(db = Depends(get_async_db)) -> BatchRepository:
+    return SqlBatchRepository(session=db)
 
     
 # ==========================================
 # PROVEEDORES DE ADAPTADORES (NUBE)
 # ==========================================
-def get_storage_adapter() -> GoogleDriveStorageAdapter:
+def get_storage_adapter() -> DocumentStorage:
     # Si settings.google_client_secret es el string JSON, lo parseamos aquí
     if isinstance(settings.GOOGLE_CLIENT_SECRET, str):
         credentials_info = json.loads(settings.GOOGLE_CLIENT_SECRET)
@@ -65,10 +71,22 @@ def get_extractor_adapter():
 # PROVEEDORES DE SERVICIOS DE APLICACIÓN (WORKERS)
 # ==========================================
 def get_single_document_processor(
-    storage: GoogleDriveStorageAdapter = Depends(get_storage_adapter),
-    extractor = Depends(get_extractor_adapter)
+    storage: DocumentStorage = Depends(get_storage_adapter),
+    extractor: DocumentExtractor = Depends(get_extractor_adapter)
 ) -> SingleDocumentProcessor:
-    return SingleDocumentProcessor(storage_adapter=storage, extractor_adapter=extractor)
+    azure_oai_key = settings.AZURE_OPENAI_API_KEY
+    azure_oai_endpoint = settings.AZURE_OPENAI_ENDPOINT
+    
+    if azure_oai_key and azure_oai_endpoint:
+        normalizer = LLMDataNormalizer(api_key=azure_oai_key, endpoint=azure_oai_endpoint)
+    else:
+        normalizer = None
+    
+    return SingleDocumentProcessor(
+        storage_adapter=storage,
+        extractor_adapter=extractor,
+        normalizer_adapter=normalizer
+    )
 
 def get_single_dossier_processor(
     doc_processor: SingleDocumentProcessor = Depends(get_single_document_processor)
@@ -81,10 +99,10 @@ def get_dossier_event_publisher() -> DossierEventPublisher:
     return DossierEventPublisher()
 
 def get_batch_orchestrator(
-    activity_repo: SqlActivityRepository = Depends(get_activity_repository),
-    batch_repo: SqlBatchRepository = Depends(get_batch_repository),
+    activity_repo: ActivityRepository = Depends(get_activity_repository),
+    batch_repo: BatchRepository = Depends(get_batch_repository),
     # Aquí obtenemos el storage que YA viene configurado con el ID
-    storage: GoogleDriveStorageAdapter = Depends(get_storage_adapter),
+    storage: DocumentStorage = Depends(get_storage_adapter),
     dossier_processor: SingleDossierProcessor = Depends(get_single_dossier_processor),
     event_publisher: DossierEventPublisher = Depends(get_dossier_event_publisher)
 ) -> BatchProcessingOrchestrator:
@@ -100,8 +118,8 @@ def get_batch_orchestrator(
 # PROVEEDOR DEL CASO DE USO PRINCIPAL
 # ==========================================
 def get_process_batch_use_case(
-    activity_repo: SqlActivityRepository = Depends(get_activity_repository),
-    batch_repo: SqlBatchRepository = Depends(get_batch_repository),
+    activity_repo: ActivityRepository = Depends(get_activity_repository),
+    batch_repo: BatchRepository = Depends(get_batch_repository),
     orchestrator: BatchProcessingOrchestrator = Depends(get_batch_orchestrator)
 ) -> ProcessBatchUseCase:
     """
@@ -115,7 +133,7 @@ def get_process_batch_use_case(
     )
 
 def get_retry_batch_use_case(
-    batch_repo: SqlBatchRepository = Depends(get_batch_repository),
+    batch_repo: BatchRepository = Depends(get_batch_repository),
     orchestrator: BatchProcessingOrchestrator = Depends(get_batch_orchestrator)
 ):
     from src.contexts.document_intake_ocr.application.use_cases.process_batch.retry_batch_use_case import RetryBatchUseCase
@@ -129,7 +147,7 @@ def get_documents_by_dossier_use_case(session: AsyncSession = Depends(get_async_
 
 def get_document_image_use_case(
     session: AsyncSession = Depends(get_async_db),
-    storage: GoogleDriveStorageAdapter = Depends(get_storage_adapter),
+    storage: DocumentStorage = Depends(get_storage_adapter),
 ) -> GetDocumentImageUseCase:
     return GetDocumentImageUseCase(storage=storage, session=session)
 
@@ -160,9 +178,9 @@ def get_batch_by_id_use_case(session: AsyncSession = Depends(get_async_db)) -> G
     return GetBatchByIdUseCase(session=session, triage_service=triage_service)
 
 def get_append_documents_use_case(
-    activity_repo: SqlActivityRepository = Depends(get_activity_repository),
-    batch_repo: SqlBatchRepository = Depends(get_batch_repository),
-    storage: GoogleDriveStorageAdapter = Depends(get_storage_adapter),
+    activity_repo: ActivityRepository = Depends(get_activity_repository),
+    batch_repo: BatchRepository = Depends(get_batch_repository),
+    storage: DocumentStorage = Depends(get_storage_adapter),
     doc_processor: SingleDocumentProcessor = Depends(get_single_document_processor),
     event_publisher: DossierEventPublisher = Depends(get_dossier_event_publisher),
 ):
@@ -173,4 +191,19 @@ def get_append_documents_use_case(
         storage_adapter=storage,
         single_doc_processor=doc_processor,
         event_publisher=event_publisher,
-    )
+    )
+
+def get_reprocess_dossier_use_case(
+    activity_repo: ActivityRepository = Depends(get_activity_repository),
+    batch_repo: BatchRepository = Depends(get_batch_repository),
+    storage: DocumentStorage = Depends(get_storage_adapter),
+    doc_processor: SingleDocumentProcessor = Depends(get_single_document_processor),
+    event_publisher: DossierEventPublisher = Depends(get_dossier_event_publisher),
+):
+    return ReprocessDossierUseCase(
+        activity_repo=activity_repo,
+        batch_repo=batch_repo,
+        storage_adapter=storage,
+        single_doc_processor=doc_processor,
+        event_publisher=event_publisher,
+    )
