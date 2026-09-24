@@ -3,14 +3,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.contexts.core_beneficiary_management.presentation.schemas.beneficiary_schemas import (
-    BeneficiaryResponse, PaginatedBeneficiaryResponse, BeneficiaryPatchRequest, BeneficiaryCreateRequest
+    BeneficiaryResponse, PaginatedBeneficiaryResponse, BeneficiaryPatchRequest, BeneficiaryCreateRequest,
+    MdmBeneficiaryMatchResponse
 )
 from src.contexts.core_beneficiary_management.infrastructure.dependencies.beneficiary_deps import (
     get_beneficiaries_use_case, get_beneficiary_by_id_use_case, get_patch_beneficiary_use_case,
-    get_create_beneficiary_use_case
+    get_create_beneficiary_use_case, get_beneficiary_by_dni_use_case
 )
 from src.contexts.core_beneficiary_management.application.use_cases.get_beneficiaries_use_case import GetBeneficiariesUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.get_beneficiary_by_id_use_case import GetBeneficiaryByIdUseCase
+from src.contexts.core_beneficiary_management.application.use_cases.get_beneficiary_by_dni_use_case import GetBeneficiaryByDniUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.patch_beneficiary_use_case import PatchBeneficiaryUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.create_beneficiary_use_case import CreateBeneficiaryUseCase
 from src.core.validators.exceptions import ConflictException, DomainValidationError
@@ -58,6 +60,15 @@ async def get_beneficiaries(
 ):
     """Obtiene una lista paginada de todos los beneficiarios."""
     return await use_case.execute(skip=skip, limit=limit)
+
+@router.get("/by-dni/{dni}", response_model=MdmBeneficiaryMatchResponse)
+async def get_beneficiary_by_dni(
+    dni: str,
+    use_case: GetBeneficiaryByDniUseCase = Depends(get_beneficiary_by_dni_use_case)
+):
+    """Busca un beneficiario por DNI en el maestro (triaje): `exists` + snapshot
+    de identidad y familiares si está registrado, `exists=false` si no."""
+    return await use_case.execute(dni)
 
 @router.get("/{beneficiary_id}", response_model=BeneficiaryResponse)
 async def get_beneficiary(
