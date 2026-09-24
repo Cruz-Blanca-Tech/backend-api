@@ -7,7 +7,8 @@ from src.contexts.core_beneficiary_management.domain.value_objects.dni import DN
 from src.contexts.core_beneficiary_management.domain.value_objects.religion_record import ReligionRecord
 from src.contexts.core_beneficiary_management.domain.value_objects.permissions_record import PermissionsRecord
 from src.contexts.core_beneficiary_management.presentation.schemas.beneficiary_schemas import (
-    BeneficiaryResponse, BeneficiaryPatchRequest, BeneficiarySummaryResponse, BeneficiaryCreateRequest
+    BeneficiaryResponse, BeneficiaryPatchRequest, BeneficiarySummaryResponse, BeneficiaryCreateRequest,
+    MdmBeneficiarySnapshot, MdmRelativeSnapshot
 )
 
 from .medical_dto_mapper import MedicalDtoMapper
@@ -44,6 +45,37 @@ class BeneficiaryDtoMapper:
             education=EducationDtoMapper.to_response(domain_entity.education_record),
             related_adults=[AdultDtoMapper.to_response(adult) for adult in domain_entity.relatives],
             historical_documents=HistoricalDocumentDtoMapper.to_response_list(domain_entity.historical_documents)
+        )
+
+    @staticmethod
+    def to_mdm_snapshot(domain_entity: Optional[Beneficiary]) -> Optional[MdmBeneficiarySnapshot]:
+        """Snapshot de identidad + familiares para el triaje (maestro = la verdad).
+
+        Es deliberadamente LIGERO (sin registros médico/educativo): la pantalla de
+        corrección solo necesita identidad y familiares para bloquear/rellenar los
+        campos protegidos cuando el expediente coincide con un beneficiario ya
+        registrado en el dato máster.
+        """
+        if not domain_entity:
+            return None
+        return MdmBeneficiarySnapshot(
+            dni=domain_entity.dni.value if domain_entity.dni else "",
+            first_name=domain_entity.first_name,
+            last_name=domain_entity.last_name,
+            birth_date=domain_entity.birth_date,
+            gender=domain_entity.gender.value if domain_entity.gender else None,
+            address=domain_entity.address,
+            relatives=[
+                MdmRelativeSnapshot(
+                    relationship=adult.role.value if adult.role else "OTHER",
+                    dni=adult.dni.value if adult.dni else "",
+                    full_name=f"{adult.first_name} {adult.last_name}".strip(),
+                    phone=adult.phone.value if adult.phone else None,
+                    is_emergency_contact=adult.is_emergency_contact,
+                    is_guardian=adult.is_guardian,
+                )
+                for adult in domain_entity.relatives
+            ],
         )
 
     @staticmethod
