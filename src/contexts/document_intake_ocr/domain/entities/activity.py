@@ -1,7 +1,8 @@
-# src/contexts/document_intake_ocr/domain/entities/activity.py
+﻿# src/contexts/document_intake_ocr/domain/entities/activity.py
 from dataclasses import dataclass, field
 from uuid import UUID
 from typing import List, Dict, Optional
+import datetime
 
 from src.contexts.document_intake_ocr.domain.policies.activity_policies import ActivityPolicy
 from src.contexts.document_intake_ocr.domain.value_objects.activity_requirement import ActivityRequirement
@@ -16,6 +17,9 @@ class Activity:
     id: UUID
     program_id: UUID
     name: str  # Ej: "Inscripción 2026-I"
+    activity_type: str # Ej: "EDUCA_INSCRIPTION"
+    start_date: Optional[datetime.date]
+    end_date: Optional[datetime.date]
     required_documents: List[ActivityRequirement]
     is_active: bool
     

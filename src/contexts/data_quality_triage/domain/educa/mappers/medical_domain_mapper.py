@@ -1,4 +1,4 @@
-from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins
+﻿from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins
 from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data import MedicalData
 
 class MedicalDomainMapper:
@@ -9,9 +9,13 @@ class MedicalDomainMapper:
         if m.allergy_citrus.normalized_value: allergies.append("Cítricos")
         if m.allergy_penicillin.normalized_value: allergies.append("Penicilina")
         if m.allergy_sulfa_drugs.normalized_value: allergies.append("Sulfas")
-        if m.allergy_fish_shellfish.normalized_value: allergies.append("Pescado/Marisco")
-        if m.allergy_nsaid_analgesics.normalized_value: allergies.append("AINES")
-        if m.allergy_others.normalized_value: allergies.append("Otros")
+        if m.allergy_fish_shellfish.normalized_value: allergies.append("Pescado / Mariscos")
+        if m.allergy_nsaid_analgesics.normalized_value: allergies.append("Analgésicos (AINES)")
+        
+        # Si allergy_others contiene texto, se agrega como "Otro" libre
+        other_all = m.allergy_others.normalized_value
+        if other_all and isinstance(other_all, str) and other_all.lower() not in ["selected", "true", "x", "yes", "si", "sí"]:
+            allergies.append(other_all.strip().title())
             
         diseases = []
         if m.disease_cancer.normalized_value: diseases.append("Cáncer")
@@ -21,13 +25,16 @@ class MedicalDomainMapper:
         if m.disease_tuberculosis.normalized_value: diseases.append("Tuberculosis")
             
         insurance = []
-        if m.medical_insurance_sis.normalized_value: insurance.append("SIS")
-        if m.medical_insurance_essalud.normalized_value: insurance.append("EsSalud")
-        if m.medical_insurance_fospoli.normalized_value: insurance.append("Fospoli")
-        if m.medical_insurance_other.normalized_value: insurance.append("Otro")
+        if m.medical_insurance_sis.normalized_value: insurance.append("S.I.S.")
+        if m.medical_insurance_essalud.normalized_value: insurance.append("ESSALUD")
+        if m.medical_insurance_fospoli.normalized_value: insurance.append("FOSPOLI")
+        
+        other_ins = m.medical_insurance_other.normalized_value
+        if other_ins:
+            if isinstance(other_ins, str) and other_ins.lower() not in ["selected", "true", "x", "yes", "si", "sí"]:
+                insurance.append(other_ins.strip().title())
 
         vaccines = []
-        if m.has_complete_vaccines.normalized_value: vaccines.append("Completas")
         if m.received_tetanus_vaccine.normalized_value: vaccines.append("Tétanos")
 
         medications = []
@@ -42,6 +49,7 @@ class MedicalDomainMapper:
             operation_reason=m.operation_reason.normalized_value,
             has_been_hospitalized=m.has_been_hospitalized.normalized_value or False,
             hospitalization_reason=m.hospitalization_reason.normalized_value,
+            has_complete_vaccines=bool(m.has_complete_vaccines.normalized_value),
             vaccines=vaccines,
             medications=medications
         )

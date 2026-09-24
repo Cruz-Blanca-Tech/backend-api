@@ -1,14 +1,14 @@
-﻿from uuid import UUID
+from uuid import UUID
 from fastapi import BackgroundTasks
-from src.core.exceptions import EntityNotFoundException, BusinessRuleException
-from src.contexts.document_intake_ocr.domain.repositories.extraction_batch_repository import ExtractionBatchRepository
+from src.core.validators.exceptions import EntityNotFoundException, DomainValidationError
+from src.contexts.document_intake_ocr.domain.repositories.batch_repository import BatchRepository
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
 from src.contexts.document_intake_ocr.application.use_cases.process_batch.batch_processing_orchestrator import BatchProcessingOrchestrator
 
 class RetryBatchUseCase:
     def __init__(
         self, 
-        batch_repo: ExtractionBatchRepository, 
+        batch_repo: BatchRepository, 
         batch_orchestrator: BatchProcessingOrchestrator
     ):
         self.batch_repo = batch_repo
@@ -25,7 +25,7 @@ class RetryBatchUseCase:
             raise EntityNotFoundException("El lote no existe")
 
         if batch.status not in [BatchStatus.FAILED, BatchStatus.PENDING]:
-            raise BusinessRuleException("Solo se pueden reintentar lotes que hayan fallado o esten atascados en pendiente")
+            raise DomainValidationError("Solo se pueden reintentar lotes que hayan fallado o esten atascados en pendiente")
 
         # Cambiar el estado inmediatamente para reflejar que comenzo el reintento
         batch.status = BatchStatus.PROCESSING
