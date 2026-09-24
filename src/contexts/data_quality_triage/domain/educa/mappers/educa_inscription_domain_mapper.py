@@ -21,7 +21,9 @@ class EducaInscriptionDomainMapper:
         self.context = context or {}
         self.beneficiary_mapper = BeneficiaryDomainMapper()
         self.family_mapper = FamilyDomainMapper()
-        self.education_mapper = EducationDomainMapper()
+        # El contexto (colegios activos del maestro MDM) se propaga al mapper de
+        # educación para que el fuzzy match normalice contra la base real.
+        self.education_mapper = EducationDomainMapper(context=self.context)
         self.medical_mapper = MedicalDomainMapper()
         self.religion_mapper = ReligionDomainMapper()
         self.permissions_mapper = PermissionsDomainMapper()

@@ -69,7 +69,11 @@ class DossierFactory:
             
             if not enriched_fins:
                 raise ValueError("No se puede construir un Dossier Educa sin el documento principal FINS.")
-            mapper = EducaInscriptionDomainMapper()
+            # El contexto trae los colegios activos del maestro MDM (cargados por el
+            # dossier_processor). Se propaga al mapper para que la normalización del
+            # colegio se haga contra la base real: si no hay match, el colegio queda
+            # en None y la regla SchoolRequirement (education_rules) lo marca ERROR.
+            mapper = EducaInscriptionDomainMapper(context=context)
             return mapper.map(enriched_fins, enriched_dj, enriched_dniap)
         raise ValueError(f"ActivityType '{activity_type}' no está soportado en la creación desde enriquecidos.")
 
