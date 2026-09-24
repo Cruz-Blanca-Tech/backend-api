@@ -16,6 +16,9 @@ class ActivityModel(Base):
     program_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("programs.id"), nullable=False)
     
     name: Mapped[str] = mapped_column(String, nullable=False)
+    activity_type: Mapped[str] = mapped_column(String, nullable=False, server_default="UNKNOWN")
+    start_date: Mapped[datetime.date] = mapped_column(DateTime, nullable=True)
+    end_date: Mapped[datetime.date] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
     

@@ -99,7 +99,7 @@ class BeneficiaryMapper:
 
         model.relatives = []
         for r in entity.relatives:
-            ad_model = AdultMapper.to_persistence(r, entity.id)
+            ad_model = AdultMapper.to_persistence(r)
             if ad_model:
                 model.relatives.append(ad_model)
 

@@ -1,6 +1,6 @@
 # src/contexts/document_intake_ocr/presentation/api/batch_router.py
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 
 from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
 from src.contexts.document_intake_ocr.application.schemas.batch_schema import (
@@ -14,6 +14,8 @@ from src.contexts.document_intake_ocr.application.use_cases.get_document_image_u
 from src.contexts.document_intake_ocr.application.use_cases.list_batches_use_case import ListBatchesUseCase
 from src.contexts.document_intake_ocr.application.use_cases.get_batches_summary_use_case import GetBatchesSummaryUseCase
 from src.contexts.document_intake_ocr.application.use_cases.append_documents_use_case import AppendDocumentsUseCase
+from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_reprocess_dossier_use_case
+from src.contexts.document_intake_ocr.application.use_cases.reprocess_dossier_use_case import ReprocessDossierUseCase
 from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import (
     get_process_batch_use_case, get_documents_by_dossier_use_case, get_document_image_use_case,
     get_list_batches_use_case, get_batches_summary_use_case, get_batch_by_id_use_case,
@@ -181,3 +183,22 @@ async def get_batch_by_id(
 ):
     """Devuelve los detalles, contadores y métricas de un lote en particular."""
     return await use_case.execute(batch_id=batch_id)
+
+@router.post(
+    "/{batch_id}/dossiers/{dni_reference}/reprocess",
+    status_code=status.HTTP_200_OK,
+    summary="Reprocesa todo el expediente (todos sus documentos) con IA",
+)
+async def reprocess_entire_dossier(
+    batch_id: UUID,
+    dni_reference: str,
+    background_tasks: BackgroundTasks,
+    current_user: TokenClaims = Depends(get_current_user),
+    use_case: ReprocessDossierUseCase = Depends(get_reprocess_dossier_use_case),
+):
+    return await use_case.execute(
+        batch_id=batch_id,
+        dni_reference=dni_reference,
+        user_email=current_user.email.value,
+        background_tasks=background_tasks,
+    )

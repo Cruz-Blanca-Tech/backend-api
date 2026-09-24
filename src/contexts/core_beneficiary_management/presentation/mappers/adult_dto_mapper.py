@@ -21,7 +21,8 @@ class AdultDtoMapper:
             gender=domain_entity.gender.value if domain_entity.gender else None,
             role=domain_entity.role.value if domain_entity.role else "",
             phone=domain_entity.phone.value if domain_entity.phone else None,
-            is_emergency_contact=domain_entity.is_emergency_contact
+            is_emergency_contact=domain_entity.is_emergency_contact,
+            is_guardian=getattr(domain_entity, 'is_guardian', False)
         )
 
     @staticmethod
@@ -82,7 +83,8 @@ class AdultDtoMapper:
                 beneficiary_id=beneficiary_id,
                 role=role,
                 phone=phone,
-                is_emergency_contact=req.is_emergency_contact
+                is_emergency_contact=req.is_emergency_contact,
+                is_guardian=req.is_guardian
             ))
         return adults
 

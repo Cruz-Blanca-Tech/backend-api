@@ -1,4 +1,4 @@
-from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
+﻿from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
 from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedDj
 from typing import Any
 from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins
@@ -17,7 +17,8 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.religion_data i
 from src.contexts.data_quality_triage.domain.educa.value_objects.permissions_data import PermissionsData
 
 class EducaInscriptionDomainMapper:
-    def __init__(self):
+    def __init__(self, context: dict = None):
+        self.context = context or {}
         self.beneficiary_mapper = BeneficiaryDomainMapper()
         self.family_mapper = FamilyDomainMapper()
         self.education_mapper = EducationDomainMapper()

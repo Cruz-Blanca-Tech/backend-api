@@ -61,6 +61,7 @@ class DossierFactory:
         Crea un DossierData a partir de los documentos ENRIQUECIDOS.
         Delega toda la responsabilidad de consolidación al Mapper correspondiente según la actividad.
         """
+        context = kwargs.get("context", {})
         if activity_type == ActivityType.EDUCA_INSCRIPTION:
             enriched_fins = kwargs.get("FINS")
             enriched_dj = kwargs.get("DJ")

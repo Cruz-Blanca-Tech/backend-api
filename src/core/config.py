@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     # Document Intake & OCR (Azure Document Intelligence)
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: str = ""
     AZURE_DOCUMENT_INTELLIGENCE_KEY: str = ""
+    # Modelo por defecto para extracción síncrona. Puede ser un modelo custom
+    # entrenado (ej: "nombre-del-modelo") o un prebuilt (ej: "prebuilt-document").
+    AZURE_CUSTOM_MODEL_ID: str = "prebuilt-document"
 
+    # Azure OpenAI
+    AZURE_OPENAI_ENDPOINT: str = ""
+    AZURE_OPENAI_API_KEY: str = ""
 
 settings = Settings()

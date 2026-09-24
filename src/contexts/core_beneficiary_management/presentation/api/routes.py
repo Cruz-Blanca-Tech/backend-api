@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 
 from .beneficiary_router import router as beneficiary_router
+from .school_router import router as school_router
 
 beneficiary_app = FastAPI(
     title=f"{settings.PROJECT_NAME} - Beneficiary Management",
@@ -22,6 +23,8 @@ beneficiary_app.add_middleware(
 )
 
 beneficiary_app.include_router(beneficiary_router)
+beneficiary_app.include_router(school_router)
+
 
 def custom_openapi():
     if beneficiary_app.openapi_schema:

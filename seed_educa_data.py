@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 sys.path.insert(0, r"c:\Users\enzot\Documents\code\CruzBlanca\backend-api")
 import asyncio
 from sqlalchemy import text
@@ -20,6 +20,40 @@ async def seed():
         """))
         print("Program EDUCA verified/inserted.")
 
+        from datetime import datetime
+
+        # 1.5. Schools (MDM)
+        schools_data = [
+            {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "name": "Colegio San Martín",
+                "location": "Av. Principal 123, Distrito Norte",
+                "phone": "01 555-1234",
+                "is_active": True,
+                "created_at": datetime.utcnow()
+            },
+            {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "name": "Colegio Villas",
+                "location": "Calle Las Flores 456, Surco",
+                "phone": "01 555-5678",
+                "is_active": True,
+                "created_at": datetime.utcnow()
+            }
+        ]
+
+        for sc in schools_data:
+            await conn.execute(text("""
+                INSERT INTO schools (id, name, location, phone, is_active, created_at)
+                VALUES (:id, :name, :location, :phone, :is_active, :created_at)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    location = EXCLUDED.location,
+                    phone = EXCLUDED.phone,
+                    is_active = EXCLUDED.is_active;
+            """), sc)
+        print("2 schools verified/inserted.")
+
         # 2. Document Type Configs
         doc_configs = [
             {
@@ -31,7 +65,7 @@ async def seed():
                 "version": 1,
                 "preview_image_url": "https://drive.google.com/uc?export=view&id=1Im5BWqMOZ5SI8A-7I2OAMYCZxjF803hP",
                 "is_active": True,
-                "created_at": "2026-06-22 03:03:11.653303"
+                "created_at": datetime.strptime("2026-06-22 03:03:11.653303", "%Y-%m-%d %H:%M:%S.%f")
             },
             {
                 "id": "459da05e-1cb9-4f1f-b70e-abc0251f09b3",
@@ -42,7 +76,7 @@ async def seed():
                 "version": 1,
                 "preview_image_url": "https://drive.google.com/uc?export=view&id=1GWYFqrVR_3zH_hAP2u7wYldcaDR8ADS3",
                 "is_active": True,
-                "created_at": "2026-06-22 03:02:59.075432"
+                "created_at": datetime.strptime("2026-06-22 03:02:59.075432", "%Y-%m-%d %H:%M:%S.%f")
             },
             {
                 "id": "544b6c36-3aeb-4291-96d8-9b0e2b3a5107",
@@ -53,7 +87,7 @@ async def seed():
                 "version": 1,
                 "preview_image_url": "https://drive.google.com/uc?export=view&id=1RYgPwW31D4Y3Tb4tT2Yr1gTLyvZw_m5m",
                 "is_active": True,
-                "created_at": "2026-06-22 03:02:35.385964"
+                "created_at": datetime.strptime("2026-06-22 03:02:35.385964", "%Y-%m-%d %H:%M:%S.%f")
             },
             {
                 "id": "6d5ce9df-2674-4837-92a1-4f9220f0920b",
@@ -64,7 +98,7 @@ async def seed():
                 "version": 1,
                 "preview_image_url": "https://drive.google.com/uc?export=view&id=1q2EAsFniC9jG8KgqCjqVLDL7l3C39cYb",
                 "is_active": True,
-                "created_at": "2026-06-22 03:02:48.650726"
+                "created_at": datetime.strptime("2026-06-22 03:02:48.650726", "%Y-%m-%d %H:%M:%S.%f")
             }
         ]
 
@@ -144,10 +178,14 @@ async def seed():
             """), req)
         print("4 activity_requirements verified/inserted.")
 
-        # 5. User role update to admin
+        # 5. User role update to admin (upsert)
         await conn.execute(text("""
-            UPDATE users SET role = 'admin' WHERE email = 'enzo.trujillo@cruz-blanca.org';
+            INSERT INTO users (id, email, full_name, role, is_active, last_login)
+            VALUES (gen_random_uuid(), 'enzo.trujillo@cruz-blanca.org', 'Enzo Trujillo', 'admin', true, now())
+            ON CONFLICT (email) DO UPDATE SET
+                role = 'admin',
+                is_active = true;
         """))
-        print("User enzo.trujillo@cruz-blanca.org updated to role 'admin'.")
+        print("User enzo.trujillo@cruz-blanca.org inserted/updated to role 'admin'.")
 
 asyncio.run(seed())
