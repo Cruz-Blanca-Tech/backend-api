@@ -113,15 +113,28 @@ class ProcessDossierUseCase:
         except Exception as e:
             logger.error(f"Error in fuzzy matching: {e}", exc_info=True)
 
-        # --- DUPLICATE ENROLLMENT CHECK ---
+        # --- DUPLICATE REGISTRATION CHECK ---
+        # Detecta dos situaciones para el MISMO DNI y la MISMA actividad:
+        #   1) Ya matriculado (beneficiary_enrollments): caso aprobado persistido.
+        #   2) Expediente en trámite (triage_cases no rechazado): pendiente de
+        #      revisión/corrección o aprobado sin matrícula aún.
+        # En ambos casos el caso se rechaza automáticamente: no se puede registrar
+        # dos veces el mismo beneficiario en una actividad.
         try:
             res_batch = await self.session.execute(
-                text("SELECT activity_id FROM document_batches WHERE id = :bid"),
+                # FIX: la tabla real es `extraction_batches` (modelo ExtractionBatchModel).
+                # Antes se consultaba `document_batches` (tabla inexistente), la query
+                # lanzaba excepción y el `except` la tragaba: el check NUNCA disparaba y
+                # los DNI ya matriculados pasaban como duplicados.
+                text("SELECT activity_id FROM extraction_batches WHERE id = :bid"),
                 {"bid": str(batch_id)}
             )
             batch_row = res_batch.fetchone()
             if batch_row and batch_row[0]:
                 activity_id_str = str(batch_row[0])
+                duplicate_reason = None
+
+                # 1) Matrícula existente en la actividad
                 res_enroll = await self.session.execute(
                     text("""
                         SELECT 1 FROM beneficiary_enrollments e
@@ -131,6 +144,27 @@ class ProcessDossierUseCase:
                     {"dni": b_dni, "act": activity_id_str}
                 )
                 if res_enroll.fetchone():
+                    duplicate_reason = f"El DNI {b_dni} ya se encuentra inscrito en esta actividad. No se pueden procesar inscripciones duplicadas."
+
+                # 2) Expediente en trámite para el mismo DNI y actividad (se excluye
+                #    el propio caso que se está procesando y los rechazados)
+                if not duplicate_reason:
+                    res_pending = await self.session.execute(
+                        text("""
+                            SELECT 1 FROM triage_cases tc
+                            JOIN extraction_batches eb ON eb.id = tc.batch_id
+                            WHERE eb.activity_id = :act
+                              AND tc.dossier_data->'beneficiary'->>'dni' = :dni
+                              AND tc.status <> 'REJECTED'
+                              AND tc.id <> :current_case_id
+                            LIMIT 1
+                        """),
+                        {"act": activity_id_str, "dni": b_dni, "current_case_id": str(case.id)}
+                    )
+                    if res_pending.fetchone():
+                        duplicate_reason = f"El DNI {b_dni} ya tiene un expediente en trámite (pendiente de revisión o aprobación) para esta actividad. No se pueden procesar inscripciones duplicadas."
+
+                if duplicate_reason:
                     from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
                     from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
                     from src.contexts.data_quality_triage.domain.shared.value_objects.triage_verdict import TriageVerdict
@@ -139,7 +173,7 @@ class ProcessDossierUseCase:
                         field_name="beneficiary.dni",
                         expected_pattern="DNI no inscrito en esta actividad",
                         actual_value=b_dni,
-                        rule_description=f"El DNI {b_dni} ya se encuentra inscrito en esta actividad. No se pueden procesar inscripciones duplicadas.",
+                        rule_description=duplicate_reason,
                         severity="ERROR",
                         document_code="DOMINIO"
                     ))
@@ -147,7 +181,7 @@ class ProcessDossierUseCase:
                     case.status = TriageStatus.REJECTED
                     case.verdict = TriageVerdict.AUTOMATICALLY_REJECTED
         except Exception as e:
-            logger.error(f"Error checking duplicate enrollment: {e}", exc_info=True)
+            logger.error(f"Error checking duplicate registration: {e}", exc_info=True)
         # -------------------------------------
 
         # 4. Persistencia y Eventos
