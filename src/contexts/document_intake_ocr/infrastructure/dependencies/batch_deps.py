@@ -24,6 +24,7 @@ from src.contexts.document_intake_ocr.domain.repositories.batch_repository impor
 # 2. Adaptadores de Infraestructura Externa
 from src.contexts.document_intake_ocr.infrastructure.adapters.google_drive_storage_adapter import GoogleDriveStorageAdapter
 from src.contexts.document_intake_ocr.domain.ports.document_storage import DocumentStorage
+from src.contexts.document_intake_ocr.domain.ports.document_data_extractor import DocumentExtractor
 
 # 3. Servicios de Aplicación (Los nuevos que creamos hoy)
 from src.contexts.document_intake_ocr.application.services.single_document_processor import SingleDocumentProcessor
