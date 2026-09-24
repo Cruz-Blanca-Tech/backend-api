@@ -45,6 +45,8 @@ class EducaDossierMapper:
             dni = DNI("00000000")
 
         if not existing_beneficiary:
+            # ALTA: el beneficiario aún no existe en el MDM. Se crea completo con
+            # los datos del expediente aprobado (identidad + familiares + registros).
             beneficiary = Beneficiary(
                 id=uuid.uuid4(),
                 dni=dni,
@@ -55,13 +57,15 @@ class EducaDossierMapper:
                 address=ben_dto.address
             )
         else:
+            # CASO DE USO — ACTUALIZACIÓN PARCIAL (nueva actividad, mismo DNI):
+            # el beneficiario YA existe registrado en el MDM. Su identidad
+            # (nombres, fecha de nacimiento, sexo, dirección) y sus familiares
+            # NO se tocan: son gestionados por el maestro (PATCH /beneficiaries
+            # desde la pantalla MDM). De este expediente solo se actualizan los
+            # datos operativos de abajo (religión, permisos, ficha médica y
+            # educación) y la nueva matrícula se añade en
+            # EducaDossierProcessor.process (una por actividad).
             beneficiary = existing_beneficiary
-            beneficiary.first_name = ben_dto.first_name
-            beneficiary.last_name = ben_dto.last_name
-            if birth_date:
-                beneficiary.birth_date = birth_date
-            beneficiary.gender = gender
-            beneficiary.address = ben_dto.address
 
         rel_dto = dto.religion
         beneficiary.religion_record = ReligionRecord(
@@ -131,69 +135,65 @@ class EducaDossierMapper:
         e.has_learning_difficulties = edu_dto.has_learning_difficulties
 
         # Map Relatives (Adults)
-        # We replace the current relatives with what comes in the DTO for this specific update
-        existing_relatives_by_dni = {
-            r.dni.value: r for r in existing_beneficiary.relatives if r.dni
-        } if existing_beneficiary and existing_beneficiary.relatives else {}
+        # SOLO en alta (creación): si el beneficiario ya existe en el MDM, los
+        # familiares (padre/madre/tutores) NO se actualizan desde el expediente
+        # de la nueva actividad — se gestionan desde la pantalla MDM.
+        if not existing_beneficiary:
+            beneficiary.relatives = []
+            seen_dnis = set()
 
-        beneficiary.relatives = []
-        seen_dnis = set()
+            for ad_dto in dto.related_adults.adults:
+                ad_dni_raw = (ad_dto.dni or "").strip()
+                if not ad_dni_raw or not (ad_dni_raw.isdigit() and len(ad_dni_raw) == 8):
+                    continue
+                if ad_dni_raw in seen_dnis:
+                    continue
+                seen_dnis.add(ad_dni_raw)
 
-        for ad_dto in dto.related_adults.adults:
-            ad_dni_raw = (ad_dto.dni or "").strip()
-            if not ad_dni_raw or not (ad_dni_raw.isdigit() and len(ad_dni_raw) == 8):
-                continue
-            if ad_dni_raw in seen_dnis:
-                continue
-            seen_dnis.add(ad_dni_raw)
-
-            parts = ad_dto.full_name.split(" ", 1)
-            ad_first_name = parts[0] if parts else ""
-            ad_last_name = parts[1] if len(parts) > 1 else ""
-            
-            raw_rel = ad_dto.relationship.upper()
-            if raw_rel == "APODERADO":
-                role_enum = RelationshipRole.TUTOR
-            else:
-                try:
-                    role_enum = RelationshipRole(raw_rel)
-                except ValueError:
-                    role_enum = RelationshipRole.OTHER
+                parts = ad_dto.full_name.split(" ", 1)
+                ad_first_name = parts[0] if parts else ""
+                ad_last_name = parts[1] if len(parts) > 1 else ""
                 
-            try:
-                ad_dni = DNI(ad_dni_raw)
-            except ValueError:
-                continue
-                
-            ad_phone = None
-            if ad_dto.phone:
+                raw_rel = ad_dto.relationship.upper()
+                if raw_rel == "APODERADO":
+                    role_enum = RelationshipRole.TUTOR
+                else:
+                    try:
+                        role_enum = RelationshipRole(raw_rel)
+                    except ValueError:
+                        role_enum = RelationshipRole.OTHER
+                    
                 try:
-                    ad_phone = Phone(ad_dto.phone)
+                    ad_dni = DNI(ad_dni_raw)
                 except ValueError:
-                    pass
+                    continue
+                    
+                ad_phone = None
+                if ad_dto.phone:
+                    try:
+                        ad_phone = Phone(ad_dto.phone)
+                    except ValueError:
+                        pass
 
-            is_emergency = False
-            if dto.related_adults.emergency_contact_dni and ad_dto.dni == dto.related_adults.emergency_contact_dni:
-                is_emergency = True
+                is_emergency = False
+                if dto.related_adults.emergency_contact_dni and ad_dto.dni == dto.related_adults.emergency_contact_dni:
+                    is_emergency = True
 
-            is_guardian = False
-            if getattr(dto.related_adults, 'guardian_dni', None) and ad_dto.dni == dto.related_adults.guardian_dni:
-                is_guardian = True
+                is_guardian = False
+                if getattr(dto.related_adults, 'guardian_dni', None) and ad_dto.dni == dto.related_adults.guardian_dni:
+                    is_guardian = True
 
-            # Preserve existing relative ID if already tracked for this beneficiary
-            adult_id = existing_relatives_by_dni[ad_dni_raw].id if ad_dni_raw in existing_relatives_by_dni else uuid.uuid4()
-
-            beneficiary.relatives.append(Adult(
-                id=adult_id,
-                dni=ad_dni,
-                first_name=ad_first_name,
-                last_name=ad_last_name,
-                birth_date=None,  # We usually don't get the adult's birth date in Educa
-                gender=None,
-                role=role_enum,
-                phone=ad_phone,
-                is_emergency_contact=is_emergency,
-                is_guardian=is_guardian
-            ))
+                beneficiary.relatives.append(Adult(
+                    id=uuid.uuid4(),
+                    dni=ad_dni,
+                    first_name=ad_first_name,
+                    last_name=ad_last_name,
+                    birth_date=None,  # We usually don't get the adult's birth date in Educa
+                    gender=None,
+                    role=role_enum,
+                    phone=ad_phone,
+                    is_emergency_contact=is_emergency,
+                    is_guardian=is_guardian
+                ))
 
         return beneficiary
