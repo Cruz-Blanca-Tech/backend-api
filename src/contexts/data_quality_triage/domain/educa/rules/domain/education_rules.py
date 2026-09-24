@@ -6,6 +6,24 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscripti
 class EducationRules(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
+
+        # Regla de dominio: el colegio es OBLIGATORIO y debe ser uno del maestro
+        # MDM. Durante el procesamiento, el EducationDomainMapper (con el contexto
+        # de colegios activos que carga el dossier_processor) normaliza el colegio
+        # al nombre canónico de la base; si lo extraído no matchea ningún registro,
+        # deja el campo en None. Durante la corrección el operador elige de la
+        # lista (SchoolSelect), así que el valor siempre es un colegio de la base
+        # o está vacío. Cualquiera de esos casos cae aquí y bloquea la aprobación.
+        school_raw = domain_entity.education.school
+        school = (school_raw or "").strip().lower()
+        if not school or school in {"no registrada", "no registrado", "unknown", "ninguno", "n/a"}:
+            issues.append(FieldDiscrepancy(
+                field_name="education.school", expected_pattern="Colegio registrado en el maestro (MDM)",
+                actual_value=school_raw or "(vacío)",
+                rule_description="El colegio es obligatorio y debe ser uno de los registrados en el maestro de colegios. Seleccione el correcto de la lista.",
+                severity="ERROR", document_code="DOMINIO"
+            ))
+
         if domain_entity.education.knows_read and not domain_entity.education.grade:
             issues.append(FieldDiscrepancy(
                 field_name="education.grade", expected_pattern="Grado escolar", actual_value="(vacío)",
