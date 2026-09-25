@@ -158,6 +158,12 @@ class EducaDossierMapper:
             # familiar existente — mismo DNI o nombre muy similar — para no
             # duplicar al papá/mamá/apoderado ya registrado en el MDM.
             _append_new_tutors(beneficiary, dto)
+            # El apoderado y el contacto de emergencia SÍ se pueden cambiar aunque
+            # el beneficiario ya esté en el MDM: los flags operativos se
+            # sincronizan con guardian_dni/emergency_contact_dni del expediente
+            # (exista o se agregue el adulto). La identidad y el rol (padre/madre)
+            # NO se tocan, solo estos dos flags.
+            _sync_guardian_emergency_flags(beneficiary, dto)
 
         return beneficiary
 
@@ -289,3 +295,30 @@ def _names_look_same(name: str, existing_names: list) -> bool:
                 return True
 
     return False
+
+
+def _sync_guardian_emergency_flags(beneficiary, dto) -> None:
+    """Sincroniza los flags operativos `is_guardian` / `is_emergency_contact` de
+    los familiares EXISTENTES del beneficiario con el expediente corregido.
+
+    Antes este caso (beneficiario YA en el MDM) congelaba esos flags con los
+    valores del maestro: cambiar el apoderado o el contacto de emergencia en la
+    corrección no tenía efecto. Ahora, para cada adulto (existente o recién
+    agregado), el flag refleja SIEMPRE al adulto al que apuntan
+    `guardian_dni` / `emergency_contact_dni` del DTO:
+      - El adulto cuyo DNI coincide → flag `True`; el resto → `False`.
+      - DNI no consignado (None/vacío) → los flags se limpian (no hay apoderado
+        ni contacto de emergencia designado en esta actividad).
+    La identidad, el rol (padre/madre) y la deduplicación por DNI/nombre se
+    mantienen intactos: esta función solo toca estos dos flags.
+    """
+    related = dto.related_adults
+    guardian_dni = (getattr(related, "guardian_dni", None) or "").strip()
+    emergency_dni = (getattr(related, "emergency_contact_dni", None) or "").strip()
+
+    for adult in beneficiary.relatives:
+        if not adult.dni:
+            continue
+        ad_dni = str(adult.dni.value).strip().upper()
+        adult.is_guardian = bool(guardian_dni) and ad_dni == guardian_dni.upper()
+        adult.is_emergency_contact = bool(emergency_dni) and ad_dni == emergency_dni.upper()
