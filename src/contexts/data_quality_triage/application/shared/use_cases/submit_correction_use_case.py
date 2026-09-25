@@ -43,6 +43,12 @@ class SubmitCorrectionUseCase:
         await self.status_validator.validate_can_be_corrected(case)
 
         previous_status = case.status.value
+        # El dossier del triaje persiste el género en forma F/M (el select del
+        # formulario solo ofrece F/M). El maestro MDM serializa el enum
+        # (MALE/FEMALE) y puede llegar hasta aquí vía el payload corregido: se
+        # normaliza antes de persistir para no contaminar el dossier_data ni
+        # volver a disparar GenderCoherenceRule en el siguiente reproceso.
+        corrected_data = self._normalize_gender(corrected_data)
         case.submit_correction(corrected_data, user_id)
         
         try:
@@ -106,3 +112,21 @@ class SubmitCorrectionUseCase:
     def _add_audit_log(self, case_id: UUID, action: str, performed_by: UUID, previous_status: str, new_status: str, details: dict = None) -> None:
         audit_log = TriageAuditLogModel(id=uuid4(), triage_case_id=case_id, action=action, performed_by=performed_by, previous_status=previous_status, new_status=new_status, details=details)
         self.session.add(audit_log)
+
+    @staticmethod
+    def _normalize_gender(corrected_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normaliza `beneficiary.gender` del dossier a `M`/`F` si llegó el enum
+        del maestro (`MALE`/`FEMALE`). Sin género o valores no reconocidos se
+        deja `''` para que el panel lo marque como pendiente/error si aplica."""
+        if not isinstance(corrected_data, dict):
+            return corrected_data
+        beneficiary = corrected_data.get("beneficiary")
+        if not isinstance(beneficiary, dict):
+            return corrected_data
+        gender = beneficiary.get("gender")
+        if not isinstance(gender, str):
+            return corrected_data
+        normalized = gender.strip().upper()
+        if normalized in ("MALE", "FEMALE"):
+            beneficiary["gender"] = "M" if normalized == "MALE" else "F"
+        return corrected_data
