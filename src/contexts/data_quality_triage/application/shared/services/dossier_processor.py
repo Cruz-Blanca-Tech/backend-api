@@ -66,13 +66,34 @@ class ProcessDossierUseCase:
             case.created_at = existing_case.created_at
 
         # --- DUPLICATE / FUZZY MATCH CHECK ---
+        # La sugerencia fuzzy SOLO dispara cuando el posible duplicado DIFIERE del
+        # expediente en DNI y/o nombre. Si el candidato coincide en ambos (mismo
+        # DNI Y mismo nombre), no es una sugerencia: es el match MDM de identidad
+        # (exact_match), que la UI ya resuelve rellenando/bloqueando los campos
+        # protegidos. Regla de negocio acordada:
+        #   - DNI idéntico + nombre distinto   → NO (es match MDM por DNI).
+        #   - DNI idéntico + nombre idéntico   → NO (misma persona, match MDM).
+        #   - DNI distinto + nombre idéntico   → SÍ (OCR leyó mal el DNI) — caso
+        #     ANDRE: el lote se agrupó con un DNI mal leído, el maestro confirma.
+        #   - DNI distinto + nombre distinto   → SÍ (homónimo/apellidos cercanos,
+        #     posible DNI mal leído).
         b_data = case.dossier_data.get("beneficiary", {})
         b_dni = b_data.get("dni", dni)
         b_first = b_data.get("first_name", "") or ""
         b_last = b_data.get("last_name", "") or ""
         
+        def _norm_name(value: str) -> str:
+            import unicodedata
+            return (
+                unicodedata.normalize("NFKD", value)
+                .encode("ascii", "ignore")
+                .decode()
+                .lower()
+                .strip()
+            )
+
         try:
-            # Check exact match
+            # Check exact match (beneficiario YA registrado con ese DNI)
             res_exact = await self.session.execute(
                 text("SELECT dni FROM persons WHERE dni = :dni"),
                 {"dni": b_dni}
@@ -98,16 +119,50 @@ class ProcessDossierUseCase:
                         {"f": f"%{first_word}%", "l": f"%{last_word}%"}
                     )
                     fuzzy_matches = res_fuzzy.fetchall()
-                    if fuzzy_matches:
-                        match_names = ", ".join([f"{row[0]} {row[1]} (DNI: {row[2]})" for row in fuzzy_matches])
-                        suggested_dni = fuzzy_matches[0][2]
-                        
+
+                    # Filtro de la regla: se descarta todo candidato que NO difiera
+                    # del expediente (mismo DNI o mismo nombre Y mismo DNI). Los
+                    # candados guardan la forma canónica (normalizada, sin acentos)
+                    # para comparar "igual de verdad".
+                    b_name_norm = _norm_name(f"{b_first} {b_last}")
+                    candidates = []
+                    for row in fuzzy_matches:
+                        cand_dni = str(row[2] or "").strip()
+                        cand_name = _norm_name(f"{row[0]} {row[1]}")
+                        # 1) DNI idéntico al expediente → match MDM, no sugerencia.
+                        if cand_dni and cand_dni == str(b_dni or "").strip():
+                            continue
+                        # 2) Nombre idéntico Y DNI idéntico → misma persona.
+                        if cand_name == b_name_norm and cand_dni == str(b_dni or "").strip():
+                            continue
+                        candidates.append(row)
+
+                    if candidates:
+                        primary = candidates[0]
+                        primary_label = f"{primary[0]} {primary[1]} · DNI {primary[2]}"
+                        suggested_dni = primary[2]
+                        extras = candidates[1:]
+                        if extras:
+                            extra_labels = ", ".join(
+                                f"{r[0]} {r[1]} (DNI: {r[2]})" for r in extras
+                            )
+                            description = (
+                                f"Quizá este beneficiario es → {primary_label}. "
+                                f"También podría ser: {extra_labels}. Valide si es la misma "
+                                f"persona con un DNI o nombre mal escaneado."
+                            )
+                        else:
+                            description = (
+                                f"Quizá este beneficiario es → {primary_label}. "
+                                f"Valide si es la misma persona con un DNI o nombre mal escaneado."
+                            )
+
                         from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
                         case.discrepancies.append(FieldDiscrepancy(
                             field_name="beneficiary.dni",
                             expected_pattern=suggested_dni,
                             actual_value=b_dni,
-                            rule_description=f"Posible coincidencia encontrada en base de datos: {match_names}. Valide si es la misma persona con un DNI mal escaneado.",
+                            rule_description=description,
                             severity="AI_INSIGHT"
                         ))
         except Exception as e:
