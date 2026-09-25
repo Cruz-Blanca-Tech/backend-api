@@ -28,8 +28,19 @@ class FamilySchema(BaseModel):
             return "OTHER"
 
         def is_same_person(a1: RelatedAdultSchema, a2_dni: Optional[str], a2_name: Optional[str]) -> bool:
-            if a1.dni and a2_dni and a1.dni == a2_dni: return True
-            if a1.full_name and a2_name and a1.full_name.lower() == a2_name.lower(): return True
+            n1 = (a1.full_name or "").strip().lower()
+            n2 = (a2_name or "").strip().lower()
+            # Nombre completo explícito e idéntico → misma persona (aunque el DNI varíe).
+            if n1 and n2 and n1 == n2:
+                return True
+            # Mismo DNI: se fusiona SOLO si los nombres no lo contradicen (alguno vacío
+            # o iguales). Si ambos tienen nombres DISTINTOS, son personas diferentes que
+            # comparten DNI: NO fusionar — la regla de dominio FamilyDniUniquenessRule
+            # debe señalarlo como duplicado (antes la fusión silenciosa lo ocultaba).
+            if a1.dni and a2_dni and a1.dni == a2_dni:
+                if n1 and n2 and n1 != n2:
+                    return False
+                return True
             return False
 
         dedup_adults = []
