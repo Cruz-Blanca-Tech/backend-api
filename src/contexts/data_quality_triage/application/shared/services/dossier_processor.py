@@ -82,16 +82,6 @@ class ProcessDossierUseCase:
         b_first = b_data.get("first_name", "") or ""
         b_last = b_data.get("last_name", "") or ""
         
-        def _norm_name(value: str) -> str:
-            import unicodedata
-            return (
-                unicodedata.normalize("NFKD", value)
-                .encode("ascii", "ignore")
-                .decode()
-                .lower()
-                .strip()
-            )
-
         try:
             # Check exact match (beneficiario YA registrado con ese DNI)
             res_exact = await self.session.execute(
@@ -101,70 +91,46 @@ class ProcessDossierUseCase:
             exact_match = res_exact.fetchone()
             
             if not exact_match and (b_first or b_last):
-                # We check for a fuzzy match on name/last name in the persons table
-                # For simplicity, we match if the first word of first_name AND first word of last_name match
-                first_word = b_first.split()[0][:5] if b_first.split() else ""
-                last_word = b_last.split()[0][:5] if b_last.split() else ""
-                
-                if len(first_word) >= 3 and len(last_word) >= 3:
-                    res_fuzzy = await self.session.execute(
-                        text("""
-                            SELECT first_name, last_name, dni 
-                            FROM persons 
-                            WHERE type = 'beneficiary' 
-                              AND first_name ILIKE :f 
-                              AND last_name ILIKE :l
-                            LIMIT 3
-                        """),
-                        {"f": f"%{first_word}%", "l": f"%{last_word}%"}
-                    )
-                    fuzzy_matches = res_fuzzy.fetchall()
+                # Sugerencia fuzzy robusta: busca candidatos por nombre/apellido
+                # normalizados (sin acentos), resiste intercambios OCR de
+                # columnas, nombres incompletos y devuelve los más cercanos
+                # ordenados por puntaje compuesto (nombre + apellidos + DNI).
+                from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import BeneficiaryFuzzyMatcher
+                suggestions = await BeneficiaryFuzzyMatcher(self.session).find_suggestions(
+                    first_name=b_first,
+                    last_name=b_last,
+                    dni=b_dni,
+                    limit=3,
+                )
 
-                    # Filtro de la regla: se descarta todo candidato que NO difiera
-                    # del expediente (mismo DNI o mismo nombre Y mismo DNI). Los
-                    # candados guardan la forma canónica (normalizada, sin acentos)
-                    # para comparar "igual de verdad".
-                    b_name_norm = _norm_name(f"{b_first} {b_last}")
-                    candidates = []
-                    for row in fuzzy_matches:
-                        cand_dni = str(row[2] or "").strip()
-                        cand_name = _norm_name(f"{row[0]} {row[1]}")
-                        # 1) DNI idéntico al expediente → match MDM, no sugerencia.
-                        if cand_dni and cand_dni == str(b_dni or "").strip():
-                            continue
-                        # 2) Nombre idéntico Y DNI idéntico → misma persona.
-                        if cand_name == b_name_norm and cand_dni == str(b_dni or "").strip():
-                            continue
-                        candidates.append(row)
+                if suggestions:
+                    primary = suggestions[0]
+                    primary_label = f"{primary.first_name} {primary.last_name} · DNI {primary.dni}"
+                    suggested_dni = primary.dni
+                    extras = suggestions[1:]
+                    if extras:
+                        extra_labels = ", ".join(
+                            f"{c.first_name} {c.last_name} (DNI: {c.dni})" for c in extras
+                        )
+                        description = (
+                            f"Quizá este beneficiario es → {primary_label}. "
+                            f"También podría ser: {extra_labels}. Valide si es la misma "
+                            f"persona con un DNI o nombre mal escaneado."
+                        )
+                    else:
+                        description = (
+                            f"Quizá este beneficiario es → {primary_label}. "
+                            f"Valide si es la misma persona con un DNI o nombre mal escaneado."
+                        )
 
-                    if candidates:
-                        primary = candidates[0]
-                        primary_label = f"{primary[0]} {primary[1]} · DNI {primary[2]}"
-                        suggested_dni = primary[2]
-                        extras = candidates[1:]
-                        if extras:
-                            extra_labels = ", ".join(
-                                f"{r[0]} {r[1]} (DNI: {r[2]})" for r in extras
-                            )
-                            description = (
-                                f"Quizá este beneficiario es → {primary_label}. "
-                                f"También podría ser: {extra_labels}. Valide si es la misma "
-                                f"persona con un DNI o nombre mal escaneado."
-                            )
-                        else:
-                            description = (
-                                f"Quizá este beneficiario es → {primary_label}. "
-                                f"Valide si es la misma persona con un DNI o nombre mal escaneado."
-                            )
-
-                        from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
-                        case.discrepancies.append(FieldDiscrepancy(
-                            field_name="beneficiary.dni",
-                            expected_pattern=suggested_dni,
-                            actual_value=b_dni,
-                            rule_description=description,
-                            severity="AI_INSIGHT"
-                        ))
+                    from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+                    case.discrepancies.append(FieldDiscrepancy(
+                        field_name="beneficiary.dni",
+                        expected_pattern=suggested_dni,
+                        actual_value=b_dni,
+                        rule_description=description,
+                        severity="AI_INSIGHT"
+                    ))
         except Exception as e:
             logger.error(f"Error in fuzzy matching: {e}", exc_info=True)
 
