@@ -62,7 +62,11 @@ class GenderCoherenceRule(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
         if domain_entity.beneficiary.gender:
-            if domain_entity.beneficiary.gender not in ["M", "F"]:
+            # El maestro serializa el enum (`MALE`/`FEMALE`) y el OCR/FINS usa
+            # `M`/`F`: ambos son válidos. Solo se marca error si el valor no es
+            # ninguno de los sinónimos reconocidos (p. ej. ruido de OCR).
+            gender = domain_entity.beneficiary.gender.strip().upper()
+            if gender not in ("M", "F", "MALE", "FEMALE"):
                 issues.append(FieldDiscrepancy(
                     field_name="beneficiary.gender", expected_pattern="M o F", 
                     actual_value=str(domain_entity.beneficiary.gender),
