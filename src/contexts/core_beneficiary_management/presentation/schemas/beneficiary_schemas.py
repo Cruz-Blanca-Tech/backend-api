@@ -73,9 +73,17 @@ class PaginatedBeneficiaryResponse(BaseModel):
     limit: int
 
 class BeneficiaryPatchRequest(BaseModel):
+    """Actualización parcial de un beneficiario YA registrado.
+
+    SIN `birth_date` a propósito: la fecha de nacimiento es dato del MAESTRO y no
+    es actualizable. Se carga una sola vez (alta: `BeneficiaryCreateRequest`, o el
+    alta del beneficiario desde un expediente aprobado) y después queda inmutable
+    para todos los caminos (PATCH del MDM, aprobación de triaje, ...). Enmarcarla
+    aquí documenta la regla en el contrato de la API; el invariante real se
+    defiende también en `SqlBeneficiaryRepository.save`.
+    """
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    birth_date: Optional[date] = None
     gender: Optional[str] = None
     is_active: Optional[bool] = None
     medical: Optional[MedicalRecordPatchRequest] = None
@@ -83,6 +91,9 @@ class BeneficiaryPatchRequest(BaseModel):
     related_adults: Optional[List[AdultPatchRequest]] = None
 
 class BeneficiaryCreateRequest(BaseModel):
+    """ALTA del beneficiario: aquí SÍ se carga la fecha de nacimiento, porque es el
+    único momento en que se escribe. A partir de ese momento es inmutable."""
+
     id: Optional[UUID] = None
     dni: str
     first_name: str
