@@ -49,6 +49,11 @@ class SubmitCorrectionUseCase:
         # normaliza antes de persistir para no contaminar el dossier_data ni
         # volver a disparar GenderCoherenceRule en el siguiente reproceso.
         corrected_data = self._normalize_gender(corrected_data)
+        # Red de seguridad del snapshot: si el caso no tiene original (p. ej.
+        # creado antes del rollout), capturamos el dossier_data actual como
+        # "primer JSON" justo antes de la primera corrección humana.
+        if case.original_dossier_data is None and isinstance(case.dossier_data, dict):
+            case.original_dossier_data = dict(case.dossier_data)
         case.submit_correction(corrected_data, user_id)
         
         try:
