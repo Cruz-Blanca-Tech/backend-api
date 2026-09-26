@@ -16,6 +16,10 @@ class TriageCaseModel(Base):
     dni_reference: Mapped[str] = mapped_column(String(20), nullable=False)
 
     dossier_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    # Snapshot del primer JSON del expediente (post-LLM, pre-corrección humana).
+    # Se escribe una sola vez al crear/re-evaluar el caso y no se sobrescribe al
+    # corregir: permite comparar la data del backend contra la data final.
+    original_dossier_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     document_ids: Mapped[dict] = mapped_column(JSONB, nullable=False)
     confidence_scores: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
