@@ -12,6 +12,7 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepa
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import _is_valid_phone
+from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import score_candidate
 from src.core.events.event_dispatcher import EventDispatcher
 from src.core.validators.exceptions import EntityNotFoundException, DomainValidationError
 
@@ -62,6 +63,50 @@ def _normalize_name(value) -> str:
 
 def _dni_valid(value) -> bool:
     return bool(value and _DNI_RE.match(str(value).strip()))
+
+
+# Puntaje mínimo de nombre para que el maestro corrobore el DNI de agrupación del
+# lote como la identidad del expediente (mismo umbral que el matcher de sugerencias).
+_GROUP_DNI_SCORE = 0.50
+
+
+def _build_group_dni_suggestion(group_dni, dossier_dni, b_first, b_last, master_person):
+    """Sugerencia del DNI DE AGRUPACIÓN del lote cuando el maestro lo corrobora.
+
+    El intake agrupa los documentos de este expediente bajo `group_dni` (la clave de
+    agrupación del lote). Si el maestro registra a una persona con ESE dni cuyo
+    nombre coincide con el del expediente, la agrupación es la evidencia más fuerte
+    de que el DNI del campo es una lectura OCR equivocada → se sugiere usar el DNI
+    de agrupación (AI_INSIGHT no-bloqueante: lo resuelve el botón "Vincular" de la
+    tarjeta del beneficiario, sin suggestions duplicadas del fuzzy).
+
+    Si el maestro no conoce ese DNI, o la persona registrada con él tiene otro
+    nombre, NO se sugiere: es justo el caso ambiguo que el revisor debe verificar a
+    mano (el aviso inline "verifica la agrupación del lote").
+    """
+    if not _dni_valid(group_dni) or str(group_dni) == str(dossier_dni or ""):
+        return None
+    if not master_person:
+        return None
+    m_first = str(master_person[0] or "")
+    m_last = str(master_person[1] or "")
+    score = score_candidate(
+        b_first, b_last, dossier_dni or None, m_first, m_last, str(group_dni)
+    )
+    if score < _GROUP_DNI_SCORE:
+        return None
+    return FieldDiscrepancy(
+        field_name="beneficiary.dni",
+        expected_pattern=str(group_dni),
+        actual_value=dossier_dni or "(vacío)",
+        rule_description=(
+            f"El lote agrupó este expediente con el DNI {group_dni} y el maestro registra "
+            f"a {m_first} {m_last} con ese DNI (nombre coincide {score:.0%}). El expediente "
+            f"registra {dossier_dni or 'el DNI vacío'}: verifica el documento y usa el DNI "
+            f"de agrupación si corresponde."
+        ),
+        severity="AI_INSIGHT",
+    )
 
 
 def _build_emergency_phone_suggestion(adult_index, is_emergency, dossier_phone, master_row):
@@ -293,8 +338,25 @@ class ProcessDossierUseCase:
                 {"dni": b_dni}
             )
             exact_match = res_exact.fetchone()
-            
+
+            # El DNI de AGRUPACIÓN del lote (la clave con la que el intake agrupó los
+            # documentos de este expediente) es evidencia documental. Si el maestro
+            # corrobora a esa persona con el mismo nombre, se sugiere ese DNI: el
+            # botón "Vincular" de la tarjeta del beneficiario lo resuelve en un clic
+            # (y destraba el aviso inline de agrupación + el ERROR de DNI vacío).
+            group_suggestion = None
             if not exact_match and (b_first or b_last):
+                res_group = await self.session.execute(
+                    text("SELECT first_name, last_name FROM persons WHERE dni = :dni"),
+                    {"dni": str(dni)},
+                )
+                group_suggestion = _build_group_dni_suggestion(
+                    dni, b_dni, b_first, b_last, res_group.fetchone()
+                )
+
+            if group_suggestion:
+                case.discrepancies.append(group_suggestion)
+            elif not exact_match and (b_first or b_last):
                 # Sugerencia fuzzy robusta: busca candidatos por nombre/apellido
                 # normalizados (sin acentos), resiste intercambios OCR de
                 # columnas, nombres incompletos y devuelve los más cercanos
