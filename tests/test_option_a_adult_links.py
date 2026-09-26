@@ -10,6 +10,9 @@ Cubre:
   4. Ambigüedad de coincidencia (N1): con 3+ candidatos o dos casi empatados la
      sugerencia se eleva a WARNING ("verifique si el adulto ya existe") en vez de
      proponer un vínculo a ciegas.
+  5. DNI de AGRUPACIÓN del lote: si el maestro corrobora a la persona de la clave de
+     agrupación con el mismo nombre, se sugiere ese DNI (evidencia documental) en
+     lugar del fuzzy; si no lo corrobora, no se sugiere (verificación manual).
 """
 import asyncio
 import pytest
@@ -18,6 +21,9 @@ from uuid import uuid4
 
 from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import (
     BeneficiaryFuzzyMatcher,
+)
+from src.contexts.data_quality_triage.application.shared.services.dossier_processor import (
+    _build_group_dni_suggestion as _group_dni,
 )
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import EmergencyContactRule
 from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
@@ -452,3 +458,44 @@ def test_load_sibling_adults_indexa_y_excluye_ficha_actual():
              "child_dni": "11111111", "child_name": "LUIS MAMANI"},
         ]
     }
+
+
+# --------------------------------------------- DNI de agrupación del lote
+
+
+def test_group_dni_sugerido_cuando_el_maestro_corrobora_el_nombre():
+    # El lote agrupó con 09847291 y el maestro registra a esa persona con ese
+    # nombre; el expediente trae 09847299 (OCR mal leído) → se sugiere el de agrupación.
+    out = _group_dni(
+        "09847291", "09847299", "ROSA LUZ", "MAMANI CONDORI", ("ROSA LUZ", "MAMANI CONDORI")
+    )
+    assert out is not None
+    assert out.severity == "AI_INSIGHT"
+    assert out.field_name == "beneficiary.dni"
+    assert out.expected_pattern == "09847291"
+    assert out.actual_value == "09847299"
+    assert "09847291" in out.rule_description
+
+
+def test_group_dni_sugerido_con_dni_vacio_en_la_ficha():
+    out = _group_dni("09847291", "", "ROSA LUZ", "MAMANI CONDORI", ("ROSA LUZ", "MAMANI CONDORI"))
+    assert out is not None
+    assert out.expected_pattern == "09847291"
+    assert out.actual_value == "(vacío)"
+
+
+def test_group_dni_no_sugerido_si_el_maestro_no_conoce_el_dni():
+    assert _group_dni("09847291", "09847299", "ROSA LUZ", "MAMANI", None) is None
+
+
+def test_group_dni_no_sugerido_si_el_nombre_del_maestro_no_coincide():
+    # Persona distinta con ese DNI → el revisor debe verificar a mano.
+    assert _group_dni("09847291", "09847299", "ROSA LUZ", "MAMANI", ("PEDRO", "GUTIERREZ")) is None
+
+
+def test_group_dni_no_sugerido_si_el_dni_ya_coincide():
+    assert _group_dni("09847291", "09847291", "ROSA LUZ", "MAMANI", ("ROSA LUZ", "MAMANI")) is None
+
+
+def test_group_dni_no_sugerido_si_el_dni_de_agrupacion_no_es_valido():
+    assert _group_dni("9847", "09847299", "ROSA LUZ", "MAMANI", ("ROSA LUZ", "MAMANI")) is None
