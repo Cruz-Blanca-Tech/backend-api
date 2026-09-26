@@ -108,11 +108,39 @@ def score_candidate(
 
 
 class BeneficiaryFuzzyMatcher:
-    """Busca candidatos de beneficiario en `persons` cuando la OCR pudo mal
-    leer el DNI o el nombre del expediente."""
+    """Busca candidatos de persona en `persons` cuando la OCR pudo mal leer
+    el DNI o el nombre del expediente.
+
+    Soporta dos maestros:
+      - beneficiarios (type='beneficiary'): el flujo histórico.
+      - adultos/apoderados (type='adult'): para la regla de touchless — si el
+        DNI de un adulto de la ficha coincide 100% con el maestro, NO se emite
+        sugerencia (match MDM); solo se sugiere cuando el DNI difiere y el
+        nombre/contexto apuntan a la misma persona.
+    """
 
     def __init__(self, session: AsyncSession):
         self._session = session
+
+    async def find_adult_suggestions(
+        self,
+        *,
+        full_name: str,
+        dni: Optional[str] = None,
+        limit: int = 3,
+    ) -> List[FuzzyCandidate]:
+        """Igual que find_suggestions pero para adultos (type='adult'), con el
+        nombre completo del adulto de la ficha (se divide en primer/apellidos)."""
+        parts = (full_name or "").split(" ", 1)
+        first = parts[0] if parts else ""
+        last = parts[1] if len(parts) > 1 else ""
+        return await self.find_suggestions(
+            first_name=first,
+            last_name=last,
+            dni=dni,
+            limit=limit,
+            person_type="adult",
+        )
 
     async def find_suggestions(
         self,
@@ -121,6 +149,7 @@ class BeneficiaryFuzzyMatcher:
         last_name: str,
         dni: Optional[str] = None,
         limit: int = 3,
+        person_type: str = "beneficiary",
     ) -> List[FuzzyCandidate]:
         b_first = first_name or ""
         b_last = last_name or ""
@@ -142,8 +171,9 @@ class BeneficiaryFuzzyMatcher:
 
         sql = text(
             f"SELECT first_name, last_name, dni FROM persons "
-            f"WHERE type = 'beneficiary' AND ({conds}) LIMIT 30"
+            f"WHERE type = :ptype AND ({conds}) LIMIT 30"
         )
+        params["ptype"] = person_type
         result = await self._session.execute(sql, params)
         rows = result.fetchall()
 
