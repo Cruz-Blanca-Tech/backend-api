@@ -13,6 +13,20 @@ def _t(role) -> str:
     if r == "GRANDPARENT": return "Abuelo(a)"
     return "Familiar"
 
+
+def _as_str(value) -> str:
+    """Normaliza defensivamente un valor extraído a str (o '').
+
+    Las reglas de dominio NUNCA deben crashear por datos raros del OCR (dict,
+    números, None): si el valor no es una cadena útil, se degrada a ''.
+    """
+    if value is None:
+        return ""
+    try:
+        return str(value).strip()
+    except Exception:
+        return ""
+
 class GuardianPresenceRule(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
@@ -182,9 +196,11 @@ class DjFinsSignerCoherenceRule(DomainRule):
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
-        fins_guardian = domain_entity.related_adults.fins_guardian_dni
-        dj_signer = domain_entity.related_adults.dj_signer_dni
-        
+        # Acceso defensivo: si el expediente no trae FINS/DJ (o vienen valores
+        # raros del OCR), no crashear — degradar a '' y evaluar lo que haya.
+        fins_guardian = _as_str(getattr(domain_entity.related_adults, "fins_guardian_dni", None))
+        dj_signer = _as_str(getattr(domain_entity.related_adults, "dj_signer_dni", None))
+
         if fins_guardian and dj_signer and fins_guardian != dj_signer:
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.dj_signer",
@@ -294,7 +310,7 @@ class DjSignerPresenceRule(DomainRule):
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
-        dj_signer = (domain_entity.related_adults.dj_signer_dni or "").strip()
+        dj_signer = _as_str(getattr(domain_entity.related_adults, "dj_signer_dni", None))
         
         if not dj_signer:
             issues.append(FieldDiscrepancy(
