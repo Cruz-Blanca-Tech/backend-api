@@ -77,13 +77,27 @@ class SqlBeneficiaryRepository:
         # to prevent unique constraint violations on ix_persons_dni
         dnis = [r.dni.value for r in beneficiary.relatives if r.dni and r.dni.value]
         existing_persons = {}
+        existing_names = {}
         if dnis:
-            stmt = select(PersonModel.id, PersonModel.dni).where(PersonModel.dni.in_(dnis))
+            stmt = (
+                select(PersonModel.id, PersonModel.dni, PersonModel.first_name, PersonModel.last_name)
+                .where(PersonModel.type == "adult")  # un relativo solo reusa a una persona ADULTA
+                .where(PersonModel.dni.in_(dnis))
+            )
             res = await self.session.execute(stmt)
-            existing_persons = {row.dni: row.id for row in res.all()}
+            rows = res.all()
+            existing_persons = {row.dni: row.id for row in rows}
+            existing_names = {row.dni: (row.first_name, row.last_name) for row in rows}
             for r in beneficiary.relatives:
                 if r.dni and r.dni.value in existing_persons:
                     r.id = existing_persons[r.dni.value]
+                    # Identidad del maestro manda: un adulto ya registrado conserva su
+                    # nombre canónico (la ficha puede traer el nombre con errores de OCR).
+                    master_first, master_last = existing_names.get(r.dni.value, (None, None))
+                    if master_first:
+                        r.first_name = master_first
+                    if master_last:
+                        r.last_name = master_last
 
             # REGLA DE CONTACTOS (contacto/rol del maestro manda):
             # Un adulto REUSADO ya existe en el maestro (misma persona en otro/mismo

@@ -162,11 +162,12 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
             pass
 
     session = _SeqSession([
-        [_Row(id=person_id, dni="12345678")],           # personas existentes por DNI
+        [_Row(id=person_id, dni="12345678", first_name="ROSA LUZ", last_name="MAMANI CONDORI")],  # personas existentes por DNI
         [_Row(id=person_id, phone="925917655", role="MOTHER")],  # adults: phone, role
     ])
 
-    # La ficha del hermano menor trae a la mamá SIN teléfono y SIN rol específico.
+    # La ficha del hermano menor trae a la mamá SIN teléfono, SIN rol específico
+    # y con el nombre con errores de OCR.
     adult = Adult(
         id=uuid4(),
         dni=DNI("12345678"),
@@ -193,10 +194,12 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
     repo = SqlBeneficiaryRepository(session=session)
     await repo.save(ben)
 
-    # El adulto reusó el id del maestro y conservó su TELÉFONO y su ROL.
+    # El adulto reusó el id del maestro y conservó su TELÉFONO, su ROL y su NOMBRE.
     assert adult.id == person_id
     assert adult.phone is not None and adult.phone.value == "925917655"
     assert adult.role == RelationshipRole.MOTHER
+    assert adult.first_name == "ROSA LUZ"
+    assert adult.last_name == "MAMANI CONDORI"
 
 
 @pytest.mark.asyncio
@@ -221,7 +224,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
             pass
 
     session = _SeqSession([
-        [_Row(id=person_id, dni="12345678")],
+        [_Row(id=person_id, dni="12345678", first_name="ROSA LUZ", last_name="MAMANI CONDORI")],
         [_Row(id=person_id, phone="925917655", role="MOTHER")],
     ])
 
@@ -251,3 +254,6 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
     await repo.save(ben)
 
     assert adult.phone.value == "997230421"
+    # El nombre siempre viene del maestro en reuso.
+    assert adult.first_name == "ROSA LUZ"
+    assert adult.last_name == "MAMANI CONDORI"
