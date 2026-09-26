@@ -15,19 +15,25 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepa
 
 from src.contexts.data_quality_triage.domain.shared.rules.dossier_status_validator import DossierStatusValidator
 from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
+from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
 
 logger = logging.getLogger(__name__)
+
+# Razones de rechazo estándar
+REJECT_DUPLICATE_ENROLLMENT = "DUPLICATE_ENROLLMENT"
 
 class SubmitCorrectionUseCase:
     def __init__(
         self,
         triage_repo: SqlTriageRepository,
         session: AsyncSession,
+        beneficiary_repo: SqlBeneficiaryRepository,
         status_validator: Optional[DossierStatusValidator] = None,
         batch_status_validator: Optional[BatchStatusValidatorPort] = None
     ):
         self.triage_repo = triage_repo
         self.session = session
+        self.beneficiary_repo = beneficiary_repo
         if status_validator:
             self.status_validator = status_validator
         elif batch_status_validator:
@@ -55,11 +61,17 @@ class SubmitCorrectionUseCase:
         if case.original_dossier_data is None and isinstance(case.dossier_data, dict):
             case.original_dossier_data = dict(case.dossier_data)
         case.submit_correction(corrected_data, user_id)
-        
+
+        # 1. Reconstituir entidad de dominio
+        domain_entity = None
+        is_complete = False
+        domain_issues = []
+        dni = None
         try:
             activity_type = ActivityType(case.activity_type)
             domain_entity = DossierFactory.reconstitute(case.dossier_data, activity_type)
             is_complete, domain_issues = domain_entity.validate_completeness()
+            dni = domain_entity.beneficiary.dni
         except Exception as e:
             logger.error(f"Error reconstituting domain entity for correction validation: {str(e)}")
             is_complete = False
@@ -69,8 +81,9 @@ class SubmitCorrectionUseCase:
                     rule_description=f"Error al parsear el payload: {str(e)}", severity="ERROR", document_code="GLOBAL"
                 )
             ]
+            dni = None
 
-        # Validar documentos obligatorios
+        # 2. Validar documentos obligatorios
         missing_doc_discrepancies = []
         if case.activity_type == "EDUCA_INSCRIPTION":
             required_doc_map = {
@@ -91,20 +104,62 @@ class SubmitCorrectionUseCase:
                         document_code=code
                     ))
 
+        # 3. CHECK DUPLICADO: solo si es EDUCA_INSCRIPTION, está completo y no faltan docs
+        if (is_complete and not missing_doc_discrepancies 
+                and case.activity_type == "EDUCA_INSCRIPTION" and dni):
+            activity_code = "EDUCA"
+            existing = await self.beneficiary_repo.get_by_dni(dni)
+            if existing and any(e.activity_code == activity_code for e in existing.enrollments):
+                reject_detail = (
+                    f"El beneficiario {existing.first_name} {existing.last_name} "
+                    f"(DNI {dni}) ya está inscrito en {activity_code} (MDM id: {existing.id}). "
+                    "Para modificar sus datos, use la pantalla de Beneficiarios."
+                )
+                case.reject(user_id, REJECT_DUPLICATE_ENROLLMENT)
+                # Agregamos el detalle en discrepancies para que la UI lo muestre
+                case.update_discrepancies([
+                    FieldDiscrepancy(
+                        field_name="beneficiary.dni",
+                        expected_pattern="DNI no inscrito en EDUCA",
+                        actual_value=dni,
+                        rule_description=reject_detail,
+                        severity="ERROR",
+                        document_code="DOMINIO"
+                    )
+                ])
+                self._add_audit_log(case_id, "REJECTED", user_id, previous_status, TriageStatus.REJECTED.value, {
+                    "reject_reason": REJECT_DUPLICATE_ENROLLMENT,
+                    "reject_detail": reject_detail,
+                    "existing_beneficiary_id": str(existing.id)
+                })
+                await self.triage_repo.save(case)
+                await self.session.commit()
+                return case
+
+        # 4. Flujo normal según completitud
         if missing_doc_discrepancies:
             all_issues = missing_doc_discrepancies + domain_issues
             case.update_discrepancies(all_issues)
             case.status = TriageStatus.INCOMPLETE
-            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {"corrected_fields": corrected_data, "missing_documents": [d.document_code for d in missing_doc_discrepancies]})
+            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {
+                "corrected_fields": corrected_data, 
+                "missing_documents": [d.document_code for d in missing_doc_discrepancies]
+            })
         elif is_complete:
             case.approve(user_id)
             case.update_discrepancies([i for i in domain_issues if i.severity != "ERROR"])
-            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, TriageStatus.CORRECTED.value, {"corrected_fields": corrected_data})
-            self._add_audit_log(case_id, "AUTO_APPROVED", user_id, TriageStatus.CORRECTED.value, case.status.value, {"verdict": case.verdict.value, "reason": "Validación manual exitosa"})
+            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, TriageStatus.CORRECTED.value, {
+                "corrected_fields": corrected_data
+            })
+            self._add_audit_log(case_id, "AUTO_APPROVED", user_id, TriageStatus.CORRECTED.value, case.status.value, {
+                "verdict": case.verdict.value, "reason": "Validación manual exitosa"
+            })
         else:
             case.update_discrepancies(domain_issues)
             case.status = TriageStatus.PENDING_REVIEW
-            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {"corrected_fields": corrected_data, "remaining_errors": len(domain_issues)})
+            self._add_audit_log(case_id, "CORRECTED", user_id, previous_status, case.status.value, {
+                "corrected_fields": corrected_data, "remaining_errors": len(domain_issues)
+            })
 
         await self.triage_repo.save(case)
         for event in case.pending_events:
