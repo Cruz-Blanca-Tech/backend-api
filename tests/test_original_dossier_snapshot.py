@@ -77,8 +77,17 @@ async def test_submit_correction_use_case_captures_original_when_missing():
     session = AsyncMock()
     validator = MagicMock()
     validator.validate_can_be_corrected = AsyncMock()
+    
+    # Mock beneficiary_repo para el check de duplicado
+    beneficiary_repo = MagicMock()
+    beneficiary_repo.get_by_dni = AsyncMock(return_value=None)
 
-    uc = SubmitCorrectionUseCase(triage_repo=repo, session=session, status_validator=validator)
+    uc = SubmitCorrectionUseCase(
+        triage_repo=repo, 
+        session=session, 
+        beneficiary_repo=beneficiary_repo,
+        status_validator=validator
+    )
     await uc.execute(case.id, uuid4(), dict(CORRECTED_FINAL))
 
     # Snapshot capturado antes de sobrescribir, y final aplicado.
