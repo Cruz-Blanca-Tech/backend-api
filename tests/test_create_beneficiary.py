@@ -183,7 +183,6 @@ class TestEducaDossierMapper(unittest.TestCase):
                 dni=DNI("87654321"),
                 first_name="Papa",
                 last_name="Perez",
-                beneficiary_id=existing_beneficiary.id,
                 role=RelationshipRole.FATHER
             )
         ]

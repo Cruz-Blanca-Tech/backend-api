@@ -148,7 +148,7 @@ class BeneficiaryDtoMapper:
             except ValueError:
                 gender = Gender.UNKNOWN
 
-        relatives = AdultDtoMapper.from_create_request_list(beneficiary_id, request.related_adults)
+        relatives = AdultDtoMapper.from_create_request_list(request.related_adults)
         medical_record = MedicalDtoMapper.from_create_request(request.medical, beneficiary_id)
         education_record = EducationDtoMapper.from_create_request(request.education, beneficiary_id)
 
