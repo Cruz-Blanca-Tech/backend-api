@@ -1,4 +1,6 @@
 import logging
+import re
+import unicodedata
 from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -6,8 +8,10 @@ from sqlalchemy import text
 from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
 from src.contexts.data_quality_triage.domain.shared.strategies.triage_strategy_factory import TriageStrategyFactory
 from src.contexts.data_quality_triage.domain.shared.repositories.document_read_repository import DocumentReadRepository
+from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
+from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import _is_valid_phone
 from src.core.events.event_dispatcher import EventDispatcher
 from src.core.validators.exceptions import EntityNotFoundException, DomainValidationError
 
@@ -40,6 +44,110 @@ def _adult_match_is_ambiguous(suggestions) -> bool:
     )
 
 
+# DNI peruano: 8 dígitos.
+_DNI_RE = re.compile(r"^\d{8}$")
+
+
+def _normalize_name(value) -> str:
+    """Nombre sin acentos, en mayúsculas y con espacios colapsados.
+
+    Sirve para indexar adultos entre fichas del mismo lote: resiste tildes y
+    espaciado irregular del OCR ("Rosa Luz Mamani Cóndor" → "ROSA LUZ MAMANI CONDOR").
+    """
+    if not value:
+        return ""
+    text = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"\s+", " ", text).strip().upper()
+
+
+def _dni_valid(value) -> bool:
+    return bool(value and _DNI_RE.match(str(value).strip()))
+
+
+def _build_emergency_phone_suggestion(adult_index, is_emergency, dossier_phone, master_row):
+    """Sugerencia de teléfono para el CONTACTO DE EMERGENCIA con DNI matcheado.
+
+    La regla de contactos emite un ERROR cuando el teléfono del contacto de
+    emergencia es vacío/inválido. Si ese adulto coincide con el maestro (identidad
+    confirmada por DNI) y el maestro SÍ tiene teléfono válido, se sugiere (AI_INSIGHT,
+    no-bloqueante) aplicarlo para destrabar el caso en un clic. El ERROR de la regla
+    sigue siendo la fuente de verdad del bloqueo.
+    """
+    if not is_emergency or _is_valid_phone(dossier_phone) or not _is_valid_phone(master_row.phone):
+        return None
+    return FieldDiscrepancy(
+        field_name=f"related_adults.adults[{adult_index}].phone",
+        expected_pattern=master_row.phone,
+        actual_value=dossier_phone or "(vacío)",
+        rule_description=(
+            f"El contacto de emergencia coincide con el adulto del maestro "
+            f"{master_row.first_name} {master_row.last_name} (DNI: {master_row.dni}). "
+            f"El maestro tiene registrado el teléfono {master_row.phone}: aplicar para "
+            f"resolver el ERROR de la regla de contactos."
+        ),
+        severity="AI_INSIGHT",
+    )
+
+
+def _build_sibling_suggestions(adult_index, ad_name, ad_dni, ad_phone, sibling_index):
+    """Sugerencias cross-dossier (misma familia, mismo lote) para un adulto.
+
+    El OCR puede perder el DNI de un apoderado SOLO en una de las copias del
+    lote. Si el mismo adulto (mismo nombre normalizado) aparece con DNI legible
+    en la ficha de un hermano/a:
+      - 1 solo DNI válido → AI_INSIGHT para completar el DNI (y el teléfono si la
+        ficha actual no trae teléfono válido y la del hermano sí).
+      - Varios DNIs distintos entre hermanos → WARNING de verificación (coherente
+        con N1: una coincidencia ambigua no se sugiere a ciegas).
+    """
+    if not ad_name:
+        return []
+    out = []
+    matches = sibling_index.get(_normalize_name(ad_name)) or []
+    valid_dnis = sorted({m["dni"] for m in matches if _dni_valid(m["dni"])})
+    if len(valid_dnis) == 1:
+        sib_dni = valid_dnis[0]
+        sib = next(m for m in matches if m["dni"] == sib_dni)
+        source = f"la ficha de {sib['child_name']} (DNI {sib['child_dni']})"
+        if not sib["child_name"]:
+            source = f"DNI {sib['child_dni']}"
+        out.append(FieldDiscrepancy(
+            field_name=f"related_adults.adults[{adult_index}].dni",
+            expected_pattern=sib_dni,
+            actual_value=ad_dni or "(vacío)",
+            rule_description=(
+                f"En {source} del mismo lote aparece el adulto '{ad_name}' con DNI "
+                f"{sib_dni}: se sugiere completar este DNI (lectura OCR perdida en "
+                f"esta ficha)."
+            ),
+            severity="AI_INSIGHT",
+        ))
+        if not _is_valid_phone(ad_phone) and _is_valid_phone(sib["phone"]):
+            out.append(FieldDiscrepancy(
+                field_name=f"related_adults.adults[{adult_index}].phone",
+                expected_pattern=sib["phone"],
+                actual_value=ad_phone or "(vacío)",
+                rule_description=(
+                    f"En {source} del mismo lote el adulto '{ad_name}' registra el "
+                    f"teléfono {sib['phone']}: aplicar para completar el dato."
+                ),
+                severity="AI_INSIGHT",
+            ))
+    elif len(valid_dnis) > 1:
+        labels = ", ".join(f"DNI {d}" for d in valid_dnis)
+        out.append(FieldDiscrepancy(
+            field_name="related_adults.adults",
+            expected_pattern=None,
+            actual_value=ad_dni or "(vacío)",
+            rule_description=(
+                f"El adulto '{ad_name}' aparece con DNIs distintos en otras fichas "
+                f"del mismo lote ({labels}). Verifique cuál corresponde antes de aprobar."
+            ),
+            severity="WARNING",
+        ))
+    return out
+
+
 class ProcessDossierUseCase:
     def __init__(
         self, 
@@ -52,6 +160,45 @@ class ProcessDossierUseCase:
         self.doc_repo = doc_repo
         self.strategy_factory = strategy_factory
         self.session = session
+
+    async def _load_sibling_adults(self, batch_id, exclude_dni: str) -> dict:
+        """Índice de adultos vistos en OTRAS fichas del mismo lote (cross-dossier).
+
+        Devuelve {nombre_normalizado: [{"dni", "phone", "child_dni", "child_name"}]}
+        a partir de los triage_cases YA guardados del lote, excluyendo la ficha
+        actual. Permite completar el DNI/teléfono de un apoderado que el OCR
+        perdió solo en la ficha actual, tomándolo de la ficha de un hermano/a.
+        """
+        index = {}
+        try:
+            cases = await self.triage_repo.get_all_by_batch_id(batch_id)
+        except Exception as e:
+            logger.warning(f"No se pudieron cargar los casos del lote {batch_id}: {e}")
+            return index
+        for sibling in cases:
+            if (sibling.dni_reference or "") == exclude_dni:
+                continue
+            dd = sibling.dossier_data or {}
+            if not isinstance(dd, dict):
+                continue
+            ben = dd.get("beneficiary") or {}
+            child_dni = ben.get("dni") or sibling.dni_reference
+            child_name = " ".join(
+                part for part in (ben.get("first_name"), ben.get("last_name")) if part
+            ).strip()
+            adults = (dd.get("related_adults") or {}).get("adults") or []
+            for ad in adults:
+                ad_name = str(ad.get("full_name") or "").strip()
+                if not ad_name:
+                    continue
+                key = _normalize_name(ad_name)
+                index.setdefault(key, []).append({
+                    "dni": str(ad.get("dni") or "").strip(),
+                    "phone": str(ad.get("phone") or "").strip(),
+                    "child_dni": child_dni,
+                    "child_name": child_name,
+                })
+        return index
 
     async def execute(self, dni: str, batch_id: UUID, activity_type_str: str) -> TriageCase:
         # 1. Recuperar los documentos enriquecidos
@@ -203,26 +350,56 @@ class ProcessDossierUseCase:
         # contacto de emergencia).
         try:
             from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import BeneficiaryFuzzyMatcher
-            from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 
             related_data = (case.dossier_data or {}).get("related_adults") or {}
             adults_data = related_data.get("adults") or []
+            emergency_dni = str(related_data.get("emergency_contact_dni") or "").strip()
             matcher = BeneficiaryFuzzyMatcher(self.session)
+            # Índice cross-dossier: adultos vistos en OTRAS fichas del mismo lote
+            # (para completar DNI/teléfono de un apoderado desde la ficha de un hermano).
+            sibling_index = await self._load_sibling_adults(batch_id, exclude_dni=str(dni))
             for idx, ad in enumerate(adults_data):
                 ad_name = str(ad.get("full_name") or "").strip()
                 ad_dni = str(ad.get("dni") or "").strip()
+                ad_phone = str(ad.get("phone") or "").strip()
                 if not ad_name:
                     continue
 
-                # Match MDM por DNI → touchless: nunca sugerir. Solo interesa el
-                # maestro de ADULTOS (un apoderado no se vincula a un beneficiario).
+                # 1) Match MDM por DNI → touchless: nunca sugerir. Solo interesa
+                #    el maestro de ADULTOS (un apoderado no se vincula a un
+                #    beneficiario). Excepción productiva: contacto de emergencia
+                #    con teléfono vacío/inválido → se SUGIERE el teléfono del
+                #    maestro (AI_INSIGHT) para destrabar el ERROR de la regla de
+                #    contactos en un clic.
                 if ad_dni:
-                    res_exists = await self.session.execute(
-                        text("SELECT 1 FROM persons WHERE type = 'adult' AND dni = :dni"),
+                    res_master = await self.session.execute(
+                        text("""
+                            SELECT p.dni, p.first_name, p.last_name, a.phone
+                            FROM persons p
+                            LEFT JOIN adults a ON a.person_id = p.id
+                            WHERE p.type = 'adult' AND p.dni = :dni
+                        """),
                         {"dni": ad_dni},
                     )
-                    if res_exists.fetchone():
+                    master_row = res_master.fetchone()
+                    if master_row:
+                        phone_suggestion = _build_emergency_phone_suggestion(
+                            idx, emergency_dni == ad_dni, ad_phone, master_row
+                        )
+                        if phone_suggestion:
+                            case.discrepancies.append(phone_suggestion)
                         continue
+
+                # 2) Sugerencia entre HERMANOS del mismo lote (cross-dossier):
+                #    el OCR perdió el DNI de este apoderado solo en la ficha
+                #    actual; la ficha de otro/a hermano/a del lote lo trae legible
+                #    con el mismo nombre → completar DNI (y teléfono si aplica).
+                #    Coherente con N1: si los hermanos traen DNIs distintos →
+                #    WARNING de verificación (no se sugiere a ciegas).
+                if not _dni_valid(ad_dni):
+                    case.discrepancies.extend(
+                        _build_sibling_suggestions(idx, ad_name, ad_dni, ad_phone, sibling_index)
+                    )
 
                 adult_suggestions = await matcher.find_adult_suggestions(
                     full_name=ad_name,
