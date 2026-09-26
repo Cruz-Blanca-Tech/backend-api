@@ -40,7 +40,14 @@ def get_submit_correction_use_case(
     triage_repo: SqlTriageRepository = Depends(get_triage_repository),
     status_validator: DossierStatusValidator = Depends(get_dossier_status_validator)
 ) -> SubmitCorrectionUseCase:
-    return SubmitCorrectionUseCase(triage_repo=triage_repo, session=session, status_validator=status_validator)
+    from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
+    beneficiary_repo = SqlBeneficiaryRepository(session=session)
+    return SubmitCorrectionUseCase(
+        triage_repo=triage_repo, 
+        session=session, 
+        beneficiary_repo=beneficiary_repo,
+        status_validator=status_validator
+    )
 
 def get_reject_batch_use_case(
     session: AsyncSession = Depends(get_async_db),
