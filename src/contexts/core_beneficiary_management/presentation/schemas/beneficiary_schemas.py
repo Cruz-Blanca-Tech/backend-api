@@ -75,15 +75,16 @@ class PaginatedBeneficiaryResponse(BaseModel):
 class BeneficiaryPatchRequest(BaseModel):
     """Actualización parcial de un beneficiario YA registrado.
 
-    SIN `birth_date` a propósito: la fecha de nacimiento es dato del MAESTRO y no
-    es actualizable. Se carga una sola vez (alta: `BeneficiaryCreateRequest`, o el
-    alta del beneficiario desde un expediente aprobado) y después queda inmutable
-    para todos los caminos (PATCH del MDM, aprobación de triaje, ...). Enmarcarla
-    aquí documenta la regla en el contrato de la API; el invariante real se
-    defiende también en `SqlBeneficiaryRepository.save`.
+    `birth_date` SÍ se actualiza aquí, y esta es la ÚNICA vía para hacerlo: el
+    MDM es el dueño del dato. Si la fecha del maestro está mal, se corrige desde
+    la pantalla de beneficiarios, NUNCA desde el triaje — el flujo de triaje
+    preserva la identidad de un beneficiario ya registrado
+    (`EducaDossierMapper.map_to_entity`), así que un expediente no pisa la fecha
+    del maestro por mucho que traiga otra en la ficha.
     """
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    birth_date: Optional[date] = None
     gender: Optional[str] = None
     is_active: Optional[bool] = None
     medical: Optional[MedicalRecordPatchRequest] = None
