@@ -69,6 +69,19 @@ def _dni_valid(value) -> bool:
 # lote como la identidad del expediente (mismo umbral que el matcher de sugerencias).
 _GROUP_DNI_SCORE = 0.50
 
+# Consulta del maestro para un adulto de la ficha. OJO con el join: `adults` es
+# single-table inheritance (AdultModel<PersonModel>), o sea que `adults.id` ES
+# `persons.id`. No existe una columna `person_id`: con ese join la query explotaba
+# en TODA ficha con un adulto que tuviera DNI y el `except` del bloque se comía la
+# excepción (sin touchless, sin sugerencias, sin N1, sin hermanos). El test
+# `test_sql_de_adulto_une_por_la_pk_compartida` lo fija.
+_ADULT_MASTER_SQL = """
+    SELECT p.dni, p.first_name, p.last_name, a.phone
+    FROM persons p
+    LEFT JOIN adults a ON a.id = p.id
+    WHERE p.type = 'adult' AND p.dni = :dni
+"""
+
 
 def _build_group_dni_suggestion(group_dni, dossier_dni, b_first, b_last, master_person):
     """Sugerencia del DNI DE AGRUPACIÓN del lote cuando el maestro lo corrobora.
@@ -435,12 +448,7 @@ class ProcessDossierUseCase:
                 #    contactos en un clic.
                 if ad_dni:
                     res_master = await self.session.execute(
-                        text("""
-                            SELECT p.dni, p.first_name, p.last_name, a.phone
-                            FROM persons p
-                            LEFT JOIN adults a ON a.person_id = p.id
-                            WHERE p.type = 'adult' AND p.dni = :dni
-                        """),
+                        text(_ADULT_MASTER_SQL),
                         {"dni": ad_dni},
                     )
                     master_row = res_master.fetchone()
