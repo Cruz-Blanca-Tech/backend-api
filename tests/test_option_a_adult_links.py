@@ -23,6 +23,7 @@ from src.contexts.data_quality_triage.application.shared.services.beneficiary_fu
     BeneficiaryFuzzyMatcher,
 )
 from src.contexts.data_quality_triage.application.shared.services.dossier_processor import (
+    _ADULT_MASTER_SQL,
     _build_group_dni_suggestion as _group_dni,
 )
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import EmergencyContactRule
@@ -461,6 +462,20 @@ def test_load_sibling_adults_indexa_y_excluye_ficha_actual():
 
 
 # --------------------------------------------- DNI de agrupación del lote
+
+
+def test_sql_de_adulto_une_por_la_pk_compartida():
+    """REGRESIÓN: `adults` es single-table inheritance (adults.id == persons.id).
+
+    Con `LEFT JOIN adults a ON a.person_id = p.id` la consulta fallaba con
+    UndefinedColumnError en TODA ficha que tuviera un adulto con DNI, y el
+    `except Exception` del bloque de adultos se comía la excepción: en
+    producción no corrían ni el touchless, ni las sugerencias de adulto, ni el
+    N1, ni las sugerencias entre hermanos. Este test fija el join correcto.
+    """
+    sql = " ".join(_ADULT_MASTER_SQL.split()).lower()
+    assert "join adults a on a.id = p.id" in sql
+    assert "person_id" not in sql
 
 
 def test_group_dni_sugerido_cuando_el_maestro_corrobora_el_nombre():
