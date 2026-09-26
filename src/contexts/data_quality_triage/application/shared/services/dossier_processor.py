@@ -14,6 +14,32 @@ from src.core.validators.exceptions import EntityNotFoundException, DomainValida
 logger = logging.getLogger(__name__)
 SYSTEM_UUID = UUID("00000000-0000-0000-0000-000000000000")
 
+# Umbral de ambigüedad para sugerencias de adultos: si el mejor candidato no
+# supera por este margen al segundo (o hay demasiados candidatos) la
+# coincidencia NO es confiable para sugerir un vínculo a ciegas y se eleva a
+# WARNING ("verifique si este adulto ya existe").
+_AMBIGUITY_GAP = 0.10
+
+
+def _adult_match_is_ambiguous(suggestions) -> bool:
+    """¿La coincidencia fuzzy de un adulto es ambigua?
+
+    Una sugerencia de vínculo ("Quizá este adulto es → …") solo es segura cuando
+    hay UN candidato claramente dominante. Si no se puede decidir con confianza,
+    el procesador eleva el hallazgo a WARNING para que el revisor verifique:
+
+      - 3+ candidatos (el top-3 del matcher completo) → demasiadas coincidencias.
+      - 2 candidatos con score casi empatado (gap < _AMBIGUITY_GAP) → no hay un
+        ganador claro.
+    """
+    if len(suggestions) >= 3:
+        return True
+    return (
+        len(suggestions) >= 2
+        and (suggestions[0].score - suggestions[1].score) < _AMBIGUITY_GAP
+    )
+
+
 class ProcessDossierUseCase:
     def __init__(
         self, 
@@ -205,6 +231,28 @@ class ProcessDossierUseCase:
                 )
                 if not adult_suggestions:
                     continue
+
+                # Decisión N1 (business): si la coincidencia es AMBIGUA — 3+
+                # candidatos o dos con score casi empatado — no se sugiere un
+                # vínculo a ciegas: se advierte para que el revisor verifique si
+                # el adulto ya está registrado (WARNING, bloquea autovalidación).
+                if _adult_match_is_ambiguous(adult_suggestions):
+                    labels = ", ".join(
+                        f"{c.first_name} {c.last_name} (DNI: {c.dni})" for c in adult_suggestions
+                    )
+                    case.discrepancies.append(FieldDiscrepancy(
+                        field_name="related_adults.adults",
+                        expected_pattern=None,
+                        actual_value=ad_dni or "(vacío)",
+                        rule_description=(
+                            f"El nombre '{ad_name}' coincide con {len(adult_suggestions)} "
+                            f"adultos ya registrados ({labels}). Verifique si este adulto "
+                            f"ya existe y corrija el DNI si corresponde."
+                        ),
+                        severity="WARNING",
+                    ))
+                    continue
+
                 primary = adult_suggestions[0]
                 primary_label = f"{primary.first_name} {primary.last_name} · DNI {primary.dni}"
                 extras = adult_suggestions[1:]
