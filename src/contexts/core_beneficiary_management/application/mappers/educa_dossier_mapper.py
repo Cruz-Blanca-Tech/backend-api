@@ -67,6 +67,15 @@ class EducaDossierMapper:
             # EducaDossierProcessor.process (una por actividad).
             beneficiary = existing_beneficiary
 
+            # ÚNICA excepción, y solo de RELLENO: la fecha de nacimiento del
+            # maestro es inmutable, pero si el maestro aún NO tiene fecha se
+            # COMPLETA con la del expediente. Sin esta vía, un beneficiario
+            # registrado sin fecha quedaría con el ERROR de completitud
+            # (`BeneficiaryCompletenessRule`) sin forma de resolverse desde el
+            # triaje. Nunca sobreescribe una fecha existente.
+            if beneficiary.birth_date is None and birth_date is not None:
+                beneficiary.birth_date = birth_date
+
         rel_dto = dto.religion
         beneficiary.religion_record = ReligionRecord(
             baptized=rel_dto.baptized,

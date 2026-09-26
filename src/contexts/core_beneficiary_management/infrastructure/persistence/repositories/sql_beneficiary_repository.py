@@ -136,6 +136,20 @@ class SqlBeneficiaryRepository:
                             if getattr(r, "role", None) not in (RelationshipRole.FATHER, RelationshipRole.MOTHER):
                                 r.role = master_role_enum
 
+        # FECHA DE NACIMIENTO — dato del maestro, inmutable después del alta.
+        # Última línea de defensa del invariante: si la persona YA existe y tiene
+        # fecha, se restaura el valor almacenado aunque la entidad llegue con otro
+        # (PATCH del MDM, aprobación de triaje, reutilización de una persona...).
+        # Solo se permite COMPLETAR una fecha que esté vacía (alta).
+        # `no_autoflush` para leer lo que hay en la base sin que un UPDATE pendiente
+        # de la misma transacción contamine la lectura.
+        with self.session.no_autoflush:
+            stored_birth_date = await self.session.scalar(
+                select(PersonModel.birth_date).where(PersonModel.id == beneficiary.id)
+            )
+        if stored_birth_date is not None:
+            beneficiary.birth_date = stored_birth_date
+
         model = BeneficiaryMapper.to_persistence(beneficiary)
         # Merge is usually safer when we have complex detached graphs, or add if it's new
         # But if we just extracted from mapper, it is detached. Let's merge.

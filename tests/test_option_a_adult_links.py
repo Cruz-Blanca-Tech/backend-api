@@ -16,6 +16,7 @@ Cubre:
 """
 import asyncio
 import pytest
+from contextlib import nullcontext
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -69,6 +70,20 @@ class _FakeSession:
         self.last_sql = str(statement)
         self.last_params = params
         return _FakeResult(self._rows)
+
+
+class _SaveSessionBase:
+    """`save()` también lee la fecha de nacimiento YA almacenada antes de mergear
+    (invariante: la fecha del maestro no se actualiza, ver
+    test_birth_date_inmutable). Por defecto la persona no tiene fecha, así que no
+    interfiere con lo que prueba cada test."""
+
+    @property
+    def no_autoflush(self):
+        return nullcontext()
+
+    async def scalar(self, statement):
+        return None
 
 
 def _run_adult(rows, full_name, dni=None):
@@ -191,7 +206,7 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
 
     person_id = uuid4()
 
-    class _SeqSession:
+    class _SeqSession(_SaveSessionBase):
         """Devuelve la respuesta de persons primero y la de adults después."""
         def __init__(self, results):
             self._results = list(results)
@@ -256,7 +271,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
 
     person_id = uuid4()
 
-    class _SeqSession:
+    class _SeqSession(_SaveSessionBase):
         def __init__(self, results):
             self._results = list(results)
         async def execute(self, statement, params=None):
