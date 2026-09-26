@@ -78,7 +78,9 @@ class AdultDtoMapper:
                 dni=dni,
                 first_name=req.first_name,
                 last_name=req.last_name,
-                birth_date=req.birth_date,
+                # Sin `birth_date` en el request: un familiar se crea sin fecha
+                # (dato del maestro, y la ficha no la aporta).
+                birth_date=None,
                 gender=gender,
                 role=role,
                 phone=phone,
