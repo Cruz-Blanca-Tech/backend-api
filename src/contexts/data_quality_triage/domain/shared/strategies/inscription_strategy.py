@@ -4,6 +4,7 @@ from src.contexts.data_quality_triage.domain.shared.strategies.base_strategy imp
 from src.contexts.data_quality_triage.domain.shared.value_objects.quality_rule_result import QualityRuleResult
 from src.contexts.data_quality_triage.domain.educa.value_objects.document_code import EducaDocumentCode
 from src.contexts.data_quality_triage.domain.educa.rules.document.educa_document_rules_validator import EducaDocumentRulesValidator
+from src.contexts.data_quality_triage.domain.educa.rules.document.confidence_rules import OcrConfidenceRule
 from src.contexts.data_quality_triage.application.educa.mappers.enriched.educa_raw_to_enriched_mapper import EducaRawToEnrichedMapper
 from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
 from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
@@ -37,6 +38,25 @@ class InscriptionTriageStrategy(TriageStrategy):
         discrepancies = self._validator.validate(
             enriched_docs=enriched_docs
         )
+
+        # Regla de confianza OCR: evalúa la calidad del escaneo contra el umbral
+        # mínimo por documento. El/los umbral(es) llegan por contexto desde el
+        # dossier_processor, que los lee de activity_requirements (calibración por
+        # tipo de documento y por actividad). Si no llegan, se usa el default 0.80.
+        # Un documento bajo el umbral genera una WARNING → REQUIRES_TRIAGE.
+        confidence_scores = {
+            (doc.document_code or "UNKNOWN"): (doc.confidence_score or 0.0)
+            for doc in documents
+        }
+        confidence_threshold = (
+            (context or {}).get("confidence_thresholds")
+            or (context or {}).get("confidence_threshold", 0.80)
+        )
+        confidence_issues = OcrConfidenceRule(
+            confidence_scores=confidence_scores,
+            confidence_threshold=confidence_threshold,
+        ).evaluate()
+        discrepancies.extend(confidence_issues)
         
         try:
             domain_entity = DossierFactory.create_from_enriched(
@@ -71,7 +91,7 @@ class InscriptionTriageStrategy(TriageStrategy):
         result = QualityRuleResult(
             is_valid=(not has_errors and not has_warnings),
             discrepancies=discrepancies,
-            confidence_passed=True,
+            confidence_passed=(not confidence_issues),
             enriched_docs=enriched_docs,
         )
         
