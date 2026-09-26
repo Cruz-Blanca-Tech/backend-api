@@ -216,3 +216,28 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Scratch de desarrollo local (raíz del repo) y base de datos SQLite local.
+# Estos scripts/datos NO forman parte del aplicativo; ver carpeta /scratch.
+/check*.py
+/clean*.py
+/fix*.py
+/scratch*.py
+/temp.py
+/create_schools.py
+/disable_autoclose.py
+/dynamic_schools.py
+/find_batch.py
+/get_rule.py
+/inject.py
+/make_admin.py
+/patch_rule.py
+/recreate_db.py
+/refactor_use_cases.py
+/restore_rules.py
+/seed_educa_data.py
+/sync_reprocess.py
+/unlock_batch.py
+/update*.py
+/test_*.py
+/*.db
