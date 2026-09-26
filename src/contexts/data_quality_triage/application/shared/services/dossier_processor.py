@@ -89,6 +89,12 @@ class ProcessDossierUseCase:
         if existing_case:
             case.id = existing_case.id
             case.created_at = existing_case.created_at
+            # El "primer JSON" es la foto del backend (post-LLM) que nunca debe
+            # sobrescribirse: si el caso ya tenía snapshot (creado tras el
+            # rollout), se preserva aunque el expediente se reprocese; si el caso
+            # es previo al rollout (sin snapshot), se toma el dossier_data actual.
+            if existing_case.original_dossier_data is not None:
+                case.original_dossier_data = existing_case.original_dossier_data
 
         # --- DUPLICATE / FUZZY MATCH CHECK ---
         # La sugerencia fuzzy SOLO dispara cuando el posible duplicado DIFIERE del
