@@ -217,8 +217,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Scratch de desarrollo local (raíz del repo) y base de datos SQLite local.
+# Scratch de desarrollo local (raíz del repo), carpeta /scratch y base de datos SQLite local.
 # Estos scripts/datos NO forman parte del aplicativo; ver carpeta /scratch.
+/scratch/
 /check*.py
 /clean*.py
 /fix*.py
