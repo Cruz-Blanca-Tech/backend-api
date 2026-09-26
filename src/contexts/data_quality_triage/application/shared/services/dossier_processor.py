@@ -182,16 +182,17 @@ class ProcessDossierUseCase:
             related_data = (case.dossier_data or {}).get("related_adults") or {}
             adults_data = related_data.get("adults") or []
             matcher = BeneficiaryFuzzyMatcher(self.session)
-            for ad in adults_data:
+            for idx, ad in enumerate(adults_data):
                 ad_name = str(ad.get("full_name") or "").strip()
                 ad_dni = str(ad.get("dni") or "").strip()
                 if not ad_name:
                     continue
 
-                # Match MDM por DNI → touchless: nunca sugerir.
+                # Match MDM por DNI → touchless: nunca sugerir. Solo interesa el
+                # maestro de ADULTOS (un apoderado no se vincula a un beneficiario).
                 if ad_dni:
                     res_exists = await self.session.execute(
-                        text("SELECT 1 FROM persons WHERE dni = :dni"),
+                        text("SELECT 1 FROM persons WHERE type = 'adult' AND dni = :dni"),
                         {"dni": ad_dni},
                     )
                     if res_exists.fetchone():
@@ -222,7 +223,7 @@ class ProcessDossierUseCase:
                         f"Valide si es la misma persona con un DNI o nombre mal escaneado."
                     )
                 case.discrepancies.append(FieldDiscrepancy(
-                    field_name="related_adults.adults",
+                    field_name=f"related_adults.adults[{idx}].dni",
                     expected_pattern=primary.dni,
                     actual_value=ad_dni or "(vacío)",
                     rule_description=description,
