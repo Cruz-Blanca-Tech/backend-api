@@ -52,6 +52,28 @@ class SqlTriageRepository(TriageRepository):
         models = (await self.session.execute(stmt)).scalars().all()
         return [TriageCaseMapper.to_domain(m) for m in models], total
 
+    async def get_confidence_thresholds(self, batch_id: UUID) -> dict:
+        """Umbrales de confianza OCR por tipo de documento para un lote.
+
+        Se leen de activity_requirements de la actividad del lote (la misma
+        fuente que usa el engine al procesar). Devuelve {document_code: umbral}.
+        """
+        from sqlalchemy import text
+        stmt = text("""
+            SELECT dtc.code, ar.confidence_threshold
+            FROM extraction_batches eb
+            JOIN activity_requirements ar ON ar.activity_id = eb.activity_id
+            JOIN document_type_configs dtc ON dtc.id = ar.document_type_config_id
+            WHERE eb.id = :bid
+        """)
+        result = await self.session.execute(stmt, {"bid": str(batch_id)})
+        thresholds = {
+            row[0]: float(row[1])
+            for row in result.fetchall()
+            if row[0] and row[1] is not None
+        }
+        return thresholds
+
     async def get_all_by_batch_id(self, batch_id: UUID) -> List[TriageCase]:
         stmt = select(TriageCaseModel).where(TriageCaseModel.batch_id == batch_id)
         models = (await self.session.execute(stmt)).scalars().all()
