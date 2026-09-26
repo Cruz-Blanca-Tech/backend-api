@@ -293,3 +293,162 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
     # El nombre siempre viene del maestro en reuso.
     assert adult.first_name == "ROSA LUZ"
     assert adult.last_name == "MAMANI CONDORI"
+
+
+# ------------------------- sugerencias cross-dossier y teléfono de emergencia
+
+
+from src.contexts.data_quality_triage.application.shared.services.dossier_processor import (
+    ProcessDossierUseCase,
+    _build_emergency_phone_suggestion,
+    _build_sibling_suggestions,
+    _dni_valid,
+    _normalize_name,
+)
+
+
+def test_normalize_name_y_dni_valid():
+    assert _normalize_name("Rosa Luz Mamani Cóndor") == "ROSA LUZ MAMANI CONDOR"
+    assert _normalize_name("  ROSA   mamani ") == "ROSA MAMANI"
+    assert _normalize_name("") == ""
+    assert _dni_valid("09847291") is True
+    assert _dni_valid(" 09847291 ") is True
+    assert _dni_valid("9847") is False
+    assert _dni_valid("") is False
+    assert _dni_valid(None) is False
+
+
+def test_sibling_suggestions_completa_dni_y_telefono():
+    index = {
+        "ROSA MAMANI": [
+            {"dni": "09847291", "phone": "925917655",
+             "child_dni": "11111111", "child_name": "LUIS MAMANI"},
+        ]
+    }
+    out = _build_sibling_suggestions(
+        adult_index=0, ad_name="Rosa Mamani", ad_dni="", ad_phone="", sibling_index=index
+    )
+    assert len(out) == 2
+    dni_s, phone_s = out
+    assert dni_s.severity == "AI_INSIGHT"
+    assert dni_s.field_name == "related_adults.adults[0].dni"
+    assert dni_s.expected_pattern == "09847291"
+    assert "LUIS MAMANI" in dni_s.rule_description
+    assert phone_s.field_name == "related_adults.adults[0].phone"
+    assert phone_s.expected_pattern == "925917655"
+
+
+def test_sibling_suggestions_respeta_telefono_valido_existente():
+    index = {
+        "ROSA MAMANI": [
+            {"dni": "09847291", "phone": "925917655",
+             "child_dni": "11111111", "child_name": "LUIS MAMANI"},
+        ]
+    }
+    out = _build_sibling_suggestions(
+        adult_index=0, ad_name="ROSA MAMANI", ad_dni="", ad_phone="987654321", sibling_index=index
+    )
+    # El DNI se sugiere, pero el teléfono ya es válido → no se toca.
+    assert len(out) == 1
+    assert out[0].field_name == "related_adults.adults[0].dni"
+
+
+def test_sibling_suggestions_sin_dni_legible_en_hermanos_no_sugiere():
+    out = _build_sibling_suggestions(
+        adult_index=0,
+        ad_name="ROSA MAMANI",
+        ad_dni="",
+        ad_phone="",
+        sibling_index={"ROSA MAMANI": [{"dni": "", "phone": "", "child_dni": "1", "child_name": "X"}]},
+    )
+    assert out == []
+
+
+def test_sibling_suggestions_dnis_conflictivos_emite_warning():
+    index = {
+        "ROSA MAMANI": [
+            {"dni": "09847291", "phone": "925917655",
+             "child_dni": "11111111", "child_name": "LUIS MAMANI"},
+            {"dni": "09847295", "phone": "925917655",
+             "child_dni": "22222222", "child_name": "ANA MAMANI"},
+        ]
+    }
+    out = _build_sibling_suggestions(
+        adult_index=0, ad_name="ROSA MAMANI", ad_dni="", ad_phone="", sibling_index=index
+    )
+    assert len(out) == 1
+    assert out[0].severity == "WARNING"
+    assert out[0].field_name == "related_adults.adults"
+    assert "09847291" in out[0].rule_description and "09847295" in out[0].rule_description
+
+
+def test_sibling_suggestions_nombre_desconocido_no_emite_nada():
+    out = _build_sibling_suggestions(
+        adult_index=2, ad_name="JUAN PEREZ", ad_dni="", ad_phone="", sibling_index={}
+    )
+    assert out == []
+
+
+def test_emergency_phone_suggestion_desde_maestro():
+    master = _Row(dni="09847291", first_name="ROSA", last_name="MAMANI", phone="925917655")
+    out = _build_emergency_phone_suggestion(
+        adult_index=1, is_emergency=True, dossier_phone="", master_row=master
+    )
+    assert out is not None
+    assert out.severity == "AI_INSIGHT"
+    assert out.field_name == "related_adults.adults[1].phone"
+    assert out.expected_pattern == "925917655"
+    assert "contacto de emergencia" in out.rule_description
+
+    # No es el contacto de emergencia → nada (no se toca el teléfono de otro adulto).
+    assert _build_emergency_phone_suggestion(1, False, "", master) is None
+    # El teléfono del expediente ya es válido → nada.
+    assert _build_emergency_phone_suggestion(1, True, "987654321", master) is None
+    # El maestro tampoco tiene teléfono válido → nada.
+    bad_master = _Row(dni="09847291", first_name="ROSA", last_name="MAMANI", phone="123")
+    assert _build_emergency_phone_suggestion(1, True, "", bad_master) is None
+
+
+class _SiblingCase:
+    def __init__(self, dni_reference, dossier_data):
+        self.dni_reference = dni_reference
+        self.dossier_data = dossier_data
+
+
+class _FakeTriageRepo:
+    def __init__(self, cases):
+        self.cases = cases
+
+    async def get_all_by_batch_id(self, batch_id):
+        return self.cases
+
+
+def test_load_sibling_adults_indexa_y_excluye_ficha_actual():
+    processor = ProcessDossierUseCase(
+        triage_repo=_FakeTriageRepo([
+            _SiblingCase("11111111", {
+                "beneficiary": {"dni": "11111111", "first_name": "LUIS", "last_name": "MAMANI"},
+                "related_adults": {
+                    "adults": [{"full_name": "Rosa Luz Mamani Cóndor", "dni": "09847291", "phone": "925917655"}],
+                },
+            }),
+            _SiblingCase("33333333", {  # la ficha ACTUAL — debe excluirse
+                "beneficiary": {"dni": "33333333", "first_name": "KAREN", "last_name": "MAMANI"},
+                "related_adults": {
+                    "adults": [{"full_name": "ROSA L. MAMANI", "dni": "98765432", "phone": ""}],
+                },
+            }),
+        ]),
+        doc_repo=None,
+        strategy_factory=None,
+        session=None,
+    )
+
+    index = asyncio.run(processor._load_sibling_adults(uuid4(), exclude_dni="33333333"))
+    # Solo la ficha del hermano (LUIS) queda indexada; la actual se excluye.
+    assert index == {
+        "ROSA LUZ MAMANI CONDOR": [
+            {"dni": "09847291", "phone": "925917655",
+             "child_dni": "11111111", "child_name": "LUIS MAMANI"},
+        ]
+    }
