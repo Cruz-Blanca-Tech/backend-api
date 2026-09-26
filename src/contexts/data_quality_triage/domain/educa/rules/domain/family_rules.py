@@ -1,7 +1,17 @@
+import re
 from typing import List
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 from src.contexts.data_quality_triage.domain.shared.rules.base_rule import DomainRule
 from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
+
+
+def _is_valid_phone(value) -> bool:
+    """Teléfono válido con el mismo formato que el maestro (value object Phone:
+    ^\\+?[0-9\\s\\-()]{7,20}$). Vacío o formato raro → False."""
+    v = (value or "").strip()
+    if not v:
+        return False
+    return bool(re.match(r"^\+?[0-9\s\-()]{7,20}$", v))
 
 
 def _t(role) -> str:
@@ -92,10 +102,10 @@ class EmergencyContactRule(DomainRule):
             ))
         else:
             phone = (contact_adult.phone or "").strip()
-            if not phone:
+            if not _is_valid_phone(phone):
                 issues.append(FieldDiscrepancy(
-                    field_name="related_adults.adults", expected_pattern="Número de teléfono", actual_value="(vacío)",
-                    rule_description=f"El contacto de emergencia ({contact_adult.full_name or emergency_dni}) no tiene un número de teléfono registrado. Es obligatorio.", 
+                    field_name="related_adults.adults", expected_pattern="Número de teléfono válido (7–20 dígitos)", actual_value=phone or "(vacío)",
+                    rule_description=f"El contacto de emergencia ({contact_adult.full_name or emergency_dni}) no tiene un número de teléfono válido. Es obligatorio: el número de contacto debe tener entre 7 y 20 dígitos (p. ej. 9XXXXXXXX).", 
                     severity="ERROR", document_code="DOMINIO"
                 ))
             
