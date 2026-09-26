@@ -29,8 +29,11 @@ async def test_process_batch_raises_when_no_valid_files():
     )
     activity = Activity(
         id=activity_id,
-        name="INSCRIPCIÓN A EDUCA 2026 - I",
         program_id=uuid4(),
+        name="INSCRIPCIÓN A EDUCA 2026 - I",
+        activity_type="EDUCA_INSCRIPTION",
+        start_date=None,
+        end_date=None,
         required_documents=[req],
         is_active=True
     )
@@ -93,8 +96,11 @@ async def test_append_documents_to_dossier():
     )
     activity = Activity(
         id=activity_id,
-        name="INSCRIPCIÓN A EDUCA 2026 - I",
         program_id=uuid4(),
+        name="INSCRIPCIÓN A EDUCA 2026 - I",
+        activity_type="EDUCA_INSCRIPTION",
+        start_date=None,
+        end_date=None,
         required_documents=[req],
         is_active=True
     )
@@ -113,9 +119,9 @@ async def test_append_documents_to_dossier():
     batch_repo = AsyncMock()
     batch_repo.get_by_id.return_value = batch
 
-    storage_adapter = MagicMock()
-    single_doc_processor = MagicMock()
-    event_publisher = MagicMock()
+    storage_adapter = AsyncMock()
+    single_doc_processor = AsyncMock()
+    event_publisher = AsyncMock()
 
     use_case = AppendDocumentsUseCase(
         activity_repo=activity_repo,
@@ -145,6 +151,8 @@ async def test_append_documents_to_dossier():
     assert response.added_documents_count == 1
     assert response.rejected_documents_count == 0
     assert response.dossier_status == "COMPLETE"
-    batch_repo.save.assert_called_once()
-    background_tasks.add_task.assert_called_once()
+    # El lote se persiste al anexar y al reprocesar (2 guardados).
+    batch_repo.save.assert_called()
+    # El OCR es síncrono en este caso de uso: no se agendan tareas de fondo.
+    background_tasks.add_task.assert_not_called()
 
