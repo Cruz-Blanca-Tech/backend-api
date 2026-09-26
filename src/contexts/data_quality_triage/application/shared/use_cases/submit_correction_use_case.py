@@ -116,8 +116,9 @@ class SubmitCorrectionUseCase:
     @staticmethod
     def _normalize_gender(corrected_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normaliza `beneficiary.gender` del dossier a `M`/`F` si llegó el enum
-        del maestro (`MALE`/`FEMALE`). Sin género o valores no reconocidos se
-        deja `''` para que el panel lo marque como pendiente/error si aplica."""
+        del maestro (`MALE`/`FEMALE`). `M`/`F` ya son válidos y se conservan;
+        sin género o valores no reconocidos se dejan tal cual para que el panel
+        los marque como pendiente/error si aplica."""
         if not isinstance(corrected_data, dict):
             return corrected_data
         beneficiary = corrected_data.get("beneficiary")

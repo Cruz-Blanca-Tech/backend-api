@@ -52,7 +52,7 @@ class AdultDtoMapper:
         return list(adult_dict.values())
 
     @staticmethod
-    def from_create_request_list(beneficiary_id: uuid.UUID, create_requests: Optional[List[AdultCreateRequest]]) -> List[Adult]:
+    def from_create_request_list(create_requests: Optional[List[AdultCreateRequest]]) -> List[Adult]:
         if not create_requests:
             return []
         adults = []
@@ -80,7 +80,6 @@ class AdultDtoMapper:
                 last_name=req.last_name,
                 birth_date=req.birth_date,
                 gender=gender,
-                beneficiary_id=beneficiary_id,
                 role=role,
                 phone=phone,
                 is_emergency_contact=req.is_emergency_contact,
