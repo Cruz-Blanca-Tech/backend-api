@@ -52,6 +52,31 @@ class ProcessDossierUseCase:
             except Exception as e:
                 logger.error(f"Error fetching schools: {e}")
 
+        # Umbrales mínimos de confianza OCR por tipo de documento (calibración).
+        # Se leen de activity_requirements de la actividad del lote: cada documento
+        # requerido por la actividad tiene su propio confidence_threshold. Si la
+        # actividad no tiene requisitos/umbral, la estrategia aplica el default 0.80.
+        try:
+            res_thr = await self.session.execute(
+                text("""
+                    SELECT dtc.code, ar.confidence_threshold
+                    FROM extraction_batches eb
+                    JOIN activity_requirements ar ON ar.activity_id = eb.activity_id
+                    JOIN document_type_configs dtc ON dtc.id = ar.document_type_config_id
+                    WHERE eb.id = :bid
+                """),
+                {"bid": str(batch_id)}
+            )
+            thresholds = {
+                row[0]: float(row[1])
+                for row in res_thr.fetchall()
+                if row[0] and row[1] is not None
+            }
+            if thresholds:
+                context["confidence_thresholds"] = thresholds
+        except Exception as e:
+            logger.error(f"Error fetching confidence thresholds: {e}")
+
         # 3. Ejecutar la validacion cruzada y construir el caso
         existing_case = await self.triage_repo.get_by_dossier(batch_id, dni)
         case = strategy.execute(
