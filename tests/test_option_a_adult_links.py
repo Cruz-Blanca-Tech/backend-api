@@ -7,6 +7,9 @@ Cubre:
      (vacío o formato raro → ERROR bloqueante). Adultos no-emergencia no aplican.
   3. sql_beneficiary_repository.save: al reusar un adulto del maestro, se
      conserva su teléfono/rol cuando la ficha no aporta datos válidos.
+  4. Ambigüedad de coincidencia (N1): con 3+ candidatos o dos casi empatados la
+     sugerencia se eleva a WARNING ("verifique si el adulto ya existe") en vez de
+     proponer un vínculo a ciegas.
 """
 import asyncio
 import pytest
@@ -100,6 +103,39 @@ def test_matcher_adult_sin_candidato_devuelve_vacio():
         dni="11111111",
     )
     assert suggestions == []
+
+
+# --------------------------------------------- ambigüedad de coincidencia (N1)
+
+
+from src.contexts.data_quality_triage.application.shared.services.dossier_processor import (
+    _adult_match_is_ambiguous,
+    _AMBIGUITY_GAP,
+)
+
+
+def _sug(score):
+    return _Row(score=score, first_name="X", last_name="Y", dni="12345678")
+
+
+def test_adult_match_3_candidatos_es_ambiguo():
+    # Demasiadas coincidencias (top-3 completo) → no se sugiere, se advierte.
+    assert _adult_match_is_ambiguous([_sug(0.90), _sug(0.60), _sug(0.55)]) is True
+
+
+def test_adult_match_dos_candidatos_empatados_es_ambiguo():
+    # Sin ganador claro: el segundo está casi al nivel del primero.
+    assert _adult_match_is_ambiguous([_sug(0.72), _sug(0.65)]) is True
+    assert _AMBIGUITY_GAP == 0.10
+
+
+def test_adult_match_dos_candidatos_con_top_dominante_no_es_ambiguo():
+    # Gap amplio → se puede sugerir con confianza.
+    assert _adult_match_is_ambiguous([_sug(0.95), _sug(0.60)]) is False
+
+
+def test_adult_match_un_candidato_unico_no_es_ambiguo():
+    assert _adult_match_is_ambiguous([_sug(0.70)]) is False
 
 
 # ---------------------------------------------------- EmergencyContactRule
