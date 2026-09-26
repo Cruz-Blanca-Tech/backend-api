@@ -20,6 +20,7 @@ class TriageCase:
         status: TriageStatus,
         verdict: TriageVerdict,
         discrepancies: List[FieldDiscrepancy],
+        original_dossier_data: Optional[Dict[str, Any]] = None,
         rejection_reason: Optional[str] = None,
         resolved_by: Optional[UUID] = None,
         resolved_at: Optional[datetime] = None,
@@ -33,6 +34,10 @@ class TriageCase:
         self.activity_type = activity_type
         self.dni_reference = dni_reference
         self.dossier_data = dossier_data
+        # Snapshot del primer JSON del expediente (post-LLM, sin intervención
+        # humana). Nunca se sobrescribe: dossier_data es la data final que el
+        # usuario puede corregir, original_dossier_data es la "foto" del backend.
+        self.original_dossier_data = original_dossier_data
         self.document_ids = document_ids
         self.confidence_scores = confidence_scores
         self.status = status
@@ -93,6 +98,8 @@ class TriageCase:
             activity_type=activity_type,
             dni_reference=dni_reference,
             dossier_data=dossier_data,
+            # En la creación el "primer JSON" es el propio dossier_data post-LLM.
+            original_dossier_data=dossier_data,
             document_ids=document_ids,
             confidence_scores=confidence_scores,
             status=status,
