@@ -165,6 +165,73 @@ class ProcessDossierUseCase:
         except Exception as e:
             logger.error(f"Error in fuzzy matching: {e}", exc_info=True)
 
+        # --- ADULT / APODERADO FUZZY SUGGESTIONS ---
+        # Regla de touchless para adultos (padre/madre/apoderado) contra el
+        # maestro type='adult':
+        #   - DNI idéntico al de un adulto existente → match MDM: NO se emite NADA
+        #     (ni warning ni sugerencia). La identidad la dicta el maestro.
+        #   - DNI distinto + nombre/contexto similar → AI_INSIGHT no-bloqueante:
+        #     "Quizá este adulto es → {nombre} · DNI {dni}".
+        # Las únicas advertencias que pueden bloquear a un adulto ya registrado son
+        # las reglas de dominio existentes (apellidos de padre/madre, teléfono del
+        # contacto de emergencia).
+        try:
+            from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import BeneficiaryFuzzyMatcher
+            from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+
+            related_data = (case.dossier_data or {}).get("related_adults") or {}
+            adults_data = related_data.get("adults") or []
+            matcher = BeneficiaryFuzzyMatcher(self.session)
+            for idx, ad in enumerate(adults_data):
+                ad_name = str(ad.get("full_name") or "").strip()
+                ad_dni = str(ad.get("dni") or "").strip()
+                if not ad_name:
+                    continue
+
+                # Match MDM por DNI → touchless: nunca sugerir. Solo interesa el
+                # maestro de ADULTOS (un apoderado no se vincula a un beneficiario).
+                if ad_dni:
+                    res_exists = await self.session.execute(
+                        text("SELECT 1 FROM persons WHERE type = 'adult' AND dni = :dni"),
+                        {"dni": ad_dni},
+                    )
+                    if res_exists.fetchone():
+                        continue
+
+                adult_suggestions = await matcher.find_adult_suggestions(
+                    full_name=ad_name,
+                    dni=ad_dni or None,
+                    limit=3,
+                )
+                if not adult_suggestions:
+                    continue
+                primary = adult_suggestions[0]
+                primary_label = f"{primary.first_name} {primary.last_name} · DNI {primary.dni}"
+                extras = adult_suggestions[1:]
+                if extras:
+                    extra_labels = ", ".join(
+                        f"{c.first_name} {c.last_name} (DNI: {c.dni})" for c in extras
+                    )
+                    description = (
+                        f"Quizá este adulto es → {primary_label}. "
+                        f"También podría ser: {extra_labels}. Valide si es la misma "
+                        f"persona con un DNI o nombre mal escaneado."
+                    )
+                else:
+                    description = (
+                        f"Quizá este adulto es → {primary_label}. "
+                        f"Valide si es la misma persona con un DNI o nombre mal escaneado."
+                    )
+                case.discrepancies.append(FieldDiscrepancy(
+                    field_name=f"related_adults.adults[{idx}].dni",
+                    expected_pattern=primary.dni,
+                    actual_value=ad_dni or "(vacío)",
+                    rule_description=description,
+                    severity="AI_INSIGHT",
+                ))
+        except Exception as e:
+            logger.error(f"Error in adult fuzzy matching: {e}", exc_info=True)
+
         # --- DUPLICATE REGISTRATION CHECK ---
         # Detecta dos situaciones para el MISMO DNI y la MISMA actividad:
         #   1) Ya matriculado (beneficiary_enrollments): caso aprobado persistido.
