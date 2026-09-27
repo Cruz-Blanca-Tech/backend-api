@@ -1,10 +1,13 @@
 from uuid import UUID
 
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentItem, DocumentStatus
-from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
+from src.contexts.document_intake_ocr.domain.value_objects.group_key import GroupKey
 from src.contexts.document_intake_ocr.domain.value_objects.document_code import DocumentTypeCode
 from src.contexts.document_intake_ocr.infrastructure.persistence.model.document_item_model import DocumentItemModel
 from fastapi.encoders import jsonable_encoder
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DocumentItemMapper:
     """
@@ -40,7 +43,21 @@ class DocumentItemMapper:
     def to_domain(model: DocumentItemModel) -> DocumentItem:
 
         doc_code = DocumentTypeCode(model.code) if model.code else None
-        dni_vo = DNI(model.dni_reference) if model.dni_reference else None
+        # Tolerante a propósito: la clave de agrupación no es un DNI validado,
+        # así que una fila legacy con un valor no numérico no debe impedir leer
+        # el lote entero. Se deja sin clave y `BatchMapper` la manda a
+        # rechazados, que es donde puede verse y repararse.
+        dni_vo = None
+        if model.dni_reference:
+            try:
+                dni_vo = GroupKey(model.dni_reference)
+            except ValueError:
+                logger.warning(
+                    "DocumentItemMapper: dni_reference '%s' de %s no es una clave "
+                    "de agrupación válida; el documento queda sin expediente.",
+                    model.dni_reference,
+                    model.id,
+                )
 
         return DocumentItem(
             id=model.id,

@@ -44,9 +44,20 @@ class InscriptionTriageStrategy(TriageStrategy):
         # dossier_processor, que los lee de activity_requirements (calibración por
         # tipo de documento y por actividad). Si no llegan, se usa el default 0.80.
         # Un documento bajo el umbral genera una WARNING → REQUIRES_TRIAGE.
+        #
+        # Solo entran los documentos que de verdad pasaron por el OCR, y la señal
+        # es `confidence_score IS NOT NULL` (lo escribe `mark_as_processed_
+        # successfully`; Azure siempre devuelve confidence). Un documento con
+        # score NULL nunca se escaneó: o su expediente está incompleto y el
+        # intake lo dejó PENDING a la espera del que falta, o el OCR falló.
+        # Inventarle un 0 a ese documento produce un WARNING engañoso de
+        # "escaneo de mala calidad" sobre algo que no se escaneó, y encima
+        # duplica el aviso que de verdad importa: el ERROR de
+        # `RequiredDocumentsRule` que nombra el documento que falta.
         confidence_scores = {
-            (doc.document_code or "UNKNOWN"): (doc.confidence_score or 0.0)
+            (doc.document_code or "UNKNOWN"): doc.confidence_score
             for doc in documents
+            if doc.confidence_score is not None
         }
         confidence_threshold = (
             (context or {}).get("confidence_thresholds")

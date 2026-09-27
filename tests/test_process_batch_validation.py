@@ -77,7 +77,6 @@ async def test_append_documents_to_dossier():
     from src.contexts.document_intake_ocr.application.schemas.batch_schema import AppendDocumentsRequest
     from src.contexts.document_intake_ocr.domain.entities.extraction_batch import ExtractionBatch
     from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier
-    from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
 
     activity_id = uuid4()
     doc_config = DocumentTypeConfig(
