@@ -35,21 +35,31 @@ class ExtractionBatchFactory:
                 batch_id=batch.id
             )
             
-            # BLOQUEO ESTRICTO: Shift-Left Validation en la capa de Dominio
-            # Si el expediente no tiene todos los documentos obligatorios, abortamos la creación del lote.
-            from src.contexts.document_intake_ocr.domain.entities.dossier import DossierStatus
-            if dossier.status == DossierStatus.INCOMPLETE:
-                raise ValueError(f"Expediente incompleto para el DNI {dossier.dni_reference}. Faltan documentos obligatorios para la actividad.")
-                
+            # Un expediente incompleto NO aborta el lote.
+            #
+            # Antes esto sí lo hacía (`raise ValueError`), y era la regla que
+            # "protegía" al lote: un solo grupo con un documento obligatorio
+            # faltante tumbaba los demás expedientes que sí estaban completos.
+            # El control de calidad de esa regla está en la UI, que no deja
+            # subir un lote con expedientes incompletos y le permite al
+            # operador quitar el grupo problemático antes de subir
+            # (`use-batch-file-validation` / `ocr-upload-step`).
+            #
+            # Si igual se escapa uno, el expediente se guarda INCOMPLETE con
+            # `errors = ["Faltan documentos: ..."]`, no entra al OCR
+            # (`SingleDossierProcessor` lo saltea) y llega a triaje, que lo
+            # publica con el ERROR "Falta el documento obligatorio: <doc>"
+            # y status INCOMPLETE → no aprobable. Cuando el operador suba el
+            # faltante, `AppendDocumentsUseCase` reprocesa el expediente
+            # entero con IA.
             batch.add_dossier(dossier)
 
         # 5. Adjuntar Rechazados
         for f in rejected_files:
-            dni_ref = f.file.extracted_dni
             rejected_doc = DocumentItem.create_failed(
                 source_id=f.file.source_id,
                 file_name=f.file.file_name,
-                dni_ref=dni_ref,
+                dni_ref=f.file.group_key,
                 reason=f.reason
             )
             batch.add_rejected_document(rejected_doc)

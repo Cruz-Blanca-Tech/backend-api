@@ -14,7 +14,7 @@ class DossierFactory:
         batch_id: UUID
     ) -> Dossier:
         
-        dossier = Dossier(clean_proposal.dni, activity.id, batch_id)
+        dossier = Dossier(clean_proposal.key, activity.id, batch_id)
         
         for f in clean_proposal.files: 
             # El filtrado previo nos asegura que el código existe
@@ -26,7 +26,7 @@ class DossierFactory:
                 source_id=f.source_id,
                 document_code= f.extracted_code,
                 file_name=f.file_name,
-                dni_ref=clean_proposal.dni,
+                dni_ref=clean_proposal.key,
                 config_id=config_id
             )
             
