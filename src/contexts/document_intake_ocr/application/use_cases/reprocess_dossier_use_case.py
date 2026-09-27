@@ -6,7 +6,7 @@ from src.contexts.document_intake_ocr.domain.repositories.activity_repository im
 from src.contexts.document_intake_ocr.domain.ports.document_storage import DocumentStorage
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentStatus
 from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier
-from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
+from src.contexts.document_intake_ocr.domain.value_objects.group_key import GroupKey
 from src.contexts.document_intake_ocr.application.services.single_document_processor import SingleDocumentProcessor
 from src.contexts.document_intake_ocr.application.event_publishers.dossier_event_publisher import DossierEventPublisher
 from src.core.validators.exceptions import EntityNotFoundException
@@ -43,15 +43,15 @@ class ReprocessDossierUseCase:
         if not activity:
             raise EntityNotFoundException(f"Actividad {batch.activity_id} no encontrada.")
 
-        target_dossier = next((d for d in batch.dossiers if str(d.dni) == dni_reference), None)
-        rejected_matches = [doc for doc in batch.rejected_documents if str(doc.dni_reference) == dni_reference]
+        target_dossier = next((d for d in batch.dossiers if d.dni_reference == dni_reference), None)
+        rejected_matches = [doc for doc in batch.rejected_documents if str(doc.dni_reference or "") == dni_reference]
 
         if not target_dossier and not rejected_matches:
-            raise EntityNotFoundException(f"Expediente con DNI {dni_reference} no encontrado.")
+            raise EntityNotFoundException(f"Expediente con clave '{dni_reference}' no encontrado.")
 
         # Re-create dossier if all docs were failed
         if not target_dossier:
-            target_dossier = Dossier(dni=DNI(dni_reference), activity_id=activity.id, batch_id=batch.id)
+            target_dossier = Dossier(key=GroupKey(dni_reference), activity_id=activity.id, batch_id=batch.id)
             batch.add_dossier(target_dossier)
 
         # Move rejected docs back to the dossier
@@ -115,7 +115,7 @@ class ReprocessDossierUseCase:
             try:
                 batch = await bg_batch_repo.get_by_id(batch_id)
                 activity = await bg_activity_repo.get_by_id(batch.activity_id)
-                target_dossier = next((d for d in batch.dossiers if str(d.dni) == dni_reference), None)
+                target_dossier = next((d for d in batch.dossiers if d.dni_reference == dni_reference), None)
                 
                 if not target_dossier:
                     return
