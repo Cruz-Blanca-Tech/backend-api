@@ -59,17 +59,29 @@ class BatchMapper:
                 batch.add_rejected_document(domain_doc)
                 continue
 
-            # Protegemos por si algún documento no tiene DNI
-            dni = doc_model.dni_reference or "SIN_DNI"
+            # Un documento sin clave de agrupación no pertenece a ningún
+            # expediente. Antes se metía en un dossier fantasma "SIN_DNI" que
+            # no se podía abrir desde la UI (el visor busca por la clave real),
+            # así que el archivo quedaba invisible en todos lados. Ahora va a
+            # la lista de rechazados, que es al menos visible y reparable.
+            if domain_doc.dni_reference is None:
+                domain_doc.mark_as_failed(
+                    "El documento quedó sin clave de agrupación y no pudo "
+                    "reconstruirse su expediente al releer el lote."
+                )
+                batch.add_rejected_document(domain_doc)
+                continue
 
-            if dni not in dossiers_dict:
-                dossiers_dict[dni] = Dossier(
-                    dni=dni,
+            key = domain_doc.dni_reference
+
+            if key.value not in dossiers_dict:
+                dossiers_dict[key.value] = Dossier(
+                    key=key,
                     activity_id=model.activity_id,
                     batch_id=model.id
                 )
 
-            dossiers_dict[dni].add_document(domain_doc)
+            dossiers_dict[key.value].add_document(domain_doc)
 
         # 3. Registrar los dossiers en el Batch de dominio
         for dossier in dossiers_dict.values():

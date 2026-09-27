@@ -17,7 +17,7 @@ from src.contexts.document_intake_ocr.application.schemas.batch_schema import (
 from src.contexts.document_intake_ocr.domain.services.document_filter_service import DocumentFilterService
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentItem, DocumentStatus
 from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier
-from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
+from src.contexts.document_intake_ocr.domain.value_objects.group_key import GroupKey
 from src.core.validators.exceptions import EntityNotFoundException, DomainValidationError, ExternalServiceException
 
 logger = logging.getLogger(__name__)
@@ -63,10 +63,10 @@ class AppendDocumentsUseCase:
         raw_files = [RawFileMapper.to_domain(f) for f in request.files]
         valid_files, rejected_files = DocumentFilterService.filter_batch(raw_files, activity)
 
-        # 3. Filtrar que los archivos pertenezcan al DNI solicitado
+        # 3. Filtrar que los archivos pertenezcan a la clave solicitada
         dni_matched_files = []
         for f in valid_files:
-            file_dni = str(f.extracted_dni) if f.extracted_dni else ""
+            file_dni = f.group_key.value if f.group_key else ""
             if file_dni != dni_reference:
                 from src.contexts.document_intake_ocr.domain.services.document_filter_service import RejectedFile
                 rejected_files.append(
@@ -88,13 +88,13 @@ class AppendDocumentsUseCase:
         # 4. Buscar o crear el expediente para este DNI en el lote
         target_dossier = None
         for d in batch.dossiers:
-            if str(d.dni) == dni_reference:
+            if d.dni_reference == dni_reference:
                 target_dossier = d
                 break
 
         if not target_dossier:
             target_dossier = Dossier(
-                dni=DNI(dni_reference),
+                key=GroupKey(dni_reference),
                 activity_id=activity.id,
                 batch_id=batch.id
             )
@@ -125,7 +125,7 @@ class AppendDocumentsUseCase:
                     source_id=f.source_id,
                     document_code=f.extracted_code,
                     file_name=f.file_name,
-                    dni_ref=DNI(dni_reference),
+                    dni_ref=GroupKey(dni_reference),
                     config_id=config_id
                 )
                 target_dossier.add_document(new_doc)
@@ -136,7 +136,7 @@ class AppendDocumentsUseCase:
             rejected_doc = DocumentItem.create_failed(
                 source_id=r.file.source_id,
                 file_name=r.file.file_name,
-                dni_ref=r.file.extracted_dni,
+                dni_ref=r.file.group_key,
                 reason=r.reason
             )
             batch.add_rejected_document(rejected_doc)
@@ -187,7 +187,7 @@ class AppendDocumentsUseCase:
             return
 
         target_dossier = next(
-            (d for d in batch.dossiers if str(d.dni) == dni_reference),
+            (d for d in batch.dossiers if d.dni_reference == dni_reference),
             None
         )
         if not target_dossier:

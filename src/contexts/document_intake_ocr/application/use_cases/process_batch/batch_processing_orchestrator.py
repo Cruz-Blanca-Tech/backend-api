@@ -53,7 +53,7 @@ class BatchProcessingOrchestrator:
                     target_folder_id=batch_target_folder_id, 
                     user_email=user_email
                 )
-                print(f"DEBUG: Expediente {dossier.dni} tiene {len(dossier.documents)} documentos.")
+                print(f"DEBUG: Expediente {dossier.dni_reference} tiene {len(dossier.documents)} documentos.")
                 total_procesados += procesados_en_dossier   
             
             # 3. Validar si todo falló

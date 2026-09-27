@@ -6,21 +6,25 @@ from src.contexts.document_intake_ocr.domain.value_objects.dossier_proposal impo
 class DocumentGrouperService:
     @staticmethod
     def group_valid_files(clean_files: List[RawFile]) -> List[DossierProposal]:
+        """Agrupa por clave de agrupación (el token antes del primer `_`).
+
+        La clave se usa tal cual, sin normalizar a DNI: un token de 7 u 9
+        dígitos agrupa igual que uno de 8, y el expediente resultante lleva esa
+        clave anotada para que el revisor vea en triaje que el identificador
+        del lote no es un DNI. Ver `GroupKey`.
         """
-        Agrupa archivos que ya pasaron los filtros de calidad.
-        """
-        # TIPADO EXPLÍCITO: Le decimos al editor que las llaves son strings 
-        # y los valores son listas de RawFile
         grouping: Dict[str, List[RawFile]] = {}
-        
+
         for file in clean_files:
-            # El editor ya sabe que 'file' es RawFile gracias a los parámetros de la función
-            dni_str = str(file.extracted_dni.value) 
-            grouping.setdefault(dni_str, []).append(file)
+            # El filtro ya garantiza que `group_key` no es None (si lo fuera,
+            # el archivo no habría llegado hasta acá).
+            key = file.group_key
+            grouping.setdefault(key.value, []).append(file)
 
         return [
-            # Ahora el editor sabe que 'file_list' es List[RawFile], 
-            # por lo que file_list[0] iluminará correctamente 'extracted_dni'
-            DossierProposal(dni=file_list[0].extracted_dni, files=file_list) 
+            DossierProposal(
+                key=file_list[0].group_key,
+                files=file_list,
+            )
             for file_list in grouping.values()
         ]

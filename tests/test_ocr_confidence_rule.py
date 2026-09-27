@@ -9,7 +9,7 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type 
 from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
 
 
-def _doc(code: str, confidence: float) -> DocumentDTO:
+def _doc(code: str, confidence) -> DocumentDTO:
     return DocumentDTO(
         id=uuid4(),
         file_name=f"x_{code}.jpg",
@@ -133,3 +133,38 @@ def test_strategy_default_threshold_when_context_empty():
         context={},
     )
     assert len(_issues_with_field(case.discrepancies, "general_confidence")) == 1
+
+
+def test_strategy_ignora_documentos_que_no_pasaron_por_ocr():
+    """Un documento sin `confidence_score` nunca fue escaneado.
+
+    Pasa cuando el expediente está incompleto (el intake deja el documento
+    PENDING sin mandarlo al OCR, a la espera del que falta) o cuando el OCR
+    falló. Inventarle un 0 y reportarlo como "calidad del escaneo 0.0" es
+    mentira: además ensucia el caso con un WARNING que el revisor no puede
+    actuar (no hay escaneo que verificar), duplicando el aviso real de
+    `RequiredDocumentsRule` ("Falta el documento obligatorio: DJ").
+    """
+    strategy = _make_strategy()
+    case = strategy.execute(
+        batch_id=uuid4(),
+        activity_type=ActivityType.EDUCA_INSCRIPTION,
+        dni_reference="12345678",
+        documents=[_doc("DJ", None)],
+        context={"confidence_thresholds": {"DJ": 0.55}},
+    )
+    assert _issues_with_field(case.discrepancies, "general_confidence") == []
+
+
+def test_strategy_mixtea_escaneados_y_no_escaneados():
+    """Solo se evalúa la calidad del documento que sí pasó por el OCR."""
+    strategy = _make_strategy()
+    case = strategy.execute(
+        batch_id=uuid4(),
+        activity_type=ActivityType.EDUCA_INSCRIPTION,
+        dni_reference="12345678",
+        documents=[_doc("DJ", 0.40), _doc("FINS", None)],
+        context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.55}},
+    )
+    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
+    assert [d.document_code for d in conf_issues] == ["DJ"]

@@ -2,7 +2,7 @@
 
 import logging
 from src.contexts.document_intake_ocr.domain.entities.activity import Activity
-from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier
+from src.contexts.document_intake_ocr.domain.entities.dossier import Dossier, DossierStatus
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentStatus
 from src.contexts.document_intake_ocr.application.services.single_document_processor import SingleDocumentProcessor
 
@@ -22,9 +22,24 @@ class SingleDossierProcessor:
         Ejecuta el pipeline para todos los archivos del expediente.
         Retorna la cantidad de documentos procesados.
         """
-        logger.info(f" -> Iniciando procesamiento de Expediente para DNI: {dossier.dni}")
+        logger.info(f" -> Iniciando procesamiento de Expediente para clave de agrupación: {dossier.dni_reference}")
         procesados = 0
-        
+
+        # Un expediente incompleto NO entra al OCR. La UI ya impide subir un
+        # lote con expedientes incompletos, así que llegar acá es la excepción
+        # (un cliente que no pasa por la UI, un grupo mal tipeado). Gastar OCR
+        # en los documentos que sí llegaron es tirar plata: cuando el operador
+        # suba el que falta, `AppendDocumentsUseCase` reprocesa el expediente
+        # entero. Los documentos quedan PENDING, que es justo el estado que ese
+        # caso de uso busca para reprocesar, y el expediente se publica a
+        # triaje con el ERROR "Falta el documento obligatorio: <doc>".
+        if dossier.status == DossierStatus.INCOMPLETE:
+            logger.warning(
+                f"    Expediente {dossier.dni_reference} incompleto ({dossier.errors}). "
+                "Se omite el OCR: se notificará en triaje para que se suba el documento faltante."
+            )
+            return 0
+
         for doc in dossier.documents:
             if doc.status == DocumentStatus.FAILED:
                 logger.debug(f"    Saltando documento {doc.file_name} (Fallo previo).")

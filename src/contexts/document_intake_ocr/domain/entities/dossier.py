@@ -4,7 +4,7 @@ from typing import List
 from enum import Enum
 from src.contexts.document_intake_ocr.domain.entities.activity import ActivityRequirement
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentItem
-from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
+from src.contexts.document_intake_ocr.domain.value_objects.group_key import GroupKey
 
 class DossierStatus(str, Enum):
     PENDING_VALIDATION = "PENDING_VALIDATION"
@@ -12,13 +12,23 @@ class DossierStatus(str, Enum):
     INCOMPLETE = "INCOMPLETE"
 
 class Dossier:
-    def __init__(self, dni: DNI, activity_id: uuid.UUID, batch_id: uuid.UUID):
-        self.dni = dni
+    def __init__(self, key: GroupKey, activity_id: uuid.UUID, batch_id: uuid.UUID):
+        self.key = key
         self.activity_id = activity_id
         self.batch_id = batch_id
         self.documents: List[DocumentItem] = []
         self.status = DossierStatus.PENDING_VALIDATION
         self.errors: List[str] = []
+
+    @property
+    def dni_reference(self) -> str:
+        """La clave de agrupación como texto plano, para persistir y loguear.
+
+        Puede NO ser un DNI (ver `GroupKey`). Existe como propiedad para que
+        los mensajes de error y los logs tengan un único accessor y no tengan
+        que desempaquetar el VO.
+        """
+        return self.key.value
 
     def add_document(self, doc: DocumentItem) -> None:
         self.documents.append(doc)

@@ -16,7 +16,7 @@ class DossierEventPublisher:
         event = DocumentsExtractedEvent(
             batch_id=dossier.batch_id, 
             activity_type="EDUCA_INSCRIPTION",
-            dni_reference=str(dossier.dni)
+            dni_reference=dossier.dni_reference
         )
 
         await EventDispatcher.dispatch(event)
