@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
-from src.contexts.document_intake_ocr.domain.value_objects.dni import DNI
+from src.contexts.document_intake_ocr.domain.value_objects.group_key import GroupKey
 from src.contexts.document_intake_ocr.domain.value_objects.document_code import DocumentTypeCode
 
 class DocumentStatus(str, Enum):
@@ -25,7 +25,7 @@ class DocumentItem:
         id: UUID,
         source_id: str,                     # URI de origen (Ej: storage temporal de subida)
         file_name: str,                      # Ej: "71223344_FINS.pdf"
-        dni_reference: DNI,                  # Ej: "71223344"
+        dni_reference: Optional[GroupKey], # Clave de agrupación (puede no ser un DNI)
         document_code:Optional[DocumentTypeCode]= None, # Recibe el Value Object Code   
         document_type_config_id: Optional[UUID] = None, # <-- Hazlo opcional
         status: DocumentStatus = DocumentStatus.PENDING,
@@ -94,7 +94,7 @@ class DocumentItem:
         self.status = DocumentStatus.APPROVED
 
     @classmethod
-    def create_valid(cls, source_id: str, document_code: DocumentTypeCode, file_name: str, dni_ref: DNI, config_id: UUID) -> 'DocumentItem':
+    def create_valid(cls, source_id: str, document_code: DocumentTypeCode, file_name: str, dni_ref: GroupKey, config_id: UUID) -> 'DocumentItem':
         """Constructor para documentos que pasaron el filtro."""
         return cls(
             id=uuid4(),
@@ -107,7 +107,7 @@ class DocumentItem:
         )
 
     @classmethod
-    def create_failed(cls, source_id: str, file_name: str, dni_ref: DNI, reason: str) -> 'DocumentItem':
+    def create_failed(cls, source_id: str, file_name: str, dni_ref: Optional[GroupKey], reason: str) -> 'DocumentItem':
         """Constructor para documentos rechazados por el filtro."""
         item = cls(
             id=uuid4(),
