@@ -1,8 +1,26 @@
 ﻿from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins
 from src.contexts.data_quality_triage.domain.educa.value_objects.education_data import EducationData
 import difflib
+import unicodedata
 
 class EducationDomainMapper:
+    def __init__(self, context: dict = None):
+        self.context = context or {}
+
+    @staticmethod
+    def _normalize_for_matching(text: str) -> str:
+        """
+        Normaliza texto para fuzzy matching: quita acentos, convierte ñ→n, 
+        lowercase, strip. Hace que 'Señora' ≈ 'Senora' ≈ 'señora' ≈ 'SEÑORA'.
+        """
+        if not text:
+            return ""
+        # NFKD descompone caracteres (ej: ñ → n + ~, á → a + ´)
+        # encode('ascii', 'ignore') elimina los diacríticos
+        # decode vuelve a string ASCII limpio
+        normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
+        return normalized.lower().strip()
+
     def __init__(self, context: dict = None):
         self.context = context or {}
 
@@ -22,19 +40,24 @@ class EducationDomainMapper:
             if db_schools:
                 best_match = None
                 best_ratio = 0.0
-                query_name = school.lower().strip()
+                # Normalizar para matching (quita acentos, ñ→n, etc.)
+                query_name = self._normalize_for_matching(school)
                 
                 for db_s in db_schools:
-                    db_name = db_s.get("name", "").lower().strip()
-                    if db_name in query_name or query_name in db_name:
+                    db_name = db_s.get("name", "")
+                    if not db_name:
+                        continue
+                    db_name_norm = self._normalize_for_matching(db_name)
+                    
+                    if db_name_norm in query_name or query_name in db_name_norm:
                         ratio = 0.95
                     else:
-                        ratio = difflib.SequenceMatcher(None, query_name, db_name).ratio()
+                        ratio = difflib.SequenceMatcher(None, query_name, db_name_norm).ratio()
                         
                     if ratio > best_ratio:
                         best_ratio = ratio
                         best_match = db_s.get("name")
-                
+                    
                 if best_ratio > 0.65 and best_match:
                     mapped_school = best_match
                 else:

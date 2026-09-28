@@ -212,12 +212,14 @@ class ProcessDossierUseCase:
         triage_repo: SqlTriageRepository, 
         doc_repo: DocumentReadRepository,
         strategy_factory: TriageStrategyFactory,
-        session: AsyncSession
+        session: AsyncSession,
+        llm_client: Optional[AsyncAzureOpenAI] = None
     ):
         self.triage_repo = triage_repo
         self.doc_repo = doc_repo
         self.strategy_factory = strategy_factory
         self.session = session
+        self.llm_client = llm_client
 
     async def _load_sibling_adults(self, batch_id, exclude_dni: str) -> dict:
         """Índice de adultos vistos en OTRAS fichas del mismo lote (cross-dossier).
@@ -308,9 +310,12 @@ class ProcessDossierUseCase:
         except Exception as e:
             logger.error(f"Error fetching confidence thresholds: {e}")
 
+        # Pasar cliente LLM al contexto para LLMNameReconciler
+        context["llm_client"] = self.llm_client
+
         # 3. Ejecutar la validacion cruzada y construir el caso
         existing_case = await self.triage_repo.get_by_dossier(batch_id, dni)
-        case = strategy.execute(
+        case = await strategy.execute(
             batch_id=batch_id, 
             activity_type=activity_type, 
             dni_reference=dni, 
