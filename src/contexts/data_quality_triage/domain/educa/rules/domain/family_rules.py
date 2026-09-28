@@ -37,6 +37,70 @@ def _as_str(value) -> str:
     except Exception:
         return ""
 
+
+# Errores típicos del OCR al leer apellidos: pares de letras que el lector
+# confunde entre sí. Sirven para que una sustitución de una sola letra case
+# solo cuando es una confusión plausible (TAFUR→TAFOR es una vocal; PERES→PEREZ
+# es s/z; VASQUEZ→BASQUEZ es v/b) y no apellidos distintos que nada tienen que
+# ver (TORRES/CORRES).
+_OCR_SUBSTITUTION_GROUPS = ("aeiou", "szc", "bv", "iy")
+
+
+def _is_plausible_ocr_substitution(ch1: str, ch2: str) -> bool:
+    return any(ch1 in group and ch2 in group for group in _OCR_SUBSTITUTION_GROUPS)
+
+
+def _surname_edit_distance(a: str, b: str) -> int:
+    """Distancia de Levenshtein para apellidos cortos (los del OCR)."""
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    previous = list(range(len(b) + 1))
+    for i, char_a in enumerate(a, 1):
+        current = [i] + [0] * len(b)
+        for j, char_b in enumerate(b, 1):
+            current[j] = min(
+                previous[j] + 1,              # borrado
+                current[j - 1] + 1,           # inserción
+                previous[j - 1] + (char_a != char_b),  # sustitución
+            )
+        previous = current
+    return previous[-1]
+
+
+def _surname_ocr_similar(ben_last_name: str, adult_word: str) -> bool:
+    """¿Dos apellidos casan pese a un error típico de lectura del OCR?
+
+    Exige que sean iguales o estén a una sola diferencia de distancia de
+    edición:
+    - Sustitución de una letra: solo si el par de letras es una confusión
+      típica (vocales entre sí, s/z/c, b/v, i/y) — TAFUR/TAFOR, PERES/PEREZ.
+    - Una letra de más o de menos (truncamiento): QUISPES/QUISPE.
+
+    La primera letra debe coincidir, para no casar apellidos distintos que
+    difieren en una consonante de arranque (TORRES/CORRES), que no es ruido de
+    OCR sino otra familia.
+    """
+    if not ben_last_name or not adult_word:
+        return False
+    if ben_last_name == adult_word:
+        return True
+    if ben_last_name[0] != adult_word[0]:
+        return False
+    if _surname_edit_distance(ben_last_name, adult_word) != 1:
+        return False
+    if len(ben_last_name) == len(adult_word):
+        differing = [
+            (x, y)
+            for x, y in zip(ben_last_name, adult_word)
+            if x != y
+        ]
+        return len(differing) == 1 and _is_plausible_ocr_substitution(*differing[0])
+    return True
+
 class GuardianPresenceRule(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
@@ -261,6 +325,12 @@ class ParentLastNameCoherenceRule(DomainRule):
     """
     Verifica que los apellidos del Padre y de la Madre tengan sentido
     respecto a los apellidos del Beneficiario, tolerando errores de OCR.
+
+    La tolerancia cubre errores típicos de lectura de una sola letra
+    (sustituciones entre vocales, s/z/c, b/v, i/y, o una letra de más/menos):
+    cuando el DNI y la FINS del beneficiario escriben TAFUR y el OCR leyó TAFOR
+    en el padre, no es una familia distinta sino una lectura, y no debe saltar
+    la advertencia. Ver `_surname_ocr_similar`.
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         import re
@@ -287,15 +357,16 @@ class ParentLastNameCoherenceRule(DomainRule):
                 adult_norm = _normalize_name_for_match(adult.full_name)
                 adult_words = adult_norm.split()
                 
-                # Check with exact substring match or fuzzy matching for OCR typos
-                import difflib
+                # Basta con que UNO de los apellidos del beneficiario casé con
+                # alguna palabra del adulto (exacta, contenida, o a un error
+                # típico de OCR) para considerar la familia coherente.
                 found_match = False
                 for last_name in ben_last_names:
                     if last_name in adult_norm:
                         found_match = True
                         break
                     for word in adult_words:
-                        if difflib.SequenceMatcher(None, last_name, word).ratio() > 0.80:
+                        if _surname_ocr_similar(last_name, word):
                             found_match = True
                             break
                     if found_match:
