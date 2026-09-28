@@ -75,6 +75,34 @@ class InscriptionTriageStrategy(TriageStrategy):
                 context=context or {},
                 **enriched_docs
             )
+
+            # AUTO-CORRECCIÓN de apellidos de Padre/Madre corroborada por doble
+            # lectura: si el apellido del niño sale idéntico en la FINS y en su
+            # DNI (DNIBE), y un adulto trae una variante con error típico de OCR
+            # (TAFOR/TAFUR), se corrige el nombre en el dossier y se agrega una
+            # nota informativa. Corre ANTES de validate_completeness: la regla de
+            # coherencia de apellidos ya ve el apellido unificado y no advierte
+            # (falso positivo). Sin corroboración no se corrige nada y la regla
+            # sigue advirtiendo como siempre.
+            from src.contexts.data_quality_triage.application.shared.services.surname_auto_corrector import SurnameAutoCorrector
+            fins = enriched_docs.get(EducaDocumentCode.FINS.value)
+            child_dni = (
+                enriched_docs.get(EducaDocumentCode.DNI_BENEFICIARY.value)
+                or enriched_docs.get(EducaDocumentCode.DNI_GENERIC.value)
+            )
+            corrections = SurnameAutoCorrector(
+                dossier=domain_entity,
+                fins_last_name=(
+                    fins.child_last_name.normalized_value
+                    if fins and fins.child_last_name else None
+                ),
+                child_dni_last_name=(
+                    child_dni.last_name.normalized_value
+                    if child_dni and child_dni.last_name else None
+                ),
+            ).correct()
+            discrepancies.extend(corrections)
+
             from dataclasses import asdict
             dossier_data = asdict(domain_entity)
             is_complete, domain_issues = domain_entity.validate_completeness()
