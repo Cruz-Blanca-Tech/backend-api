@@ -64,6 +64,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_401_UNAUTHORIZED, 
                 content={"detail": "Invalid or expired token"}
             )
-
+        
         # Si todo es correcto, permitimos que la petición continúe
         return await call_next(request)
