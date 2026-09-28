@@ -39,19 +39,26 @@ class BeneficiaryCompletenessRule(DomainRule):
         return issues
 
 class AgeCoherenceRule(DomainRule):
+    """
+    Valida que la edad calculada no supere la edad máxima razonable para un niño.
+    Solo marca error si la edad calculada excede MAX_CHILD_AGE (18 años).
+    No valida coherencia con la edad proporcionada (puede haber errores de OCR).
+    """
+    MAX_CHILD_AGE = 18
+    
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
-        if domain_entity.beneficiary.birth_date and domain_entity.beneficiary.age is not None:
+        if domain_entity.beneficiary.birth_date:
             try:
                 from datetime import datetime
                 birth_date = datetime.strptime(domain_entity.beneficiary.birth_date.split("T")[0], "%Y-%m-%d")
                 current_year = datetime.now().year
                 calculated_age = current_year - birth_date.year
-                if abs(calculated_age - int(domain_entity.beneficiary.age)) > 1:
+                if calculated_age > self.MAX_CHILD_AGE:
                     issues.append(FieldDiscrepancy(
-                        field_name="beneficiary.age", expected_pattern="Coherencia con fecha de nacimiento", 
-                        actual_value=str(domain_entity.beneficiary.age),
-                        rule_description=f"La edad proporcionada no coincide lógicamente con la fecha de nacimiento ({domain_entity.beneficiary.birth_date}).", 
+                        field_name="beneficiary.birth_date", expected_pattern=f"Edad <= {self.MAX_CHILD_AGE} años", 
+                        actual_value=f"{calculated_age} años",
+                        rule_description=f"La fecha de nacimiento indica una edad de {calculated_age} años, que excede la edad máxima para un niño ({self.MAX_CHILD_AGE} años). Verifique la fecha de nacimiento.", 
                         severity="ERROR", document_code="DOMINIO"
                     ))
             except Exception:
