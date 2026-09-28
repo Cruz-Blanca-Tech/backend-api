@@ -81,7 +81,8 @@ class EmergencyContactRule(DomainRule):
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.emergency_contact_dni", expected_pattern="DNI asignado", actual_value="(vacío)",
                 rule_description="No se pudo asignar un contacto de emergencia a ninguno de los adultos.", 
-                severity="ERROR", document_code="DOMINIO"
+                severity="ERROR", document_code="DOMINIO",
+                navigation_hint="contactos_apoderados"
             ))
             return issues
             
