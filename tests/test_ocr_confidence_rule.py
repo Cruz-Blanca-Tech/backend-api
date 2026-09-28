@@ -43,10 +43,11 @@ async def test_strategy_low_confidence_discrepancy_and_triage():
         context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.60}},
     )
 
-    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
     assert len(conf_issues) == 1
-    assert conf_issues[0].document_code == "DJ"
-    assert conf_issues[0].severity == "WARNING"
+    # Now consolidated into single GENERAL warning
+    assert conf_issues[0].document_code == "GENERAL"
+    assert "DJ (0.45 < 0.55)" in conf_issues[0].rule_description
 
     # Los scores se propagan al caso (lo que la UI usa como min_confidence_score)
     assert case.confidence_scores == {"DJ": 0.45, "FINS": 0.90}
@@ -64,7 +65,8 @@ async def test_strategy_high_confidence_no_confidence_discrepancy():
         documents=[_doc("DJ", 0.74), _doc("FINS", 0.70)],
         context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.60}},
     )
-    assert _issues_with_field(case.discrepancies, "general_confidence") == []
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    assert conf_issues == []
 
 
 @pytest.mark.asyncio
@@ -77,8 +79,11 @@ async def test_strategy_single_float_threshold_via_context():
         documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
         context={"confidence_threshold": 0.60},
     )
-    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
-    assert [d.document_code for d in conf_issues] == ["DJ"]
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    # Single consolidated warning
+    assert len(conf_issues) == 1
+    assert conf_issues[0].document_code == "GENERAL"
+    assert "DJ (0.55 < 0.6)" in conf_issues[0].rule_description
 
 
 @pytest.mark.asyncio
@@ -94,9 +99,9 @@ async def test_strategy_threshold_dict_vs_float_priority():
             "confidence_threshold": 0.60,
         },
     )
-    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
-    # El dict tiene prioridad: DJ 0.55 -> OK, FINS 0.60 -> OK
-    assert _issues_with_field(case.discrepancies, "general_confidence") == []
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    # Dict has priority: DJ 0.55 -> OK, FINS 0.60 -> OK
+    assert [d for d in case.discrepancies if d.field_name == "general_confidence"] == []
 
 
 @pytest.mark.asyncio
@@ -109,8 +114,9 @@ async def test_strategy_missing_threshold_uses_default():
         documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
         context={},
     )
-    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
-    # Default 0.80 -> DJ 0.55 WARNING, FINS 0.70 WARNING
-    assert len(conf_issues) == 2
-    codes = {d.document_code for d in conf_issues}
-    assert codes == {"DJ", "FINS"}
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    # Default 0.80 -> DJ 0.55 WARNING, FINS 0.70 WARNING -> consolidated into 1
+    assert len(conf_issues) == 1
+    assert conf_issues[0].document_code == "GENERAL"
+    assert "DJ (0.55 < 0.8)" in conf_issues[0].rule_description
+    assert "FINS (0.70 < 0.8)" in conf_issues[0].rule_description

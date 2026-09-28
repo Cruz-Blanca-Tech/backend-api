@@ -2,6 +2,7 @@ from typing import List, Any, Dict, Union
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
 from src.contexts.data_quality_triage.domain.shared.rules.base_rule import DocumentRule
 
+
 class OcrConfidenceRule(DocumentRule):
     """
     Valida que la calidad de extracción del OCR supere el umbral mínimo por documento.
@@ -27,17 +28,35 @@ class OcrConfidenceRule(DocumentRule):
 
     def evaluate(self, enriched_fins: Any = None, enriched_dj: Any = None, **kwargs) -> List[FieldDiscrepancy]:
         discrepancies = []
+        low_confidence_docs = []
+
         for doc_code, score in self.confidence_scores.items():
             threshold = self._threshold_for(doc_code)
             if threshold is None:
                 continue
             if score is not None and score < threshold:
-                discrepancies.append(FieldDiscrepancy(
-                    field_name="general_confidence",
-                    expected_pattern=f">= {threshold}",
-                    actual_value=str(score),
-                    rule_description=f"La calidad del escaneo para el documento {doc_code} es demasiado baja (umbral mínimo {threshold}). Por favor verifique los datos manualmente.",
-                    severity="WARNING",
-                    document_code=doc_code
-                ))
+                low_confidence_docs.append({
+                    "code": doc_code,
+                    "score": score,
+                    "threshold": threshold
+                })
+
+        if low_confidence_docs:
+            # Build consolidated message
+            doc_details = ", ".join(
+                f"{d['code']} ({d['score']:.2f} < {d['threshold']})"
+                for d in low_confidence_docs
+            )
+            discrepancies.append(FieldDiscrepancy(
+                field_name="general_confidence",
+                expected_pattern="All documents >= their thresholds",
+                actual_value=f"{len(low_confidence_docs)} document(s) below threshold",
+                rule_description=(
+                    f"Se detectaron {len(low_confidence_docs)} documento(s) con calidad de escaneo baja: "
+                    f"{doc_details}. Por favor revise la información y continúe si considera que los datos son correctos."
+                ),
+                severity="WARNING",
+                document_code="GENERAL"
+            ))
+
         return discrepancies
