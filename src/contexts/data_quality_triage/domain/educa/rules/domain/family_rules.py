@@ -305,6 +305,10 @@ class ParentLastNameCoherenceRule(DomainRule):
     con error típico de lectura (TAFOR/TAFUR), la corrección automática la hace
     el `SurnameAutoCorrector` ANTES de correr estas reglas; si acá llegó una
     diferencia, es porque no había corroboración y conviene revisar a mano.
+
+    IMPORTANTE: Si ya hay ERROR por múltiples Padres/Madres (UniqueParentRoleRule),
+    NO se emite esta advertencia: sería ruido. El operador primero debe resolver
+    los duplicados; luego, si queda uno solo, esta regla volverá a evaluar.
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         import re
@@ -325,9 +329,19 @@ class ParentLastNameCoherenceRule(DomainRule):
             
         ben_last_names = ben_words[-2:] if len(ben_words) >= 3 else [ben_words[-1]]
         
+        # Contar padres/madres para evitar ruido si hay duplicados (ERROR ya reportado)
+        fathers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "FATHER"]
+        mothers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "MOTHER"]
+        multi_father = len(fathers) > 1
+        multi_mother = len(mothers) > 1
+        
         for adult in domain_entity.related_adults.adults:
             role = str(adult.relationship).upper()
             if role in ["FATHER", "MOTHER"] and adult.full_name:
+                # Si hay múltiples del mismo rol, saltar: ya hay ERROR por duplicados
+                if (role == "FATHER" and multi_father) or (role == "MOTHER" and multi_mother):
+                    continue
+                    
                 adult_norm = _normalize_name_for_match(adult.full_name)
                 adult_words = adult_norm.split()
                 
