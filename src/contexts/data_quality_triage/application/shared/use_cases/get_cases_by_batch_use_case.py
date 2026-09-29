@@ -38,7 +38,7 @@ class GetCasesByBatchUseCase:
                 confidence_threshold=self._effective_threshold(case, thresholds),
                 error_count=sum(1 for d in case.discrepancies if d.severity == "ERROR"), warning_count=sum(1 for d in case.discrepancies if d.severity == "WARNING"),
                 sync_status=case.sync_status, sync_error=case.sync_error,
-                discrepancies=[DiscrepancySchema(field_name=d.field_name, expected_pattern=d.expected_pattern, actual_value=d.actual_value, rule_description=d.rule_description, severity=d.severity, document_code=d.document_code) for d in case.discrepancies],
+                discrepancies=[DiscrepancySchema(field_name=d.field_name, expected_pattern=d.expected_pattern, actual_value=d.actual_value, rule_description=d.rule_description, severity=d.severity, document_code=d.document_code, navigation_hint=d.navigation_hint) for d in case.discrepancies],
                 created_at=case.created_at, updated_at=case.updated_at,
             ) for case in cases
         ]
