@@ -40,7 +40,7 @@ def _make_pending_case():
                 "adults": [
                     {
                         "dni": "87654321",
-                        "full_name": "Maria Gomez",
+                        "full_name": "Maria Perez",  # Apellido coincide con beneficiario
                         "relationship": "MOTHER",
                         "phone": "987654321",
                         "is_guardian": True,
