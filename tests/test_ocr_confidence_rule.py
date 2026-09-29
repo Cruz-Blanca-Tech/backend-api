@@ -47,7 +47,9 @@ async def test_strategy_low_confidence_discrepancy_and_triage():
     assert len(conf_issues) == 1
     # Now consolidated into single GENERAL warning
     assert conf_issues[0].document_code == "GENERAL"
-    assert "DJ (0.45 < 0.55)" in conf_issues[0].rule_description
+    # Mensaje amigable para el operador (sin códigos internos ni puntajes)
+    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "revis" in conf_issues[0].rule_description.lower()
 
     # Los scores se propagan al caso (lo que la UI usa como min_confidence_score)
     assert case.confidence_scores == {"DJ": 0.45, "FINS": 0.90}
@@ -83,7 +85,9 @@ async def test_strategy_single_float_threshold_via_context():
     # Single consolidated warning
     assert len(conf_issues) == 1
     assert conf_issues[0].document_code == "GENERAL"
-    assert "DJ (0.55 < 0.6)" in conf_issues[0].rule_description
+    # Mensaje amigable: DJ por debajo de 0.60, FINS por encima
+    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "revis" in conf_issues[0].rule_description.lower()
 
 
 @pytest.mark.asyncio
@@ -118,5 +122,7 @@ async def test_strategy_missing_threshold_uses_default():
     # Default 0.80 -> DJ 0.55 WARNING, FINS 0.70 WARNING -> consolidated into 1
     assert len(conf_issues) == 1
     assert conf_issues[0].document_code == "GENERAL"
-    assert "DJ (0.55 < 0.8)" in conf_issues[0].rule_description
-    assert "FINS (0.70 < 0.8)" in conf_issues[0].rule_description
+    # Mensaje amigable: ambos documentos por debajo del umbral por defecto
+    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "ficha de inscripción" in conf_issues[0].rule_description.lower()
+    assert "revis" in conf_issues[0].rule_description.lower()
