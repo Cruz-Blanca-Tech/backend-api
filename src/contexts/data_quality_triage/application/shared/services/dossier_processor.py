@@ -2,6 +2,7 @@ import logging
 import re
 import unicodedata
 from uuid import UUID, uuid4
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -260,6 +261,99 @@ class ProcessDossierUseCase:
                 })
         return index
 
+    async def _apply_corroborated_dni_touchless(self, case: TriageCase, b_first: str, b_last: str) -> Optional[str]:
+        """CASO 6 de la tabla de decisión DNI — corroboración con el maestro → touchless.
+
+        Si la regla de crosscheck corroboró un DNI del niño entre los documentos
+        (AI_INSIGHT "CORROBORATED", marcado con `document_code=CORROBORATED`) y el
+        maestro registra a esa persona con el mismo NOMBRE y la misma FECHA DE
+        NACIMIENTO, el DNI se aplica automáticamente al expediente:
+        - se escribe en `case.dossier_data.beneficiary.dni`;
+        - se quitan las discrepancias de DNI del niño (ERROR de completitud,
+          WARNING del crosscheck y la propia AI_INSIGHT);
+        - se deja una nota informativa interna (severity INFO, no se muestra);
+        - se recalcula status/veredicto (sin pendientes → APPROVED touchless).
+
+        Devuelve el DNI aplicado (o None si la corroboración no procede).
+        """
+        from src.contexts.data_quality_triage.domain.educa.rules.document.dni_rules import BeneficiaryDniCrosscheckRule
+
+        corroborations = [
+            d for d in case.discrepancies
+            if d.field_name == "beneficiary.dni"
+            and d.severity == "AI_INSIGHT"
+            and d.document_code == BeneficiaryDniCrosscheckRule.CORROBORATION_DOC
+            and _dni_valid(d.expected_pattern)
+        ]
+        if not corroborations:
+            return None
+        candidate_dni = str(corroborations[0].expected_pattern)
+
+        res_cand = await self.session.execute(
+            text("SELECT first_name, last_name, birth_date FROM persons WHERE dni = :dni"),
+            {"dni": candidate_dni},
+        )
+        master_row = res_cand.fetchone()
+        if not master_row:
+            return None
+        m_first = str(master_row[0] or "")
+        m_last = str(master_row[1] or "")
+        m_birth = master_row[2]
+        b_data = case.dossier_data.get("beneficiary", {})
+        b_birth = b_data.get("birth_date") or ""
+
+        # Nombre calza (umbral del matcher) Y la fecha de nacimiento calza si ambas
+        # existen. Con eso, el maestro confirma que el DNI candidato ES esta persona.
+        score = score_candidate(b_first, b_last, None, m_first, m_last, candidate_dni)
+        birth_ok = (
+            (not b_birth) or (not m_birth)
+            or str(b_birth).strip() == str(m_birth).strip()
+        )
+        if score < _GROUP_DNI_SCORE or not birth_ok:
+            return None
+
+        beneficiary = dict(b_data)
+        beneficiary["dni"] = candidate_dni
+        case.dossier_data = {**case.dossier_data, "beneficiary": beneficiary}
+        # Quitar todas las discrepancias de DNI del niño (ERROR de completitud,
+        # WARNING del crosscheck y el propio AI_INSIGHT) y dejar una nota
+        # informativa interna (INFO no se muestra en el frontend).
+        case.discrepancies = [
+            d for d in case.discrepancies
+            if d.field_name not in ("beneficiary.dni", "beneficiary_dni_crosscheck")
+        ]
+        case.discrepancies.append(FieldDiscrepancy(
+            field_name="beneficiary.dni",
+            expected_pattern=candidate_dni,
+            actual_value="(vacío)",
+            rule_description=(
+                "El DNI del niño fue corroborado por los documentos y el "
+                "registro maestro (nombre y fecha de nacimiento coinciden). "
+                "Se aplicó automáticamente: no hace falta corregir nada."
+            ),
+            severity="INFO",
+            document_code=BeneficiaryDniCrosscheckRule.CORROBORATION_DOC,
+        ))
+
+        # Recalcular estado/veredicto: sin errores, warnings ni docs faltantes
+        # → autovalidación (touchless total).
+        from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
+        has_missing_docs = any(
+            d.field_name.startswith("documents.") for d in case.discrepancies
+        )
+        has_errors = any(d.severity == "ERROR" for d in case.discrepancies)
+        has_warnings = any(d.severity == "WARNING" for d in case.discrepancies)
+        if not has_errors and not has_warnings and not has_missing_docs:
+            case.status = TriageStatus.APPROVED
+            case.verdict = TriageVerdict.AUTO_APPROVED
+        elif has_missing_docs:
+            case.status = TriageStatus.INCOMPLETE
+            case.verdict = TriageVerdict.REQUIRES_TRIAGE
+        else:
+            case.status = TriageStatus.PENDING_REVIEW
+            case.verdict = TriageVerdict.REQUIRES_TRIAGE
+        return candidate_dni
+
     async def execute(self, dni: str, batch_id: UUID, activity_type_str: str) -> TriageCase:
         # 1. Recuperar los documentos enriquecidos
         docs = await self.doc_repo.get_by_dni(dni, batch_id)
@@ -348,7 +442,20 @@ class ProcessDossierUseCase:
         b_dni = b_data.get("dni", dni)
         b_first = b_data.get("first_name", "") or ""
         b_last = b_data.get("last_name", "") or ""
-        
+
+        # --- CASO 6 (tabla de decisión DNI): CORROBORACIÓN CON EL MAESTRO → TOUCHLESS ---
+        # Cuando la regla de crosscheck corroboró un DNI del niño entre los
+        # documentos (AI_INSIGHT "CORROBORATED") y el maestro registra a esa
+        # persona con el mismo NOMBRE y la misma FECHA DE NACIMIENTO, el DNI se
+        # aplica automáticamente al expediente. Es la corroboración más fuerte de
+        # la tabla (documentos + maestro): el operador no tiene nada que corregir.
+        try:
+            corroborated_dni = await self._apply_corroborated_dni_touchless(case, b_first, b_last)
+            if corroborated_dni:
+                b_dni = corroborated_dni
+        except Exception as e:
+            logger.error(f"Error in DNI corroboration touchless: {e}", exc_info=True)
+
         try:
             # Check exact match (beneficiario YA registrado con ese DNI)
             res_exact = await self.session.execute(
@@ -585,8 +692,7 @@ class ProcessDossierUseCase:
 
                 if duplicate_reason:
                     from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
-                    from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
-                    from src.contexts.data_quality_triage.domain.shared.value_objects.triage_verdict import TriageVerdict
+                    from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
                     
                     case.discrepancies.append(FieldDiscrepancy(
                         field_name="beneficiary.dni",
