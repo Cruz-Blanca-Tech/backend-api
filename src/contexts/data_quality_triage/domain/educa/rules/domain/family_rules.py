@@ -306,9 +306,10 @@ class ParentLastNameCoherenceRule(DomainRule):
     el `SurnameAutoCorrector` ANTES de correr estas reglas; si acá llegó una
     diferencia, es porque no había corroboración y conviene revisar a mano.
 
-    IMPORTANTE: Si ya hay ERROR por múltiples Padres/Madres (UniqueParentRoleRule),
-    NO se emite esta advertencia: sería ruido. El operador primero debe resolver
-    los duplicados; luego, si queda uno solo, esta regla volverá a evaluar.
+    Ahora SIEMPRE se ejecuta (incluso si hay múltiples Padres/Madres):
+    - Si hay duplicados, UniqueParentRoleRule ya emite ERROR.
+    - Esta regla emite WARNING por cada padre/madre cuyos apellidos no coincidan,
+      añadiendo contexto si hay duplicados.
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         import re
@@ -329,7 +330,7 @@ class ParentLastNameCoherenceRule(DomainRule):
             
         ben_last_names = ben_words[-2:] if len(ben_words) >= 3 else [ben_words[-1]]
         
-        # Contar padres/madres para evitar ruido si hay duplicados (ERROR ya reportado)
+        # Contar padres/madres para añadir contexto si hay duplicados
         fathers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "FATHER"]
         mothers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "MOTHER"]
         multi_father = len(fathers) > 1
@@ -338,10 +339,10 @@ class ParentLastNameCoherenceRule(DomainRule):
         for adult in domain_entity.related_adults.adults:
             role = str(adult.relationship).upper()
             if role in ["FATHER", "MOTHER"] and adult.full_name:
-                # Si hay múltiples del mismo rol, saltar: ya hay ERROR por duplicados
-                if (role == "FATHER" and multi_father) or (role == "MOTHER" and multi_mother):
-                    continue
-                    
+                # Ya NO se salta si hay múltiples: se evalúa cada uno y se avisa.
+                # El ERROR por duplicados lo emite UniqueParentRoleRule; aquí
+                # complementamos con WARNING de coherencia de apellidos.
+                
                 adult_norm = _normalize_name_for_match(adult.full_name)
                 adult_words = adult_norm.split()
                 
@@ -363,11 +364,14 @@ class ParentLastNameCoherenceRule(DomainRule):
 
                 if not found_match:
                     label_rol = "el Padre" if role == "FATHER" else "la Madre"
+                    contexto_duplicados = ""
+                    if (role == "FATHER" and multi_father) or (role == "MOTHER" and multi_mother):
+                        contexto_duplicados = " Además, hay múltiples personas con este rol (ver error de duplicados)."
                     issues.append(FieldDiscrepancy(
                         field_name="related_adults.adults",
                         expected_pattern="Coincidencia parcial de apellidos",
                         actual_value=f"Beneficiario: {ben_name} | Adulto: {adult.full_name}",
-                        rule_description=f"Los apellidos d{label_rol} ('{adult.full_name}') no parecen coincidir con los del beneficiario ('{ben_name}'). Verifique posibles errores del OCR.",
+                        rule_description=f"Los apellidos d{label_rol} ('{adult.full_name}') no parecen coincidir con los del beneficiario ('{ben_name}'). Verifique posibles errores del OCR.{contexto_duplicados}",
                         severity="WARNING",
                         document_code="DOMINIO"
                     ))
