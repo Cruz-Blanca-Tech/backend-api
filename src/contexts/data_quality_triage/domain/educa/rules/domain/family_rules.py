@@ -258,6 +258,42 @@ class UniqueParentRoleRule(DomainRule):
         return issues
 
 
+class ParentPresenceRule(DomainRule):
+    """
+    Verifica que el expediente tenga registrado AL MENOS un Padre y una Madre.
+
+    El OCR a veces detecta a un familiar (to, abuelo, etc.) pero no logra
+    clasificarlo como Padre o Madre. Si falta uno de los dos, el expediente
+    no puede ir a touchless: el operador debe revisar y asignar el rol correcto.
+    """
+    def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
+        issues = []
+        fathers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "FATHER"]
+        mothers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "MOTHER"]
+        
+        if len(fathers) == 0:
+            issues.append(FieldDiscrepancy(
+                field_name="related_adults.adults",
+                expected_pattern="Al menos un (1) Padre",
+                actual_value="Sin Padre registrado",
+                rule_description="No se detectó al Padre del beneficiario en los documentos. Revise si hay un familiar que deba ser etiquetado como Padre.",
+                severity="WARNING",
+                document_code="DOMINIO"
+            ))
+        
+        if len(mothers) == 0:
+            issues.append(FieldDiscrepancy(
+                field_name="related_adults.adults",
+                expected_pattern="Al menos una (1) Madre",
+                actual_value="Sin Madre registrada",
+                rule_description="No se detectó a la Madre del beneficiario en los documentos. Revise si hay un familiar que deba ser etiquetado como Madre.",
+                severity="WARNING",
+                document_code="DOMINIO"
+            ))
+            
+        return issues
+
+
 class ParentLastNameCoherenceRule(DomainRule):
     """
     Verifica que los apellidos del Padre y de la Madre tengan sentido
