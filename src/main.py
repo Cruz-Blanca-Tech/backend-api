@@ -115,3 +115,8 @@ async def root():
         "docs": "/docs",
         "status": "active",
     }
+
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "ok", "service": settings.PROJECT_NAME}
