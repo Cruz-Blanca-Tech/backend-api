@@ -66,6 +66,17 @@ class AgeCoherenceRule(DomainRule):
         return issues
 
 class GenderCoherenceRule(DomainRule):
+    """Valida que el sexo del beneficiario sea uno de los valores reconocidos.
+
+    Cuando el OCR no logra leer el sexo deja el centinela `UNKNOWN`
+    (ver `GenderNormalizer`). Para el operador ese centinela no significa nada:
+    no es un valor que pueda corregir, es la ausencia del dato. Por eso NO se
+    reporta como un valor recibido inválido, sino como un dato que no llegó.
+    """
+
+    # Centinelas que el normalizador/OCR dejan cuando no leyeron el sexo.
+    SEXO_NO_RECIBIDO = ("UNKNOWN", "UNKNOW", "NO_LEIDO", "SIN_DATO")
+
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
         if domain_entity.beneficiary.gender:
@@ -74,10 +85,24 @@ class GenderCoherenceRule(DomainRule):
             # ninguno de los sinónimos reconocidos (p. ej. ruido de OCR).
             gender = domain_entity.beneficiary.gender.strip().upper()
             if gender not in ("M", "F", "MALE", "FEMALE"):
+                if gender in self.SEXO_NO_RECIBIDO:
+                    valor_leido = "(no se ha recibido)"
+                    descripcion = (
+                        "No se ha recibido el sexo del beneficiario: la IA no pudo "
+                        "leerlo en los documentos. Revisá las imágenes y elegí "
+                        "Masculino o Femenino."
+                    )
+                else:
+                    valor_leido = "(ilegible)"
+                    descripcion = (
+                        "El sexo del beneficiario se leyó como un texto que no se "
+                        "reconoce. Revisá las imágenes y elegí Masculino o Femenino."
+                    )
                 issues.append(FieldDiscrepancy(
-                    field_name="beneficiary.gender", expected_pattern="M o F", 
-                    actual_value=str(domain_entity.beneficiary.gender),
-                    rule_description=f"El sexo debe ser 'M' (Masculino) o 'F' (Femenino). Valor recibido: {domain_entity.beneficiary.gender}", 
+                    field_name="beneficiary.gender",
+                    expected_pattern="Masculino o Femenino",
+                    actual_value=valor_leido,
+                    rule_description=descripcion,
                     severity="ERROR", document_code="DOMINIO"
                 ))
         return issues
