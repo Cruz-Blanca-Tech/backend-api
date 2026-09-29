@@ -299,16 +299,14 @@ class ParentLastNameCoherenceRule(DomainRule):
     Verifica que los apellidos del Padre y de la Madre tengan sentido
     respecto a los apellidos del Beneficiario.
 
-    Esta regla SOLO advierte: no tolera diferencias de una sola letra por su
-    cuenta. Cuando dos lecturas independientes del OCR del beneficiario
-    corroboran el apellido (FINS + DNI del niño) y el adulto trae una variante
-    con error típico de lectura (TAFOR/TAFUR), la corrección automática la hace
-    el `SurnameAutoCorrector` ANTES de correr estas reglas; si acá llegó una
-    diferencia, es porque no había corroboración y conviene revisar a mano.
+    El apellido del Padre y/o de la Madre DEBE coincidir con al menos
+    uno de los apellidos del beneficiario. Si no hay coincidencia, es
+    un ERROR: el operador debe corregirlo (OCR mal leído, rol mal
+    asignado, familiar equivocado). NO es una advertencia.
 
     Ahora SIEMPRE se ejecuta (incluso si hay múltiples Padres/Madres):
     - Si hay duplicados, UniqueParentRoleRule ya emite ERROR.
-    - Esta regla emite WARNING por cada padre/madre cuyos apellidos no coincidan,
+    - Esta regla emite ERROR por cada padre/madre cuyos apellidos no coincidan,
       añadiendo contexto si hay duplicados.
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
@@ -341,7 +339,7 @@ class ParentLastNameCoherenceRule(DomainRule):
             if role in ["FATHER", "MOTHER"] and adult.full_name:
                 # Ya NO se salta si hay múltiples: se evalúa cada uno y se avisa.
                 # El ERROR por duplicados lo emite UniqueParentRoleRule; aquí
-                # complementamos con WARNING de coherencia de apellidos.
+                # complementamos con ERROR de coherencia de apellidos.
                 
                 adult_norm = _normalize_name_for_match(adult.full_name)
                 adult_words = adult_norm.split()
@@ -369,10 +367,10 @@ class ParentLastNameCoherenceRule(DomainRule):
                         contexto_duplicados = " Además, hay múltiples personas con este rol (ver error de duplicados)."
                     issues.append(FieldDiscrepancy(
                         field_name="related_adults.adults",
-                        expected_pattern="Coincidencia parcial de apellidos",
+                        expected_pattern="Coincidencia de apellidos (al menos uno)",
                         actual_value=f"Beneficiario: {ben_name} | Adulto: {adult.full_name}",
-                        rule_description=f"Los apellidos d{label_rol} ('{adult.full_name}') no parecen coincidir con los del beneficiario ('{ben_name}'). Verifique posibles errores del OCR.{contexto_duplicados}",
-                        severity="WARNING",
+                        rule_description=f"Los apellidos d{label_rol} ('{adult.full_name}') no coinciden con los del beneficiario ('{ben_name}'). El apellido del padre/madre debe coincidir con al menos uno del beneficiario. Verifique errores del OCR o rol mal asignado.{contexto_duplicados}",
+                        severity="ERROR",
                         document_code="DOMINIO"
                     ))
                     
