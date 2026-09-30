@@ -34,9 +34,13 @@ class FinsRaw(BaseModel):
     child_school: Optional[str] = Field(default=None, alias="child_school", title="Colegio", json_schema_extra={"group": "educacion"})
     child_grade: Optional[str] = Field(default=None, alias="child_grade", title="Grado", json_schema_extra={"group": "educacion"})
     educational_knows_how_to_read_yes: Optional[str] = Field(default=None, alias="educational_knows_how_to_read_yes")
+    educational_knows_how_to_read_no: Optional[str] = Field(default=None, alias="educational_knows_how_to_read_no")
     educational_knows_how_to_write_yes: Optional[str] = Field(default=None, alias="educational_knows_how_to_write_yes")
+    educational_knows_how_to_write_no: Optional[str] = Field(default=None, alias="educational_knows_how_to_write_no")
     educational_has_repeated_grade_yes: Optional[str] = Field(default=None, alias="educational_has_repeated_grade_yes")
+    educational_has_repeated_grade_no: Optional[str] = Field(default=None, alias="educational_has_repeated_grade_no")
     educational_has_learning_difficulties_yes: Optional[str] = Field(default=None, alias="educational_has_learning_difficulties_yes")
+    educational_has_learning_difficulties_no: Optional[str] = Field(default=None, alias="educational_has_learning_difficulties_no")
 
     # Medical
     allergy_milk: Optional[str] = Field(default=None, alias="allergy_milk")
@@ -52,15 +56,18 @@ class FinsRaw(BaseModel):
     disease_parasites: Optional[str] = Field(default=None, alias="disease_parasites")
     disease_chickenpox: Optional[str] = Field(default=None, alias="disease_chickenpox")
     disease_tuberculosis: Optional[str] = Field(default=None, alias="disease_tuberculosis")
+    disease_when_and_treatment: Optional[str] = Field(default=None, alias="disease_when_and_treatment")
     medical_insurance_sis: Optional[str] = Field(default=None, alias="medical_insurance_sis")
     medical_insurance_essalud: Optional[str] = Field(default=None, alias="medical_insurance_essalud")
     medical_insurance_fospoli: Optional[str] = Field(default=None, alias="medical_insurance_fospoli")
     medical_insurance_other: Optional[str] = Field(default=None, alias="medical_insurance_other")
+    medical_insurance_reference_center: Optional[str] = Field(default=None, alias="medical_insurance_reference_center")
     medical_has_been_hospitalized: Optional[str] = Field(default=None, alias="medical_has_been_hospitalized")
     medical_hospitalization_reason: Optional[str] = Field(default=None, alias="medical_hospitalization_reason")
     medical_has_been_operated: Optional[str] = Field(default=None, alias="medical_has_been_operated")
     medical_operation_reason: Optional[str] = Field(default=None, alias="medical_operation_reason")
     medical_has_complete_vaccines: Optional[str] = Field(default=None, alias="medical_has_complete_vaccines")
+    medical_missing_vaccines: Optional[str] = Field(default=None, alias="medical_missing_vaccines")
     medical_received_tetanus_vaccine: Optional[str] = Field(default=None, alias="medical_received_tetanus_vaccine")
     medical_is_taking_medication: Optional[str] = Field(default=None, alias="medical_is_taking_medication")
     medical_medication_name: Optional[str] = Field(default=None, alias="medical_medication_name")
@@ -92,6 +99,51 @@ class FinsRaw(BaseModel):
                     flattened[key] = str(extracted_val)
                 else:
                     flattened[key] = extracted_val
+
+            # 1. Alias de llaves del modelo OCR de Azure (prefijo general_*)
+            alias_pairs = [
+                ("religion_baptized", "general_is_baptized"),
+                ("religion_first_communion", "general_has_first_communion"),
+                ("permission_haircut", "general_can_cut_hair"),
+                ("permission_medical_exams", "general_can_take_medical_exams"),
+                ("parents_emergency_contact_phone", "general_emergency_phone"),
+            ]
+            for canonical_key, ocr_alias in alias_pairs:
+                if not flattened.get(canonical_key) and flattened.get(ocr_alias) is not None:
+                    flattened[canonical_key] = flattened[ocr_alias]
+
+            # 2. Consolidar pares de checkboxes _yes / _no en Educación
+            checked_tokens = {"selected", "si", "sí", "sì", "true", "1", "yes", "y", "x", "51", "s1", "sl"}
+            explicit_no_tokens = {"no", "false", "0", "n"}
+
+            def _clean_token(raw_val: Any) -> str:
+                if raw_val is None:
+                    return ""
+                return str(raw_val).strip().lower().rstrip(".,;:!")
+
+            edu_pairs = [
+                "educational_knows_how_to_read",
+                "educational_knows_how_to_write",
+                "educational_has_repeated_grade",
+                "educational_has_learning_difficulties",
+            ]
+            for base_key in edu_pairs:
+                yes_key = f"{base_key}_yes"
+                no_key = f"{base_key}_no"
+                if yes_key in flattened or no_key in flattened:
+                    yes_tok = _clean_token(flattened.get(yes_key))
+                    no_tok = _clean_token(flattened.get(no_key))
+                    if yes_tok in checked_tokens:
+                        flattened[yes_key] = "SI"
+                    elif no_tok in checked_tokens or yes_tok in explicit_no_tokens:
+                        flattened[yes_key] = "NO"
+                    elif yes_tok == "unselected" and no_tok in ("", "unselected"):
+                        flattened[yes_key] = None
+
+            # 3. Detalle de otras alergias (allergy_other_details -> allergy_others)
+            other_details = str(flattened.get("allergy_other_details") or "").strip()
+            if other_details and _clean_token(other_details) not in ("unselected", "selected", "no", "ninguna", "ninguno", "false"):
+                flattened["allergy_others"] = other_details
                     
             return flattened
         return data

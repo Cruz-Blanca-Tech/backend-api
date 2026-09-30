@@ -5,18 +5,6 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscripti
 
 class MedicalRules(DomainRule):
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
-        issues = []
-        if domain_entity.medical.has_been_hospitalized and not domain_entity.medical.hospitalization_reason:
-             issues.append(FieldDiscrepancy(
-                field_name="medical.hospitalization_reason", expected_pattern="Motivo de hospitalización", actual_value="(vacío)",
-                rule_description="Si estuvo hospitalizado, debe especificar el motivo.", 
-                severity="ERROR", document_code="DOMINIO"
-            ))
-        
-        if domain_entity.medical.has_been_operated and not domain_entity.medical.operation_reason:
-             issues.append(FieldDiscrepancy(
-                field_name="medical.operation_reason", expected_pattern="Motivo de operación", actual_value="(vacío)",
-                rule_description="Si ha sido operado, debe especificar el motivo de la operación.", 
-                severity="ERROR", document_code="DOMINIO"
-            ))
-        return issues
+        # Los motivos de hospitalización y operación son opcionales: muchas veces
+        # el padre marca "Sí" en la ficha FINS pero deja en blanco el motivo.
+        return []
