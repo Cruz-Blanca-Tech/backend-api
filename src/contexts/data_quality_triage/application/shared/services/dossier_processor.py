@@ -779,6 +779,7 @@ class ProcessDossierUseCase:
                     # Guardar y retornar INMEDIATAMENTE - sin procesar nada más
                     await self.triage_repo.save(case)
                     await self._audit_and_dispatch(case, is_new=(existing_case is None))
+                    await self._maybe_finalize_batch(case)
                     await self.session.commit()
                     return case
         except Exception as e:
@@ -796,8 +797,22 @@ class ProcessDossierUseCase:
         # PENDING, y `retry-sync` lo reintentaría en bucle.
         await self.session.commit()
         await self._audit_and_dispatch(case, is_new=(existing_case is None))
+        # Va después del despacho: recién ahí el handler de MDM dejó el
+        # `sync_status` en SYNCED o FAILED, y de eso depende si el lote se
+        # cierra o queda esperando.
+        await self._maybe_finalize_batch(case)
         await self.session.commit()
         return case
+
+    async def _maybe_finalize_batch(self, case: TriageCase) -> None:
+        """Cierra el lote si este expediente fue el último en decidirse."""
+        from src.contexts.data_quality_triage.application.shared.use_cases.finalize_batch_if_complete_use_case import (
+            FinalizeBatchIfCompleteUseCase,
+        )
+
+        await FinalizeBatchIfCompleteUseCase(
+            session=self.session, triage_repo=self.triage_repo
+        ).execute(case.batch_id)
 
     async def _audit_and_dispatch(self, case: TriageCase, is_new: bool = True) -> None:
         self.session.add(TriageAuditLogModel(
