@@ -222,6 +222,19 @@ class ProcessDossierUseCase:
         self.session = session
         self.llm_client = llm_client
 
+    def _add_audit_log(self, case_id: UUID, action: str, performed_by: UUID, previous_status: str, new_status: str, details: dict = None) -> None:
+        """Registra una entrada de auditoría para correcciones automáticas."""
+        audit_log = TriageAuditLogModel(
+            id=uuid4(), 
+            triage_case_id=case_id, 
+            action=action, 
+            performed_by=performed_by, 
+            previous_status=previous_status, 
+            new_status=new_status, 
+            details=details
+        )
+        self.session.add(audit_log)
+
     async def _load_sibling_adults(self, batch_id, exclude_dni: str) -> dict:
         """Índice de adultos vistos en OTRAS fichas del mismo lote (cross-dossier).
 
@@ -343,6 +356,7 @@ class ProcessDossierUseCase:
         )
         has_errors = any(d.severity == "ERROR" for d in case.discrepancies)
         has_warnings = any(d.severity == "WARNING" for d in case.discrepancies)
+        prev_status = case.status.value
         if not has_errors and not has_warnings and not has_missing_docs:
             case.status = TriageStatus.APPROVED
             case.verdict = TriageVerdict.AUTO_APPROVED
@@ -352,6 +366,22 @@ class ProcessDossierUseCase:
         else:
             case.status = TriageStatus.PENDING_REVIEW
             case.verdict = TriageVerdict.REQUIRES_TRIAGE
+        
+        # Audit log para corrección automática touchless DNI
+        self._add_audit_log(
+            case_id=case.id,
+            action="AUTO_CORRECTION",
+            performed_by=SYSTEM_UUID,
+            previous_status=prev_status,
+            new_status=case.status.value,
+            details={
+                "correction_type": "touchless_dni",
+                "fields_changed": {"beneficiary.dni": candidate_dni},
+                "trigger": "corroborated_docs",
+                "master_match": {"dni": candidate_dni, "first_name": m_first, "last_name": m_last}
+            }
+        )
+        
         return candidate_dni
 
     async def execute(self, dni: str, batch_id: UUID, activity_type_str: str) -> TriageCase:
@@ -425,6 +455,38 @@ class ProcessDossierUseCase:
             # es previo al rollout (sin snapshot), se toma el dossier_data actual.
             if existing_case.original_dossier_data is not None:
                 case.original_dossier_data = existing_case.original_dossier_data
+        
+        # Audit log para auto-correcciones generadas por la estrategia (surname autocorrect, apoderado reconciler, LLM reconciler)
+        # Estas se reflejan como discrepancias INFO añadidas a la lista
+        auto_corrections = [d for d in case.discrepancies if d.severity == "INFO" and d.document_code not in ("CORROBORATED", "GENERAL")]
+        if auto_corrections:
+            fields_changed = {}
+            correction_types = []
+            for d in auto_corrections:
+                if d.field_name and d.expected_pattern:
+                    fields_changed[d.field_name] = d.expected_pattern
+                if "surname" in d.rule_description.lower() or "apellido" in d.rule_description.lower():
+                    correction_types.append("surname_autocorrect")
+                elif "apoderado" in d.rule_description.lower():
+                    correction_types.append("apoderado_name_reconciler")
+                elif "llm" in d.rule_description.lower():
+                    correction_types.append("llm_name_reconciler")
+                else:
+                    correction_types.append("auto_correction")
+            
+            self._add_audit_log(
+                case_id=case.id,
+                action="AUTO_CORRECTION",
+                performed_by=SYSTEM_UUID,
+                previous_status=case.status.value,
+                new_status=case.status.value,
+                details={
+                    "correction_type": list(set(correction_types)),
+                    "fields_changed": fields_changed,
+                    "trigger": "strategy_auto_correction",
+                    "count": len(auto_corrections)
+                }
+            )
 
         # --- DUPLICATE / FUZZY MATCH CHECK ---
         # La sugerencia fuzzy SOLO dispara cuando el posible duplicado DIFIERE del
