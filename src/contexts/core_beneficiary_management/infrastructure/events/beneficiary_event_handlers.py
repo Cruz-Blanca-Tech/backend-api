@@ -11,19 +11,16 @@ from src.contexts.core_beneficiary_management.domain.value_objects.historical_do
 logger = logging.getLogger(__name__)
 
 async def handle_dossier_approved_event(event: DossierApprovedEvent) -> None:
-    logger.info(f"Beneficiary Core handling DossierApprovedEvent for DNI: {event.dni_reference}")
-    try:
-        async with async_session_maker() as session:
-            repo = SqlBeneficiaryRepository(session)
-            use_case = ProcessApprovedTriageCaseUseCase(repo)
-            await use_case.execute(event)
-            await session.commit()
-        logger.info(f"Successfully processed DossierApprovedEvent for DNI: {event.dni_reference}")
-    except Exception as e:
-        logger.error(f"Failed to process DossierApprovedEvent for case {event.triage_case_id}: {str(e)}")
+    from src.contexts.core_beneficiary_management.application.event_handlers.mdm_event_handlers import (
+        handle_mdm_dossier_approved,
+    )
+    await handle_mdm_dossier_approved(event)
 
 def register_beneficiary_event_handlers():
-    EventDispatcher.register(DossierApprovedEvent, handle_dossier_approved_event)
+    from src.contexts.core_beneficiary_management.application.event_handlers.mdm_event_handlers import (
+        handle_mdm_dossier_approved,
+    )
+    EventDispatcher.register(DossierApprovedEvent, handle_mdm_dossier_approved)
     EventDispatcher.register(DossierPdfArchivedEvent, handle_dossier_pdf_archived_event)
 
 async def handle_dossier_pdf_archived_event(event: DossierPdfArchivedEvent) -> None:
