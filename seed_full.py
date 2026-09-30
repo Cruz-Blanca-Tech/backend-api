@@ -23,8 +23,10 @@ ACTIVIDAD_SEM2_ID = UUID("fa9e45e9-7e0c-4e71-bc17-64e8a8489344")
 # (crear/editar actividades y catálogo de documentos son ALLOW_ADMIN_ONLY).
 # OJO: iniciar la extracción NO depende del rol — `POST /api/v1/batches` solo
 # exige un usuario autenticado, no tiene RoleChecker.
-DEV_USER_EMAIL = "enzo.trujillo@cruz-blanca.org"
-DEV_USER_NAME = "Enzo Trujillo"
+SEED_USERS = [
+    {"email": "enzo.trujillo@cruz-blanca.org", "name": "Enzo Trujillo", "role": "admin"},
+    {"email": "orientacionfamiliar@cruz-blanca.org", "name": "Orientación Familiar Cruz Blanca", "role": "admin"},
+]
 
 # Configuración de documentos para EDUCA.
 #
@@ -253,33 +255,32 @@ async def seed_full():
                     })
                     print(f"  Requisito creado: {act['name']} -> {req['code']} (req: {req['is_required']}, thr: {req['confidence_threshold']})")
 
-        # 4. Rol del usuario de desarrollo.
-        # ADMIN habilita la gestión del maestro (actividades y catálogo de
-        # documentos son ALLOW_ADMIN_ONLY). Sin esto el usuario queda como lo
-        # hubiera dejado el registro previo, normalmente VISUALIZADOR.
-        result = await session.execute(
-            text("SELECT role FROM users WHERE email = :email"),
-            {"email": DEV_USER_EMAIL},
-        )
-        user = result.fetchone()
-        if user:
-            if user[0] != "admin":
-                await session.execute(
-                    text("UPDATE users SET role = 'admin', is_active = true WHERE email = :email"),
-                    {"email": DEV_USER_EMAIL},
-                )
-                print(f"Rol de {DEV_USER_EMAIL}: {user[0]} -> admin")
+        # 4. Roles de usuarios base.
+        for su in SEED_USERS:
+            result = await session.execute(
+                text("SELECT role FROM users WHERE email = :email"),
+                {"email": su["email"]},
+            )
+            user = result.fetchone()
+            if user:
+                if user[0] != su["role"]:
+                    await session.execute(
+                        text("UPDATE users SET role = :role, is_active = true WHERE email = :email"),
+                        {"email": su["email"], "role": su["role"]},
+                    )
+                    print(f"Rol de {su['email']}: {user[0]} -> {su['role']}")
+                else:
+                    print(f"Rol de {su['email']}: ya es {su['role']}")
             else:
-                print(f"Rol de {DEV_USER_EMAIL}: ya es admin")
-        else:
-            await session.execute(text("""
-                INSERT INTO users (id, email, full_name, role, is_active, last_login)
-                VALUES (gen_random_uuid(), :email, :name, 'admin', true, now())
-            """), {
-                "email": DEV_USER_EMAIL,
-                "name": DEV_USER_NAME,
-            })
-            print(f"Usuario {DEV_USER_EMAIL} creado con rol admin")
+                await session.execute(text("""
+                    INSERT INTO users (id, email, full_name, role, is_active, last_login)
+                    VALUES (gen_random_uuid(), :email, :name, :role, true, now())
+                """), {
+                    "email": su["email"],
+                    "name": su["name"],
+                    "role": su["role"],
+                })
+                print(f"Usuario {su['email']} creado con rol {su['role']}")
 
         await session.commit()
         print("\n¡Seed completo!")
