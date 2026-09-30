@@ -8,7 +8,7 @@ import pytest
 
 from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
 from src.contexts.data_quality_triage.domain.educa.value_objects.beneficiary_data import BeneficiaryData
-from src.contexts.data_quality_triage.domain.educa.value_objects.family_data import FamilyData
+from src.contexts.data_quality_triage.domain.educa.value_objects.family_data import FamilyData, RelatedAdult
 from src.contexts.data_quality_triage.domain.educa.value_objects.education_data import EducationData
 from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data import MedicalData
 from src.contexts.data_quality_triage.domain.educa.value_objects.religion_data import ReligionData
@@ -16,6 +16,7 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.permissions_dat
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import (
     DjFinsSignerCoherenceRule,
     DjSignerPresenceRule,
+    ParentPresenceRule,
 )
 
 
@@ -81,3 +82,24 @@ def test_validate_completeness_nunca_lanza_con_familia_malformada(family_kwargs)
     is_valid, issues = entity.validate_completeness()
     assert isinstance(is_valid, bool)
     assert isinstance(issues, list)
+
+
+def test_parent_presence_rule_no_advierte_si_hay_madre_o_padre():
+    only_mother = _dossier(
+        FamilyData(adults=[RelatedAdult(relationship="MOTHER", dni="48100010", full_name="MILAGROS QUISPE")])
+    )
+    only_father = _dossier(
+        FamilyData(adults=[RelatedAdult(relationship="FATHER", dni="10778773", full_name="CARLOS LOPEZ")])
+    )
+    assert ParentPresenceRule().evaluate(only_mother) == []
+    assert ParentPresenceRule().evaluate(only_father) == []
+
+
+def test_parent_presence_rule_advierte_solo_si_no_hay_padre_ni_madre():
+    only_other = _dossier(
+        FamilyData(adults=[RelatedAdult(relationship="OTHER", dni="99887766", full_name="TIA MARIA")])
+    )
+    issues = ParentPresenceRule().evaluate(only_other)
+    assert len(issues) == 1
+    assert issues[0].severity == "WARNING"
+    assert "ni al Padre ni a la Madre" in issues[0].rule_description
