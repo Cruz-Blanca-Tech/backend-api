@@ -39,7 +39,7 @@ COLEGIOS_OFICIALES = [
     },
     {
         "id": uuid4(),
-        "name": "Avelino Cáceres",
+        "name": "Andrés Avelino Cáceres",
         "location": "Av. Cáceres 321",
         "phone": "965432109",
         "is_active": True,
@@ -50,6 +50,16 @@ NOMBRES_OFICIALES = {c["name"] for c in COLEGIOS_OFICIALES}
 
 async def seed_schools():
     async with async_session_maker() as session:
+        # Migrar nombre anterior "Avelino Cáceres" -> "Andrés Avelino Cáceres" si existe
+        await session.execute(
+            text("""
+                UPDATE schools
+                SET name = 'Andrés Avelino Cáceres', updated_at = now()
+                WHERE name = 'Avelino Cáceres'
+                  AND NOT EXISTS (SELECT 1 FROM schools WHERE name = 'Andrés Avelino Cáceres')
+            """)
+        )
+
         # Obtener colegios existentes
         result = await session.execute(text("SELECT id, name FROM schools"))
         existing = {row.name: row.id for row in result}
