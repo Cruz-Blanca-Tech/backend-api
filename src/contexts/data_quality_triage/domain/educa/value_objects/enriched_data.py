@@ -93,3 +93,4 @@ class EnrichedDj:
     parents_father_name: Optional[EnrichedField] = None
     parents_mother_dni: Optional[EnrichedField] = None
     parents_mother_name: Optional[EnrichedField] = None
+    child_name: Optional[EnrichedField] = None

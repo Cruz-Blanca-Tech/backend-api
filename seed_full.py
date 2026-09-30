@@ -90,10 +90,10 @@ DOCUMENT_CONFIGS = [
 # touchless igual que los ERROR. Subir este numero encarece el touchless.
 CONFIDENCE_THRESHOLD = 0.65
 
-# Requisitos para EDUCA_INSCRIPTION
+# Requisitos para EDUCA_INSCRIPTION (DJ excluido de umbral de confianza -> 0.0)
 REQUIREMENTS = [
     {"code": "FINS", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
-    {"code": "DJ", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
+    {"code": "DJ", "is_required": True, "confidence_threshold": 0.0},
     {"code": "DNIBE", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
     {"code": "DNIAP", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
 ]
