@@ -74,7 +74,10 @@ async def test_submit_correction_use_case_captures_original_when_missing():
     repo = MagicMock()
     repo.get_by_id = AsyncMock(return_value=case)
     repo.save = AsyncMock()
+    # El cierre de lote lee los casos del lote para ver si ya se cerrará solo.
+    repo.get_all_by_batch_id = AsyncMock(return_value=[case])
     session = AsyncMock()
+    session.get = AsyncMock(return_value=None)
     validator = MagicMock()
     validator.validate_can_be_corrected = AsyncMock()
     

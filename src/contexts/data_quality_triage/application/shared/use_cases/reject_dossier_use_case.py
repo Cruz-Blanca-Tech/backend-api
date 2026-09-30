@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
 from src.contexts.data_quality_triage.domain.shared.rules.dossier_status_validator import DossierStatusValidator
+from src.contexts.data_quality_triage.application.shared.use_cases.finalize_batch_if_complete_use_case import (
+    FinalizeBatchIfCompleteUseCase,
+)
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.core.events.event_dispatcher import EventDispatcher
@@ -40,6 +43,10 @@ class RejectDossierUseCase:
             await EventDispatcher.dispatch(event)
         case.clear_events()
         
+        # Un rechazo también es una decisión: puede ser el último y cerrar el lote.
+        await FinalizeBatchIfCompleteUseCase(
+            session=self.session, triage_repo=self.triage_repo
+        ).execute(case.batch_id)
         await self.session.commit()
         return case
 
