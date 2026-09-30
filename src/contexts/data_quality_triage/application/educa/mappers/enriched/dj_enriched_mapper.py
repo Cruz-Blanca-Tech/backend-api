@@ -11,5 +11,6 @@ class DjEnrichedMapper(BaseEnrichedMapper):
             parents_father_dni=self.build_field(raw_dto.parents_father_dni, "DNI Padre (DJ)", DataType.DNI),
             parents_father_name=self.build_field(raw_dto.parents_father_name, "Nombre Padre (DJ)", DataType.NAME),
             parents_mother_dni=self.build_field(raw_dto.parents_mother_dni, "DNI Madre (DJ)", DataType.DNI),
-            parents_mother_name=self.build_field(raw_dto.parents_mother_name, "Nombre Madre (DJ)", DataType.NAME)
+            parents_mother_name=self.build_field(raw_dto.parents_mother_name, "Nombre Madre (DJ)", DataType.NAME),
+            child_name=self.build_field(raw_dto.child_name, "Nombre Niño (DJ)", DataType.NAME),
         )

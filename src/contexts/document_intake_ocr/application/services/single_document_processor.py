@@ -61,7 +61,10 @@ class SingleDocumentProcessor:
             ## --- FASE 4: NORMALIZACIÓN LLM (Opcional) ---
             if self.normalizer and final_data:
                 logger.debug(f"     [4/4] Normalizando datos extraídos vía LLM...")
-                final_data = await self.normalizer.normalize(final_data, normalization_context)
+                ctx = dict(normalization_context or {})
+                ctx.setdefault("dni_reference", str(doc.dni_reference or ""))
+                ctx.setdefault("document_code", str(doc.document_code or ""))
+                final_data = await self.normalizer.normalize(final_data, ctx)
             else:
                 logger.debug(f"     [4/4] Normalización LLM saltada (no configurada).")
 
