@@ -267,37 +267,28 @@ class UniqueParentRoleRule(DomainRule):
 
 class ParentPresenceRule(DomainRule):
     """
-    Verifica que el expediente tenga registrado AL MENOS un Padre y una Madre.
+    Verifica que el expediente tenga registrado AL MENOS un Padre o una Madre.
 
-    El OCR a veces detecta a un familiar (to, abuelo, etc.) pero no logra
-    clasificarlo como Padre o Madre. Si falta uno de los dos, el expediente
-    no puede ir a touchless: el operador debe revisar y asignar el rol correcto.
+    Solo emite advertencia si no se detectó ni al Padre ni a la Madre (por ejemplo,
+    cuando el OCR solo dejó familiares como 'OTHER' o no extrajo progenitores).
+    Si ya cuenta con Padre o con Madre (familia monoparental), no emite advertencia.
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
         fathers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "FATHER"]
         mothers = [a for a in domain_entity.related_adults.adults if str(a.relationship).upper() == "MOTHER"]
-        
-        if len(fathers) == 0:
+
+        if len(fathers) == 0 and len(mothers) == 0:
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.adults",
-                expected_pattern="Al menos un (1) Padre",
-                actual_value="Sin Padre registrado",
-                rule_description="No se detectó al Padre del beneficiario en los documentos. Revise si hay un familiar que deba ser etiquetado como Padre.",
+                expected_pattern="Al menos un Padre o una Madre",
+                actual_value="Sin Padre ni Madre registrados",
+                rule_description="No se detectó ni al Padre ni a la Madre del beneficiario en los documentos. Revise si hay un familiar que deba ser etiquetado como Padre o Madre.",
                 severity="WARNING",
-                document_code="DOMINIO"
+                document_code="DOMINIO",
+                navigation_hint="contactos_apoderados",
             ))
-        
-        if len(mothers) == 0:
-            issues.append(FieldDiscrepancy(
-                field_name="related_adults.adults",
-                expected_pattern="Al menos una (1) Madre",
-                actual_value="Sin Madre registrada",
-                rule_description="No se detectó a la Madre del beneficiario en los documentos. Revise si hay un familiar que deba ser etiquetado como Madre.",
-                severity="WARNING",
-                document_code="DOMINIO"
-            ))
-            
+
         return issues
 
 
