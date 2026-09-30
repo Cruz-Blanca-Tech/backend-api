@@ -12,6 +12,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Lista de rutas públicas que no requieren autenticación
         self.excluded_paths = [
             "/",
+            "/health",
             "/docs",
             "/redoc",
             "/openapi.json",
@@ -34,9 +35,19 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/v1/reporting/openapi.json"
         ]
 
+    def _is_public_path(self, path: str) -> bool:
+        """Rutas públicas (sin token). "/" solo casa la raíz, no como prefijo."""
+        for excluded in self.excluded_paths:
+            if path == excluded:
+                return True
+            # Prefijo solo para rutas con más de un segmento (nunca "/" sola)
+            if excluded != "/" and path.startswith(excluded.rstrip("/") + "/"):
+                return True
+        return False
+
     async def dispatch(self, request: Request, call_next):
         # 1. Filtro de exclusión: Pasa directo si la ruta es pública
-        if request.url.path in self.excluded_paths:
+        if self._is_public_path(request.url.path):
             return await call_next(request)
 
         # 2. Extracción y validación del header Authorization
@@ -64,6 +75,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_401_UNAUTHORIZED, 
                 content={"detail": "Invalid or expired token"}
             )
-
+        
         # Si todo es correcto, permitimos que la petición continúe
         return await call_next(request)

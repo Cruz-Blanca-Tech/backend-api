@@ -9,6 +9,7 @@ class FieldDiscrepancy:
     rule_description: str
     severity: str
     document_code: Optional[str] = None
+    navigation_hint: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "FieldDiscrepancy":
@@ -19,4 +20,5 @@ class FieldDiscrepancy:
             rule_description=data["rule_description"],
             severity=data["severity"],
             document_code=data.get("document_code"),
+            navigation_hint=data.get("navigation_hint"),
         )

@@ -2,6 +2,7 @@ import logging
 import re
 import unicodedata
 from uuid import UUID, uuid4
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -13,8 +14,9 @@ from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sq
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import _is_valid_phone
 from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import score_candidate
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
 from src.core.events.event_dispatcher import EventDispatcher
-from src.core.validators.exceptions import EntityNotFoundException, DomainValidationError
+from src.core.validators.exceptions import ConflictException, EntityNotFoundException, DomainValidationError
 
 logger = logging.getLogger(__name__)
 SYSTEM_UUID = UUID("00000000-0000-0000-0000-000000000000")
@@ -212,12 +214,27 @@ class ProcessDossierUseCase:
         triage_repo: SqlTriageRepository, 
         doc_repo: DocumentReadRepository,
         strategy_factory: TriageStrategyFactory,
-        session: AsyncSession
+        session: AsyncSession,
+        llm_client: Optional[AsyncAzureOpenAI] = None
     ):
         self.triage_repo = triage_repo
         self.doc_repo = doc_repo
         self.strategy_factory = strategy_factory
         self.session = session
+        self.llm_client = llm_client
+
+    def _add_audit_log(self, case_id: UUID, action: str, performed_by: UUID, previous_status: str, new_status: str, details: dict = None) -> None:
+        """Registra una entrada de auditoría para correcciones automáticas."""
+        audit_log = TriageAuditLogModel(
+            id=uuid4(), 
+            triage_case_id=case_id, 
+            action=action, 
+            performed_by=performed_by, 
+            previous_status=previous_status, 
+            new_status=new_status, 
+            details=details
+        )
+        self.session.add(audit_log)
 
     async def _load_sibling_adults(self, batch_id, exclude_dni: str) -> dict:
         """Índice de adultos vistos en OTRAS fichas del mismo lote (cross-dossier).
@@ -257,6 +274,119 @@ class ProcessDossierUseCase:
                     "child_name": child_name,
                 })
         return index
+
+    async def _apply_corroborated_dni_touchless(self, case: TriageCase, b_first: str, b_last: str) -> Optional[str]:
+        """CASO 6 de la tabla de decisión DNI — corroboración con el maestro → touchless.
+
+        Si la regla de crosscheck corroboró un DNI del niño entre los documentos
+        (AI_INSIGHT "CORROBORATED", marcado con `document_code=CORROBORATED`) y el
+        maestro registra a esa persona con el mismo NOMBRE y la misma FECHA DE
+        NACIMIENTO, el DNI se aplica automáticamente al expediente:
+        - se escribe en `case.dossier_data.beneficiary.dni`;
+        - se quitan las discrepancias de DNI del niño (ERROR de completitud,
+          WARNING del crosscheck y la propia AI_INSIGHT);
+        - se deja una nota informativa interna (severity INFO, no se muestra);
+        - se recalcula status/veredicto (sin pendientes → APPROVED touchless).
+
+        Devuelve el DNI aplicado (o None si la corroboración no procede).
+        """
+        from src.contexts.data_quality_triage.domain.educa.rules.document.dni_rules import BeneficiaryDniCrosscheckRule
+
+        corroborations = [
+            d for d in case.discrepancies
+            if d.field_name == "beneficiary.dni"
+            and d.severity == "AI_INSIGHT"
+            and d.document_code == BeneficiaryDniCrosscheckRule.CORROBORATION_DOC
+            and _dni_valid(d.expected_pattern)
+        ]
+        if not corroborations:
+            return None
+        candidate_dni = str(corroborations[0].expected_pattern)
+
+        res_cand = await self.session.execute(
+            text("SELECT first_name, last_name, birth_date FROM persons WHERE dni = :dni"),
+            {"dni": candidate_dni},
+        )
+        master_row = res_cand.fetchone()
+        if not master_row:
+            return None
+        m_first = str(master_row[0] or "")
+        m_last = str(master_row[1] or "")
+        m_birth = master_row[2]
+        b_data = case.dossier_data.get("beneficiary", {})
+        b_birth = b_data.get("birth_date") or ""
+
+        # Nombre calza (umbral del matcher) Y la fecha de nacimiento calza si ambas
+        # existen. Con eso, el maestro confirma que el DNI candidato ES esta persona.
+        score = score_candidate(b_first, b_last, None, m_first, m_last, candidate_dni)
+        birth_ok = (
+            (not b_birth) or (not m_birth)
+            or str(b_birth).strip() == str(m_birth).strip()
+        )
+        if score < _GROUP_DNI_SCORE or not birth_ok:
+            return None
+
+        beneficiary = dict(b_data)
+        beneficiary["dni"] = candidate_dni
+        case.dossier_data = {**case.dossier_data, "beneficiary": beneficiary}
+        # Quitar todas las discrepancias de DNI del niño (ERROR de completitud,
+        # WARNING del crosscheck y el propio AI_INSIGHT) y dejar una nota
+        # informativa interna (INFO no se muestra en el frontend).
+        case.discrepancies = [
+            d for d in case.discrepancies
+            if d.field_name not in ("beneficiary.dni", "beneficiary_dni_crosscheck")
+        ]
+        case.discrepancies.append(FieldDiscrepancy(
+            field_name="beneficiary.dni",
+            expected_pattern=candidate_dni,
+            actual_value="(vacío)",
+            rule_description=(
+                "El DNI del niño fue corroborado por los documentos y el "
+                "registro maestro (nombre y fecha de nacimiento coinciden). "
+                "Se aplicó automáticamente: no hace falta corregir nada."
+            ),
+            severity="INFO",
+            document_code=BeneficiaryDniCrosscheckRule.CORROBORATION_DOC,
+        ))
+
+        # Recalcular estado/veredicto: sin errores, warnings ni docs faltantes
+        # → autovalidación (touchless total).
+        from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
+        has_missing_docs = any(
+            d.field_name.startswith("documents.") for d in case.discrepancies
+        )
+        has_errors = any(d.severity == "ERROR" for d in case.discrepancies)
+        has_warnings = any(d.severity == "WARNING" for d in case.discrepancies)
+        prev_status = case.status.value
+        if not has_errors and not has_warnings and not has_missing_docs:
+            # `approve()` y no `case.status = APPROVED`: además de completed_at y
+            # resolved_at, registra el evento que carga al beneficiario en el
+            # maestro. Además arrastra el `dossier_data` ya corregido arriba
+            # (línea del `beneficiary["dni"] = candidate_dni`).
+            case.approve(None)  # touchless: sin usuario
+        elif has_missing_docs:
+            case.status = TriageStatus.INCOMPLETE
+            case.verdict = TriageVerdict.REQUIRES_TRIAGE
+        else:
+            case.status = TriageStatus.PENDING_REVIEW
+            case.verdict = TriageVerdict.REQUIRES_TRIAGE
+        
+        # Audit log para corrección automática touchless DNI
+        self._add_audit_log(
+            case_id=case.id,
+            action="AUTO_CORRECTION",
+            performed_by=SYSTEM_UUID,
+            previous_status=prev_status,
+            new_status=case.status.value,
+            details={
+                "correction_type": "touchless_dni",
+                "fields_changed": {"beneficiary.dni": candidate_dni},
+                "trigger": "corroborated_docs",
+                "master_match": {"dni": candidate_dni, "first_name": m_first, "last_name": m_last}
+            }
+        )
+        
+        return candidate_dni
 
     async def execute(self, dni: str, batch_id: UUID, activity_type_str: str) -> TriageCase:
         # 1. Recuperar los documentos enriquecidos
@@ -308,9 +438,31 @@ class ProcessDossierUseCase:
         except Exception as e:
             logger.error(f"Error fetching confidence thresholds: {e}")
 
+        # Pasar cliente LLM al contexto para LLMNameReconciler
+        context["llm_client"] = self.llm_client
+
         # 3. Ejecutar la validacion cruzada y construir el caso
         existing_case = await self.triage_repo.get_by_dossier(batch_id, dni)
-        case = strategy.execute(
+        if existing_case is not None:
+            # Reprocesar es volver a evaluar el expediente con la IA. Si ya tiene
+            # una decisión tomada no se puede: el caso se reconstruye más abajo y
+            # pisaría el veredicto, perdiéndose tanto la decisión del revisor
+            # como el beneficiario ya escrito en MDM.
+            #
+            # Se bloquea el RECHAZADO siempre, y el APROBADO también: aunque la
+            # carga al MDM haya fallado y siga reintentable, reprocesar de nuevo
+            # tiraría abajo un veredicto que el revisor ya firmó. Para eso está
+            # "Reintentar sincronización" en la ficha, que no reevalúa nada.
+            if existing_case.status == TriageStatus.REJECTED:
+                raise ConflictException(
+                    "Este expediente fue rechazado y no se puede reprocesar."
+                )
+            if existing_case.status == TriageStatus.APPROVED:
+                raise ConflictException(
+                    "Este expediente ya fue aprobado y no se puede reprocesar."
+                )
+
+        case = await strategy.execute(
             batch_id=batch_id, 
             activity_type=activity_type, 
             dni_reference=dni, 
@@ -318,7 +470,11 @@ class ProcessDossierUseCase:
             context=context
         )
         if existing_case:
-            case.id = existing_case.id
+            # `reassign_id()` y no `case.id = ...`: el caso recién construido pudo
+            # quedar aprobado (touchless) y `approve()` ya registró el evento con
+            # el uuid4 original. Reasignar el id a pelo dejaría al evento apuntando
+            # a un id inexistente y el `sync_status = SYNCED` no se escribiría.
+            case.reassign_id(existing_case.id)
             case.created_at = existing_case.created_at
             # El "primer JSON" es la foto del backend (post-LLM) que nunca debe
             # sobrescribirse: si el caso ya tenía snapshot (creado tras el
@@ -326,6 +482,38 @@ class ProcessDossierUseCase:
             # es previo al rollout (sin snapshot), se toma el dossier_data actual.
             if existing_case.original_dossier_data is not None:
                 case.original_dossier_data = existing_case.original_dossier_data
+        
+        # Audit log para auto-correcciones generadas por la estrategia (surname autocorrect, apoderado reconciler, LLM reconciler)
+        # Estas se reflejan como discrepancias INFO añadidas a la lista
+        auto_corrections = [d for d in case.discrepancies if d.severity == "INFO" and d.document_code not in ("CORROBORATED", "GENERAL")]
+        if auto_corrections:
+            fields_changed = {}
+            correction_types = []
+            for d in auto_corrections:
+                if d.field_name and d.expected_pattern:
+                    fields_changed[d.field_name] = d.expected_pattern
+                if "surname" in d.rule_description.lower() or "apellido" in d.rule_description.lower():
+                    correction_types.append("surname_autocorrect")
+                elif "apoderado" in d.rule_description.lower():
+                    correction_types.append("apoderado_name_reconciler")
+                elif "llm" in d.rule_description.lower():
+                    correction_types.append("llm_name_reconciler")
+                else:
+                    correction_types.append("auto_correction")
+            
+            self._add_audit_log(
+                case_id=case.id,
+                action="AUTO_CORRECTION",
+                performed_by=SYSTEM_UUID,
+                previous_status=case.status.value,
+                new_status=case.status.value,
+                details={
+                    "correction_type": list(set(correction_types)),
+                    "fields_changed": fields_changed,
+                    "trigger": "strategy_auto_correction",
+                    "count": len(auto_corrections)
+                }
+            )
 
         # --- DUPLICATE / FUZZY MATCH CHECK ---
         # La sugerencia fuzzy SOLO dispara cuando el posible duplicado DIFIERE del
@@ -343,7 +531,20 @@ class ProcessDossierUseCase:
         b_dni = b_data.get("dni", dni)
         b_first = b_data.get("first_name", "") or ""
         b_last = b_data.get("last_name", "") or ""
-        
+
+        # --- CASO 6 (tabla de decisión DNI): CORROBORACIÓN CON EL MAESTRO → TOUCHLESS ---
+        # Cuando la regla de crosscheck corroboró un DNI del niño entre los
+        # documentos (AI_INSIGHT "CORROBORATED") y el maestro registra a esa
+        # persona con el mismo NOMBRE y la misma FECHA DE NACIMIENTO, el DNI se
+        # aplica automáticamente al expediente. Es la corroboración más fuerte de
+        # la tabla (documentos + maestro): el operador no tiene nada que corregir.
+        try:
+            corroborated_dni = await self._apply_corroborated_dni_touchless(case, b_first, b_last)
+            if corroborated_dni:
+                b_dni = corroborated_dni
+        except Exception as e:
+            logger.error(f"Error in DNI corroboration touchless: {e}", exc_info=True)
+
         try:
             # Check exact match (beneficiario YA registrado con ese DNI)
             res_exact = await self.session.execute(
@@ -579,30 +780,61 @@ class ProcessDossierUseCase:
                         duplicate_reason = f"El DNI {b_dni} ya tiene un expediente en trámite (pendiente de revisión o aprobación) para esta actividad. No se pueden procesar inscripciones duplicadas."
 
                 if duplicate_reason:
-                    from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
-                    from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
-                    from src.contexts.data_quality_triage.domain.shared.value_objects.triage_verdict import TriageVerdict
-                    
-                    case.discrepancies.append(FieldDiscrepancy(
+                    # `FieldDiscrepancy`, `TriageStatus` y `TriageVerdict` ya están
+                    # importados arriba del módulo. Reimportarlos acá convertía
+                    # `TriageStatus` en variable local de `execute()`, y entonces el
+                    # candado de reproceso de más arriba la encontraba sin valor.
+                    #
+                    # SOLO este error, limpiar todas las demás discrepancias
+                    case.discrepancies = [FieldDiscrepancy(
                         field_name="beneficiary.dni",
                         expected_pattern="DNI no inscrito en esta actividad",
                         actual_value=b_dni,
                         rule_description=duplicate_reason,
                         severity="ERROR",
                         document_code="DOMINIO"
-                    ))
+                    )]
                     
                     case.status = TriageStatus.REJECTED
                     case.verdict = TriageVerdict.AUTOMATICALLY_REJECTED
+                    
+                    # Guardar y retornar INMEDIATAMENTE - sin procesar nada más
+                    await self.triage_repo.save(case)
+                    await self._audit_and_dispatch(case, is_new=(existing_case is None))
+                    await self._maybe_finalize_batch(case)
+                    await self.session.commit()
+                    return case
         except Exception as e:
             logger.error(f"Error checking duplicate registration: {e}", exc_info=True)
         # -------------------------------------
 
         # 4. Persistencia y Eventos
         await self.triage_repo.save(case)
+        # El commit va ANTES de despachar, a propósito. `handle_mdm_dossier_approved`
+        # abre su propia sesión y marca `sync_status = "SYNCED"`. `save()` usa
+        # `session.merge()`, que deja la fila sucia en el identity map: si el commit
+        # de acá corriera después del despacho, el ORM reescribiría la fila completa
+        # con el `sync_status` viejo (PENDING) y se perdería el SYNCED. El
+        # beneficiario quedaba cargado en `persons` pero el caso para siempre en
+        # PENDING, y `retry-sync` lo reintentaría en bucle.
+        await self.session.commit()
         await self._audit_and_dispatch(case, is_new=(existing_case is None))
+        # Va después del despacho: recién ahí el handler de MDM dejó el
+        # `sync_status` en SYNCED o FAILED, y de eso depende si el lote se
+        # cierra o queda esperando.
+        await self._maybe_finalize_batch(case)
         await self.session.commit()
         return case
+
+    async def _maybe_finalize_batch(self, case: TriageCase) -> None:
+        """Cierra el lote si este expediente fue el último en decidirse."""
+        from src.contexts.data_quality_triage.application.shared.use_cases.finalize_batch_if_complete_use_case import (
+            FinalizeBatchIfCompleteUseCase,
+        )
+
+        await FinalizeBatchIfCompleteUseCase(
+            session=self.session, triage_repo=self.triage_repo
+        ).execute(case.batch_id)
 
     async def _audit_and_dispatch(self, case: TriageCase, is_new: bool = True) -> None:
         self.session.add(TriageAuditLogModel(
