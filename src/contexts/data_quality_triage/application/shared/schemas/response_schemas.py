@@ -40,6 +40,7 @@ class TriageCaseDetailResponse(BaseModel):
     resolved_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
 class PaginatedTriageResponse(BaseModel):
     items: List[TriageCaseListItem]
