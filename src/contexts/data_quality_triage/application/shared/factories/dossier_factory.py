@@ -66,6 +66,7 @@ class DossierFactory:
             enriched_fins = kwargs.get("FINS")
             enriched_dj = kwargs.get("DJ")
             enriched_dniap = kwargs.get("DNIAP")
+            enriched_dnibe = kwargs.get("DNIBE")
             
             if not enriched_fins:
                 raise ValueError("No se puede construir un Dossier Educa sin el documento principal FINS.")
@@ -74,7 +75,7 @@ class DossierFactory:
             # colegio se haga contra la base real: si no hay match, el colegio queda
             # en None y la regla SchoolRequirement (education_rules) lo marca ERROR.
             mapper = EducaInscriptionDomainMapper(context=context)
-            return mapper.map(enriched_fins, enriched_dj, enriched_dniap)
+            return mapper.map(enriched_fins, enriched_dj, enriched_dniap, enriched_dnibe=enriched_dnibe)
         raise ValueError(f"ActivityType '{activity_type}' no está soportado en la creación desde enriquecidos.")
 
     @staticmethod
