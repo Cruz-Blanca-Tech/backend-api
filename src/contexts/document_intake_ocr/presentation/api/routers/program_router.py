@@ -26,7 +26,8 @@ from src.contexts.security_access.infrastructure.api.dependencies.policies impor
 router = APIRouter(prefix="/programs", tags=["Programs Master Data"])
 
 
-@router.post("/", response_model=ProgramResponse, dependencies=[Depends(ALLOW_ADMIN_OR_REVIEWER)])
+@router.post("", response_model=ProgramResponse, dependencies=[Depends(ALLOW_ADMIN_OR_REVIEWER)])
+@router.post("/", response_model=ProgramResponse, dependencies=[Depends(ALLOW_ADMIN_OR_REVIEWER)], include_in_schema=False)
 async def create_program(
     request: ProgramCreateRequest,
     use_case: CreateProgramUseCase = Depends(get_create_program_use_case)
