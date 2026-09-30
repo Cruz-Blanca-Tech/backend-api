@@ -75,12 +75,27 @@ DOCUMENT_CONFIGS = [
     },
 ]
 
+# Umbral de confianza OCR para los cuatro documentos de EDUCA_INSCRIPTION.
+#
+# Calibrado sobre los 24 documentos del lote de prueba (6 DNI x 4 docs), cuyos
+# scores van de 0.0000 a 0.7900, promedio 0.66. El 0.85 que venía del seed
+# historico era inalcanzable: ningun documento lo superaba, asi que el aviso
+# salia en el 100% de los casos y no distinguia nada.
+#
+# 0.65 separa las lecturas reales de los fracasos del OCR: los 23 documentos
+# leidos caen por encima, y el unico 0.0000 (DNIBE del DNI 78876488) queda
+# fuera, que es justo lo que tiene que quedar fuera.
+#
+# OJO: el aviso de confianza es WARNING, y los WARNING bloquean la ruta
+# touchless igual que los ERROR. Subir este numero encarece el touchless.
+CONFIDENCE_THRESHOLD = 0.65
+
 # Requisitos para EDUCA_INSCRIPTION
 REQUIREMENTS = [
-    {"code": "FINS", "is_required": True, "confidence_threshold": 0.85},
-    {"code": "DJ", "is_required": True, "confidence_threshold": 0.85},
-    {"code": "DNIBE", "is_required": True, "confidence_threshold": 0.85},
-    {"code": "DNIAP", "is_required": True, "confidence_threshold": 0.85},
+    {"code": "FINS", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
+    {"code": "DJ", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
+    {"code": "DNIBE", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
+    {"code": "DNIAP", "is_required": True, "confidence_threshold": CONFIDENCE_THRESHOLD},
 ]
 
 async def seed_full():
