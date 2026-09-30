@@ -5,6 +5,14 @@ import re
 _STANDARD_DNI = re.compile(r"^\d{8}$")
 
 
+def _normalize_token(token: str) -> str:
+    """Normaliza el token numérico eliminando ceros a la izquierda.
+    
+    Ej: "01234567" -> "1234567", "0001234567" -> "1234567"
+    """
+    return token.lstrip('0') or '0'
+
+
 @dataclass(frozen=True)
 class GroupKey:
     """Clave con la que el intake agrupa los documentos de un expediente.
@@ -38,6 +46,8 @@ class GroupKey:
                 f"La clave de agrupación '{self.value}' no es numérica: "
                 "el nombre del archivo debe seguir la convención {DNI}_{CODIGO}.ext"
             )
+        # Normalizar: eliminar ceros a la izquierda para que "01234567" y "1234567" agrupen juntos
+        object.__setattr__(self, 'value', _normalize_token(self.value))
 
     @property
     def is_standard_dni(self) -> bool:
