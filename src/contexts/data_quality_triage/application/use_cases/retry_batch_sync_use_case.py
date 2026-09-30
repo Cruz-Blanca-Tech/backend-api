@@ -7,12 +7,14 @@ from sqlalchemy import update, select
 from src.core.database import async_session_maker
 from src.contexts.data_quality_triage.domain.shared.repositories.triage_repository import TriageRepository
 from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, BatchVerificationStatus
+from src.contexts.data_quality_triage.application.shared.use_cases.finalize_batch_if_complete_use_case import (
+    FinalizeBatchIfCompleteUseCase,
+)
 from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
 from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
 from src.core.events.event_dispatcher import EventDispatcher
 from src.contexts.core_beneficiary_management.application.event_handlers.mdm_event_handlers import handle_mdm_dossier_approved
 from src.contexts.document_intake_ocr.application.event_handlers.intake_event_handlers import handle_dossier_approved
-from src.contexts.document_intake_ocr.infrastructure.persistence.model.extraction_batch_model import ExtractionBatchModel
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +33,19 @@ class RetryBatchSyncUseCase:
         ]
 
         if not failed_cases:
-            # Si todos ya están sincronizados, aseguramos que el lote esté FINALIZED
+            # No hay nada que reintentar. El estado del lote lo decide la regla
+            # común, NO esta respuesta: antes esta rama ponía FINALIZED sin mirar
+            # si quedaban expedientes sin decidir, así que reintentar sobre un lote
+            # a medio triage cerraba el lote de golpe. Con un lote todavía abierto
+            # esta operación es un no-op y el lote sigue como estaba.
             async with async_session_maker() as session:
-                await session.execute(
-                    update(ExtractionBatchModel)
-                    .where(ExtractionBatchModel.id == batch_id)
-                    .values(status="FINALIZED", failure_reason=None)
-                )
+                estado = await FinalizeBatchIfCompleteUseCase(
+                    session=session, triage_repo=self.triage_repo
+                ).execute(batch_id)
                 await session.commit()
             return {
-                "status": "COMPLETED",
-                "message": "Todos los expedientes del lote ya están sincronizados correctamente.",
+                "status": estado or "PENDING",
+                "message": "No hay expedientes pendientes de sincronizar en este lote.",
                 "reprocessed_count": 0
             }
 
@@ -97,35 +101,47 @@ class RetryBatchSyncUseCase:
                 })
 
         async with async_session_maker() as session:
+            # El estado del lote lo decide la regla común, por el mismo motivo que
+            # en la rama de arriba: acá ya no se sincroniza nada, solo queda derivar
+            # si el lote se cierra. Poner FINALIZED a mano cerraría un lote que
+            # todavía tiene expedientes sin revisar.
+            estado_lote = await FinalizeBatchIfCompleteUseCase(
+                session=session, triage_repo=self.triage_repo
+            ).execute(batch_id)
+            await session.commit()
+
             if sync_errors:
+                # Los errores por expediente van en la respuesta y en la ficha de
+                # cada caso (`sync_error`), que es donde se reintenta uno por uno.
+                # El lote conserva en `failure_reason` el detalle que escribió la
+                # regla común.
                 failure_msg = f"{len(sync_errors)} expediente(s) aún no pudieron sincronizarse con Beneficiarios."
-                await session.execute(
-                    update(ExtractionBatchModel)
-                    .where(ExtractionBatchModel.id == batch_id)
-                    .values(status="SYNC_FAILED", failure_reason=failure_msg)
-                )
-                await session.commit()
                 return {
                     "status": "SYNC_FAILED",
                     "message": failure_msg,
                     "failed_count": len(sync_errors),
                     "failed_cases": sync_errors
                 }
-            else:
-                await session.execute(
-                    update(ExtractionBatchModel)
-                    .where(ExtractionBatchModel.id == batch_id)
-                    .values(status="FINALIZED", failure_reason=None)
-                )
-                await session.commit()
 
+            if estado_lote == "FINALIZED":
                 EventDispatcher.dispatch_background(BatchTriageCompletedEvent(
                     batch_id=batch_id,
                     approved_dossiers=approved_dossiers
                 ))
-
                 return {
-                    "status": "COMPLETED",
-                    "message": f"Todos los expedientes ({len(failed_cases)}) fueron reintentados y sincronizados exitosamente.",
+                    "status": "FINALIZED",
+                    "message": (
+                        f"Todos los expedientes ({len(failed_cases)}) fueron reintentados y "
+                        "cargados. El lote quedó cerrado."
+                    ),
                     "reprocessed_count": len(failed_cases)
                 }
+
+            return {
+                "status": estado_lote or "PENDING",
+                "message": (
+                    f"Todos los expedientes ({len(failed_cases)}) fueron reintentados y "
+                    "cargados, pero el lote todavía tiene expedientes sin decidir."
+                ),
+                "reprocessed_count": len(failed_cases)
+            }

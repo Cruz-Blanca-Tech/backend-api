@@ -24,7 +24,7 @@ class InscriptionTriageStrategy(TriageStrategy):
         self._mapper    = EducaRawToEnrichedMapper()
         self._validator = EducaDocumentRulesValidator()
 
-    def execute(
+    async def execute(
         self,
         batch_id: UUID,
         activity_type: ActivityType,
@@ -102,6 +102,48 @@ class InscriptionTriageStrategy(TriageStrategy):
                 ),
             ).correct()
             discrepancies.extend(corrections)
+
+            # RECONCILIACIÓN DE NOMBRE DEL APODERADO (DNIAP vs FINS vs DNIBE + DJ)
+            # Compara apellidos: DNIAP (apoderado), DNIBE (niño), FINS_apoderado, FINS_niño.
+            # Gana el que más fuentes respalden; DNIAP y DNIBE son docs oficiales (peso alto).
+            from src.contexts.data_quality_triage.application.shared.services.apoderado_name_reconciler import ApoderadoNameReconciler
+            dniap = enriched_docs.get(EducaDocumentCode.DNI_APODERADO.value)
+            dnibe = enriched_docs.get(EducaDocumentCode.DNI_BENEFICIARY.value)
+            dj = enriched_docs.get(EducaDocumentCode.DJ.value)
+            if dniap and fins:
+                reconciler = ApoderadoNameReconciler(
+                    dniap=dniap,
+                    fins=fins,
+                    dnibe=dnibe,
+                    dj=dj,
+                    dossier_adults=domain_entity.related_adults.adults,
+                )
+                apoderado_corrections = reconciler.reconcile()
+                discrepancies.extend(apoderado_corrections)
+
+            # LLM NAME RECONCILER (último recurso semántico)
+            # Solo si hay WARNINGs de coherencia sin resolver y hay LLM disponible en contexto
+            from src.contexts.data_quality_triage.application.shared.services.llm_name_reconciler import LLMNameReconciler
+            llm_client = context.get("llm_client") if context else None
+            deployment_name = "gpt-4o-mini"  # deployment por defecto
+            if llm_client and dniap and fins:
+                # Buscar WARNINGs de coherencia sin resolver
+                coherence_warnings = [
+                    d for d in discrepancies
+                    if d.severity == "WARNING" and ("coherencia" in d.field_name.lower() or "apellido" in d.rule_description.lower())
+                ]
+                if coherence_warnings:
+                    llm_reconciler = LLMNameReconciler(
+                        llm_client=llm_client,
+                        deployment_name=deployment_name,
+                        dniap=dniap,
+                        fins=fins,
+                        dnibe=dnibe,
+                        dj=dj,
+                        dossier_adults=domain_entity.related_adults.adults,
+                    )
+                    llm_corrections = await llm_reconciler.reconcile(coherence_warnings)
+                    discrepancies.extend(llm_corrections)
 
             from dataclasses import asdict
             dossier_data = asdict(domain_entity)

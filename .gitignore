@@ -242,3 +242,8 @@ __marimo__/
 /update*.py
 /test_*.py
 /*.db
+
+# Exportes de tesis: se regeneran con los scripts de export, no van al repo.
+# Contienen datos de personas reales del maestro.
+thesis_export.json
+thesis_export.xlsx
