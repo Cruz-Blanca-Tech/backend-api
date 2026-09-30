@@ -162,6 +162,11 @@ class SubmitCorrectionUseCase:
             })
 
         await self.triage_repo.save(case)
+        # Commit antes de despachar, por el mismo motivo que en `dossier_processor`:
+        # el handler de MDM marca `sync_status = "SYNCED"` desde su propia sesión, y
+        # el `merge()` de `save()` deja la fila sucia en el identity map. Un commit
+        # posterior reescribiría el `sync_status` a PENDING y se perdería el SYNCED.
+        await self.session.commit()
         for event in case.pending_events:
             await EventDispatcher.dispatch(event)
         case.clear_events()

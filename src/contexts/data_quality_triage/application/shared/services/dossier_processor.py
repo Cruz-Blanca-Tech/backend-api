@@ -358,8 +358,11 @@ class ProcessDossierUseCase:
         has_warnings = any(d.severity == "WARNING" for d in case.discrepancies)
         prev_status = case.status.value
         if not has_errors and not has_warnings and not has_missing_docs:
-            case.status = TriageStatus.APPROVED
-            case.verdict = TriageVerdict.AUTO_APPROVED
+            # `approve()` y no `case.status = APPROVED`: además de completed_at y
+            # resolved_at, registra el evento que carga al beneficiario en el
+            # maestro. Además arrastra el `dossier_data` ya corregido arriba
+            # (línea del `beneficiary["dni"] = candidate_dni`).
+            case.approve(None)  # touchless: sin usuario
         elif has_missing_docs:
             case.status = TriageStatus.INCOMPLETE
             case.verdict = TriageVerdict.REQUIRES_TRIAGE
@@ -447,7 +450,11 @@ class ProcessDossierUseCase:
             context=context
         )
         if existing_case:
-            case.id = existing_case.id
+            # `reassign_id()` y no `case.id = ...`: el caso recién construido pudo
+            # quedar aprobado (touchless) y `approve()` ya registró el evento con
+            # el uuid4 original. Reasignar el id a pelo dejaría al evento apuntando
+            # a un id inexistente y el `sync_status = SYNCED` no se escribiría.
+            case.reassign_id(existing_case.id)
             case.created_at = existing_case.created_at
             # El "primer JSON" es la foto del backend (post-LLM) que nunca debe
             # sobrescribirse: si el caso ya tenía snapshot (creado tras el
@@ -780,6 +787,14 @@ class ProcessDossierUseCase:
 
         # 4. Persistencia y Eventos
         await self.triage_repo.save(case)
+        # El commit va ANTES de despachar, a propósito. `handle_mdm_dossier_approved`
+        # abre su propia sesión y marca `sync_status = "SYNCED"`. `save()` usa
+        # `session.merge()`, que deja la fila sucia en el identity map: si el commit
+        # de acá corriera después del despacho, el ORM reescribiría la fila completa
+        # con el `sync_status` viejo (PENDING) y se perdería el SYNCED. El
+        # beneficiario quedaba cargado en `persons` pero el caso para siempre en
+        # PENDING, y `retry-sync` lo reintentaría en bucle.
+        await self.session.commit()
         await self._audit_and_dispatch(case, is_new=(existing_case is None))
         await self.session.commit()
         return case
