@@ -34,12 +34,15 @@ class OcrConfidenceRule(DocumentRule):
     El umbral puede ser:
       - un float global que se aplica a todos los documentos, o
       - un dict {document_code: umbral} para calibrar por tipo de documento
-        (ej. DJ 0.55, FINS 0.60, DNIAP/DNIBE 0.65).
+        (ej. FINS 0.60, DNIAP/DNIBE 0.65).
 
-    Con dict, los documentos sin umbral definido NO se evalúan (se omiten).
-    Con float, todos los documentos se comparan contra el mismo umbral.
-    Los scores None se ignoran (no hay certeza de lectura, la regla no inventa).
+    La Declaración Jurada (DJ) se excluye del umbral de confianza general porque
+    es un documento de respaldo legal cuya validez se asegura mediante presencia
+    de documento, presencia de firmante y validación cruzada de DNIs contra FINS,
+    DNIBE y DNIAP.
     """
+
+    EXCLUDED_DOC_CODES = {"DJ"}
 
     def __init__(self, confidence_scores: dict, confidence_threshold: Union[float, Dict[str, float]]):
         self.confidence_scores = confidence_scores or {}
@@ -55,6 +58,8 @@ class OcrConfidenceRule(DocumentRule):
         low_confidence_docs = []
 
         for doc_code, score in self.confidence_scores.items():
+            if str(doc_code).upper() in self.EXCLUDED_DOC_CODES:
+                continue
             threshold = self._threshold_for(doc_code)
             if threshold is None:
                 continue
