@@ -98,17 +98,6 @@ async def submit_correction(
         discrepancies=discrepancies,
     )
 
-@router.post("/{case_id}/retry-sync")
-async def retry_case_sync(
-    case_id: UUID,
-    retry_uc: RetryCaseSyncUseCase = Depends(get_retry_case_sync_use_case)
-):
-    """Reintenta la sincronización con Beneficiarios de un expediente aprobado."""
-    try:
-        return await retry_uc.execute(case_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 @router.post("/{case_id}/reject")
 async def reject_triage_case(
     case_id: UUID,
@@ -139,8 +128,15 @@ async def retry_case_sync(
     case_id: UUID,
     uc: RetryCaseSyncUseCase = Depends(get_retry_case_sync_use_case)
 ):
-    """
-    Reintenta la sincronización con Beneficiarios (MDM) de un expediente específico aprobado.
+    """Reintenta la sincronización con Beneficiarios (MDM) de un expediente aprobado.
+
+    Es el reintento de a uno: se usa desde la ficha del expediente que falló,
+    donde además se ve el motivo concreto del error. El reintento del lote entero
+    se fue con el botón "Validar y cargar lote", así que acá solo queda este.
+
+    Devuelve 400 si el expediente no está aprobado, o si ya está en el registro de
+    beneficiarios (en ese caso no hay nada que reintentar y volver a correr el
+    handler escribiría dos veces sobre el mismo beneficiario).
     """
     try:
         return await uc.execute(case_id)
