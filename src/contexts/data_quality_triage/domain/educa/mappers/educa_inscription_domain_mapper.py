@@ -1,4 +1,4 @@
-﻿from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
+from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
 from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedDj
 from typing import Any
 from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins
@@ -30,10 +30,10 @@ class EducaInscriptionDomainMapper:
         import logging
         self.logger = logging.getLogger(__name__)
         
-    def map(self, enriched_fins: EnrichedFins, enriched_dj: EnrichedDj = None, enriched_dniap: Any = None) -> EducaInscriptionDossier:
+    def map(self, enriched_fins: EnrichedFins, enriched_dj: EnrichedDj = None, enriched_dniap: Any = None, enriched_dnibe: Any = None) -> EducaInscriptionDossier:
         
         return EducaInscriptionDossier(
-            beneficiary=self.map_beneficiary(enriched_fins),
+            beneficiary=self.map_beneficiary(enriched_fins, enriched_dnibe),
             related_adults=self.map_parents(enriched_fins, enriched_dj, enriched_dniap),
             education=self.map_education(enriched_fins),
             medical=self.map_medical(enriched_fins),
@@ -41,9 +41,9 @@ class EducaInscriptionDomainMapper:
             permissions=self.map_permissions(enriched_fins)
         )
         
-    def map_beneficiary(self, enriched_fins: EnrichedFins) -> BeneficiaryData:
+    def map_beneficiary(self, enriched_fins: EnrichedFins, enriched_dnibe: Any = None) -> BeneficiaryData:
         try:
-            return self.beneficiary_mapper.map(enriched_fins)
+            return self.beneficiary_mapper.map(enriched_fins, enriched_dnibe=enriched_dnibe)
         except Exception as e:
             self.logger.error(f"Error mapeando beneficiary: {e}")
             return BeneficiaryData(validation_issues=[f"Error interno mapeando sección: {e}"])
