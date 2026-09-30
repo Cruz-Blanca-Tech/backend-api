@@ -174,6 +174,10 @@ class _CorrobSession:
 
     def __init__(self, master_row):
         self._master_row = master_row
+        self.added_objects = []
+
+    def add(self, obj):
+        self.added_objects.append(obj)
 
     async def execute(self, statement, params=None):
         class _Result:

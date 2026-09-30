@@ -27,7 +27,8 @@ class TriageCaseMapper:
             resolved_by=case.resolved_by,
             resolved_at=case.resolved_at,
             created_at=case.created_at,
-            updated_at=case.updated_at
+            updated_at=case.updated_at,
+            completed_at=case.completed_at
         )
     
     @staticmethod
@@ -53,5 +54,6 @@ class TriageCaseMapper:
             resolved_by=model.resolved_by,
             resolved_at=model.resolved_at,
             created_at=model.created_at,
-            updated_at=model.updated_at
+            updated_at=model.updated_at,
+            completed_at=model.completed_at
         )

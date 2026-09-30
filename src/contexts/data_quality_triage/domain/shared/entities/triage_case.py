@@ -28,6 +28,7 @@ class TriageCase:
         sync_error: Optional[str] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
+        completed_at: Optional[datetime] = None,
     ):
         self.id = id
         self.batch_id = batch_id
@@ -50,6 +51,7 @@ class TriageCase:
         self.resolved_at = resolved_at
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
+        self.completed_at = completed_at
         self._pending_events: List[Any] = []
 
     def mark_sync_success(self) -> None:
@@ -124,11 +126,13 @@ class TriageCase:
         self.discrepancies = list(discrepancies)
         self.updated_at = datetime.now(timezone.utc)
 
-    def approve(self, approved_by: UUID) -> None:
+    def approve(self, approved_by: Optional[UUID] = None) -> None:
         self.status = TriageStatus.APPROVED
-        self.verdict = TriageVerdict.MANUALLY_APPROVED
+        # MANUALLY_APPROVED si hay usuario, AUTO_APPROVED si es touchless (approved_by=None)
+        self.verdict = TriageVerdict.MANUALLY_APPROVED if approved_by else TriageVerdict.AUTO_APPROVED
         self.resolved_by = approved_by
         self.resolved_at = datetime.now(timezone.utc)
+        self.completed_at = datetime.now(timezone.utc)
         self.updated_at = datetime.now(timezone.utc)
 
     def reject(self, rejected_by: UUID, reason: str) -> None:
