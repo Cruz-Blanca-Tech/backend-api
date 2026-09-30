@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from openai import AsyncAzureOpenAI
 
 from src.contexts.data_quality_triage.domain.shared.entities.triage_case import TriageCase
 from src.contexts.data_quality_triage.domain.shared.strategies.triage_strategy_factory import TriageStrategyFactory
