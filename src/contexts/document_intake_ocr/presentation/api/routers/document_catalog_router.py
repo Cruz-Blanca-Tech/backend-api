@@ -20,7 +20,8 @@ from src.contexts.security_access.infrastructure.api.dependencies.policies impor
 router = APIRouter(prefix="/document-catalog", tags=["Document Catalog (Azure OCR Models)"])
 
 
-@router.post("/", response_model=DocumentTypeConfigResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_ADMIN_ONLY)])
+@router.post("", response_model=DocumentTypeConfigResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_ADMIN_ONLY)])
+@router.post("/", response_model=DocumentTypeConfigResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_ADMIN_ONLY)], include_in_schema=False)
 async def create_document_config(
     request: DocumentTypeConfigCreateRequest,
     use_case: CreateDocumentConfigUseCase = Depends(get_create_document_config_use_case)
