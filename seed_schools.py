@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-Script para actualizar/sembrar los colegios con los 4 colegios oficiales:
-- Nuestra Señora de la Paz
-- Sagrada Familia
-- Generalísimo San Martín
-- Avelino Cáceres
+Script para actualizar/sembrar los colegios con los 4 oficiales.
+Usa SQL directo para evitar problemas de relaciones ORM.
 """
 
 import asyncio
@@ -15,13 +12,12 @@ from uuid import UUID, uuid4
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.core.database import async_session_maker
-from src.contexts.core_beneficiary_management.infrastructure.persistence.model.school_model import SchoolModel
-from sqlalchemy import select
+from sqlalchemy import select, text, update
 
-# Los 4 colegios oficiales
+# Los 4 colegios oficiales (ID fijo para Nuestra Señora de la Paz para mantener compatibilidad)
 COLEGIOS_OFICIALES = [
     {
-        "id": UUID("3f661126-d891-425a-be69-f0b215f1188d"),  # ID existente para mantener compatibilidad
+        "id": UUID("3f661126-d891-425a-be69-f0b215f1188d"),
         "name": "Nuestra Señora de la Paz",
         "location": "Av. Principal 123",
         "phone": "99723122",
@@ -50,37 +46,55 @@ COLEGIOS_OFICIALES = [
     },
 ]
 
+NOMBRES_OFICIALES = {c["name"] for c in COLEGIOS_OFICIALES}
+
 async def seed_schools():
     async with async_session_maker() as session:
         # Obtener colegios existentes
-        result = await session.execute(select(SchoolModel))
-        existing = {s.name: s for s in result.scalars().all()}
+        result = await session.execute(text("SELECT id, name FROM schools"))
+        existing = {row.name: row.id for row in result}
         
         for colegio in COLEGIOS_OFICIALES:
             if colegio["name"] in existing:
                 # Actualizar existente
-                school = existing[colegio["name"]]
-                school.location = colegio["location"]
-                school.phone = colegio["phone"]
-                school.is_active = colegio["is_active"]
+                await session.execute(
+                    text("""
+                        UPDATE schools 
+                        SET location = :location, phone = :phone, is_active = :is_active, updated_at = now()
+                        WHERE id = :id
+                    """),
+                    {
+                        "id": str(existing[colegio["name"]]),
+                        "location": colegio["location"],
+                        "phone": colegio["phone"],
+                        "is_active": colegio["is_active"],
+                    }
+                )
                 print(f"Actualizado: {colegio['name']}")
             else:
                 # Crear nuevo
-                school = SchoolModel(
-                    id=colegio["id"],
-                    name=colegio["name"],
-                    location=colegio["location"],
-                    phone=colegio["phone"],
-                    is_active=colegio["is_active"],
+                await session.execute(
+                    text("""
+                        INSERT INTO schools (id, name, location, phone, is_active, created_at, updated_at)
+                        VALUES (:id, :name, :location, :phone, :is_active, now(), now())
+                    """),
+                    {
+                        "id": str(colegio["id"]),
+                        "name": colegio["name"],
+                        "location": colegio["location"],
+                        "phone": colegio["phone"],
+                        "is_active": colegio["is_active"],
+                    }
                 )
-                session.add(school)
                 print(f"Creado: {colegio['name']}")
         
         # Desactivar colegios que ya no están en la lista oficial
-        nombres_oficiales = {c["name"] for c in COLEGIOS_OFICIALES}
-        for name, school in existing.items():
-            if name not in nombres_oficiales:
-                school.is_active = False
+        for name in existing:
+            if name not in NOMBRES_OFICIALES:
+                await session.execute(
+                    text("UPDATE schools SET is_active = false, updated_at = now() WHERE id = :id"),
+                    {"id": str(existing[name])}
+                )
                 print(f"Desactivado: {name}")
         
         await session.commit()
