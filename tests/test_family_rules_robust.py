@@ -14,8 +14,10 @@ from src.contexts.data_quality_triage.domain.educa.value_objects.medical_data im
 from src.contexts.data_quality_triage.domain.educa.value_objects.religion_data import ReligionData
 from src.contexts.data_quality_triage.domain.educa.value_objects.permissions_data import PermissionsData
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import (
+    AdultsDniFormatRule,
     DjFinsSignerCoherenceRule,
     DjSignerPresenceRule,
+    GuardianPresenceRule,
     ParentPresenceRule,
 )
 
@@ -103,3 +105,17 @@ def test_parent_presence_rule_advierte_solo_si_no_hay_padre_ni_madre():
     assert len(issues) == 1
     assert issues[0].severity == "WARNING"
     assert "ni al Padre ni a la Madre" in issues[0].rule_description
+
+
+def test_guardian_sin_nombre_emite_un_solo_error_unificado():
+    entity = _dossier(
+        FamilyData(
+            adults=[RelatedAdult(relationship="OTHER", dni="17025511", full_name="")],
+            guardian_dni="17025511",
+        )
+    )
+    issues = GuardianPresenceRule().evaluate(entity) + AdultsDniFormatRule().evaluate(entity)
+    assert len(issues) == 1
+    assert issues[0].severity == "ERROR"
+    assert "17025511" in issues[0].rule_description
+    assert "Apoderado" in issues[0].rule_description
