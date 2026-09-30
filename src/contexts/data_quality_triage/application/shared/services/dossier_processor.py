@@ -756,17 +756,24 @@ class ProcessDossierUseCase:
                     from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
                     from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
                     
-                    case.discrepancies.append(FieldDiscrepancy(
+                    # SOLO este error, limpiar todas las demás discrepancias
+                    case.discrepancies = [FieldDiscrepancy(
                         field_name="beneficiary.dni",
                         expected_pattern="DNI no inscrito en esta actividad",
                         actual_value=b_dni,
                         rule_description=duplicate_reason,
                         severity="ERROR",
                         document_code="DOMINIO"
-                    ))
+                    )]
                     
                     case.status = TriageStatus.REJECTED
                     case.verdict = TriageVerdict.AUTOMATICALLY_REJECTED
+                    
+                    # Guardar y retornar INMEDIATAMENTE - sin procesar nada más
+                    await self.triage_repo.save(case)
+                    await self._audit_and_dispatch(case, is_new=(existing_case is None))
+                    await self.session.commit()
+                    return case
         except Exception as e:
             logger.error(f"Error checking duplicate registration: {e}", exc_info=True)
         # -------------------------------------
