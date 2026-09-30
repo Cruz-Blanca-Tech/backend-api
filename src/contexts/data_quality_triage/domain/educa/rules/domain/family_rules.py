@@ -45,13 +45,15 @@ class GuardianPresenceRule(DomainRule):
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.guardian", expected_pattern="DNI de 8 dígitos", actual_value="(vacío)",
                 rule_description="No se ha asignado un Apoderado al expediente o no cuenta con DNI.", 
-                severity="ERROR", document_code="DOMINIO"
+                severity="ERROR", document_code="DOMINIO",
+                navigation_hint="contactos_apoderados"
             ))
         elif not (guardian_dni.isdigit() and len(guardian_dni) == 8):
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.guardian", expected_pattern="8 dígitos numéricos", actual_value=guardian_dni,
                 rule_description=f"El DNI del apoderado asignado ('{guardian_dni}') debe tener exactamente 8 dígitos numéricos.", 
-                severity="ERROR", document_code="DOMINIO"
+                severity="ERROR", document_code="DOMINIO",
+                navigation_hint="contactos_apoderados"
             ))
         else:
             guardian = next((a for a in domain_entity.related_adults.adults if (a.dni or "").strip() == guardian_dni), None)
@@ -59,13 +61,15 @@ class GuardianPresenceRule(DomainRule):
                 issues.append(FieldDiscrepancy(
                     field_name="related_adults.guardian", expected_pattern="Adulto registrado", actual_value=guardian_dni,
                     rule_description=f"El DNI del apoderado ({guardian_dni}) no corresponde a ningún adulto registrado en el expediente.", 
-                    severity="ERROR", document_code="DOMINIO"
+                    severity="ERROR", document_code="DOMINIO",
+                    navigation_hint="contactos_apoderados"
                 ))
             elif not guardian.full_name or not guardian.full_name.strip():
                 issues.append(FieldDiscrepancy(
                     field_name="related_adults.guardian_name", expected_pattern="Nombre completo", actual_value="(vacío)",
                     rule_description=f"El apoderado asignado (DNI: {guardian_dni}) debe tener Nombre completo.", 
-                    severity="ERROR", document_code="DOMINIO"
+                    severity="ERROR", document_code="DOMINIO",
+                    navigation_hint="contactos_apoderados"
                 ))
         return issues
 
@@ -90,7 +94,8 @@ class EmergencyContactRule(DomainRule):
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.emergency_contact_dni", expected_pattern="8 dígitos numéricos", actual_value=emergency_dni,
                 rule_description=f"El DNI del contacto de emergencia ('{emergency_dni}') debe tener exactamente 8 dígitos numéricos.", 
-                severity="ERROR", document_code="DOMINIO"
+                severity="ERROR", document_code="DOMINIO",
+                navigation_hint="contactos_apoderados"
             ))
             return issues
 
@@ -99,7 +104,8 @@ class EmergencyContactRule(DomainRule):
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.emergency_contact_dni", expected_pattern="DNI de un adulto registrado", actual_value=str(emergency_dni),
                 rule_description="El contacto de emergencia resuelto no corresponde a ningún adulto registrado.", 
-                severity="ERROR", document_code="DOMINIO"
+                severity="ERROR", document_code="DOMINIO",
+                navigation_hint="contactos_apoderados"
             ))
         else:
             phone = (contact_adult.phone or "").strip()
@@ -107,7 +113,8 @@ class EmergencyContactRule(DomainRule):
                 issues.append(FieldDiscrepancy(
                     field_name="related_adults.adults", expected_pattern="Número de teléfono válido (7–20 dígitos)", actual_value=phone or "(vacío)",
                     rule_description=f"El contacto de emergencia ({contact_adult.full_name or emergency_dni}) no tiene un número de teléfono válido. Es obligatorio: el número de contacto debe tener entre 7 y 20 dígitos (p. ej. 9XXXXXXXX).", 
-                    severity="ERROR", document_code="DOMINIO"
+                    severity="ERROR", document_code="DOMINIO",
+                    navigation_hint="contactos_apoderados"
                 ))
             
         return issues

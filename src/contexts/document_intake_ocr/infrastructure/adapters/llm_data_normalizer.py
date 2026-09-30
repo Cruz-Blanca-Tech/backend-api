@@ -96,9 +96,18 @@ class LLMDataNormalizer(DataNormalizer):
             logger.warning(f"No se pudieron cargar los colegios del MDM: {e}")
             valid_schools_str = '"SAN MARTIN", "VILLAS"'
             
+        dni_reference = (context or {}).get("dni_reference") or ""
+        document_code = (context or {}).get("document_code") or ""
+        context_hint = ""
+        if dni_reference or document_code:
+            context_hint = (
+                f"\n        CONTEXTO DEL ARCHIVO ACTUAL: código de documento = '{document_code}', "
+                f"clave de agrupación (DNI de referencia del niño beneficiario) = '{dni_reference}'.\n"
+            )
+
         system_prompt = f"""
 
-        Eres un asistente experto en limpieza de datos para la ONG Cruz Blanca.
+        Eres un asistente experto en limpieza de datos para la ONG Cruz Blanca.{context_hint}
         Tu objetivo es recibir un JSON con los datos extraídos por OCR de un formulario físico
         y devolver un nuevo JSON con los datos normalizados y corregidos.
 
@@ -152,10 +161,23 @@ class LLMDataNormalizer(DataNormalizer):
            Si encuentras un DNI con menos/más de 8 dígitos, fechas de nacimiento incongruentes,
            o falta de datos críticos, genera una descripción clara en un array `warnings: [string]`.
 
-        9. CRUCE Y CONSOLIDACI"N DE PADRES/APODERADOS (DETECCI"N DE G"NERO OBLIGATORIA):
-         - INFERENCIA DE G"NERO: Debes analizar semánticamente el nombre extraído. Si el nombre en `parents_father_full_name` es evidentemente de mujer (ej. "Laura", "María", "Carmen"), ES UN ERROR DEL OCR O DEL LLM ANTERIOR. DEBES mover ese valor inmediatamente a `parents_mother_full_name` o `parents_guardian_full_name` y dejar el padre como `null`. NUNCA asignes a una mujer al rol de Padre.
-         - De igual forma, si en `parents_mother_full_name` hay un nombre de hombre (ej. "Mario", "Juan", "Pedro"), muévelo a `parents_father_full_name`.
-         - Si una misma persona fue extraída fragmentada en dos campos (ej. "Laura Sondoval Urguia" en el campo Padre y "Sondoval" en el campo Apoderado), asume que es la misma persona. Consolida su nombre completo en el rol correcto (Madre o Apoderado según su género) y deja el campo incorrecto en `null` o vacío. No dejes personas duplicadas o fragmentadas.
+        9. CRUCE Y CONSOLIDACIÓN DE PADRES, MADRES Y NIÑO (GÉNERO + COHERENCIA DE APELLIDOS + ANTI-AUTOPADRE):
+           Esta regla aplica tanto a la Ficha FINS (`child_first_name`, `child_last_name`, `child_dni`, `parents_father_full_name`, `parents_father_dni`, `parents_mother_full_name`, `parents_mother_dni`, `parents_guardian_full_name`, `parents_guardian_dni`) como a la Declaración Jurada DJ (`child_name`, `child_dni`, `parents_father_name`, `parents_father_dni`, `parents_mother_name`, `parents_mother_dni`, `guardian_dni`):
+           - LEY PERUANA DE APELLIDOS: En Perú toda persona tiene `<Nombres> <Apellido Paterno> <Apellido Materno>`. El hijo hereda como primer apellido el primer apellido del padre y como segundo apellido el primer apellido de la madre (ej. si el padre es "Jonathan Paredes Negrón" y la madre es "Jackeline Escobar Chávez", el niño se apellida "Paredes Escobar").
+           - PROHIBIDO QUE EL NIÑO SEA SU PROPIO PADRE O MADRE (Y CORRECCIÓN DE DESFASE EN DJ):
+             * El niño beneficiario es la persona cuyos dos apellidos combinan el primer apellido del padre + el primer apellido de la madre (o cuyo DNI coincide con la clave de agrupación `{dni_reference}`).
+             * En la DJ es común que el OCR desfase las líneas: por ejemplo, pone a la madre/apoderado ("Jackeline Escobar Chávez", DNI "41839063") en `child_name`/`child_dni`, al niño ("Aarón Matheus Paredes Escobar") en `parents_father_name` y su DNI ("{dni_reference}") en `parents_mother_dni`, y al padre ("Jonathan Paredes Negrón") en `parents_mother_name`.
+             * Si detectas este desfase, REORDENA cada nombre y su DNI a su campo verdadero:
+               1) El niño va en `child_name` y su DNI en `child_dni`.
+               2) El padre (hombre / primer apellido del niño) va en `parents_father_name` y su DNI en `parents_father_dni`.
+               3) La madre (mujer / segundo apellido del niño) va en `parents_mother_name` y su DNI en `parents_mother_dni` (y si era quien encabezaba la DJ en `child_dni`, coloca también su DNI en `guardian_dni` si estaba vacío).
+             * NUNCA dejes el nombre ni el DNI del niño beneficiario dentro de `parents_father_name`, `parents_mother_name`, `parents_father_full_name` o `parents_mother_full_name`. Si el niño aparece repetido como padre o madre, pon ese campo de padre/madre en `null`.
+           - ASIGNACIÓN DE PADRE VS MADRE POR GÉNERO DEL NOMBRE Y APELLIDO:
+             * Analiza semánticamente el GÉNERO del nombre de pila Y sus apellidos respecto al niño:
+               - Nombres masculinos (ej. "Jonathan", "Jeffer", "Mario", "Juan", "Pedro", "Carlos", "Luis", "José", etc.) y/o cuyo primer apellido coincide con el PRIMER apellido (paterno) del niño corresponden SIEMPRE al PADRE (`parents_father_full_name` en FINS / `parents_father_name` en DJ). Si estaban en el campo de madre, muévelos al campo de padre junto con su DNI/teléfono.
+               - Nombres femeninos (ej. "Jackeline", "Mayra", "Laura", "María", "Carmen", "Rosa", "Ana", etc.) y/o cuyo primer apellido coincide con el SEGUNDO apellido (materno) del niño corresponden SIEMPRE a la MADRE (`parents_mother_full_name` en FINS / `parents_mother_name` en DJ). Si estaban en el campo de padre, muévelos al campo de madre junto con su DNI/teléfono.
+             * NUNCA asignes a un hombre al rol de Madre ni a una mujer al rol de Padre.
+           - Si una misma persona fue extraída fragmentada en dos campos (ej. "Laura Sondoval Urguia" en Padre y "Sondoval" en Apoderado), consolida su nombre completo en el rol correcto según su género y apellido, y deja el campo incorrecto en `null`.
 
       Devuelve ÚNICAMENTE un JSON válido que replique la estructura original pero con los datos limpios y el campo adicional 'warnings' si aplica.
         """

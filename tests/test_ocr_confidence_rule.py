@@ -39,8 +39,8 @@ async def test_strategy_low_confidence_discrepancy_and_triage():
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
-        documents=[_doc("DJ", 0.45), _doc("FINS", 0.90)],
-        context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.60}},
+        documents=[_doc("DNIBE", 0.45), _doc("FINS", 0.90)],
+        context={"confidence_thresholds": {"DNIBE": 0.65, "FINS": 0.60}},
     )
 
     conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
@@ -48,13 +48,27 @@ async def test_strategy_low_confidence_discrepancy_and_triage():
     # Now consolidated into single GENERAL warning
     assert conf_issues[0].document_code == "GENERAL"
     # Mensaje amigable para el operador (sin códigos internos ni puntajes)
-    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "copia del dni del niño" in conf_issues[0].rule_description.lower()
     assert "revis" in conf_issues[0].rule_description.lower()
 
     # Los scores se propagan al caso (lo que la UI usa como min_confidence_score)
-    assert case.confidence_scores == {"DJ": 0.45, "FINS": 0.90}
+    assert case.confidence_scores == {"DNIBE": 0.45, "FINS": 0.90}
     assert case.status == TriageStatus.PENDING_REVIEW
     assert case.verdict == TriageVerdict.REQUIRES_TRIAGE
+
+
+@pytest.mark.asyncio
+async def test_strategy_dj_is_excluded_from_confidence_warning():
+    strategy = _make_strategy()
+    case = await strategy.execute(
+        batch_id=uuid4(),
+        activity_type=ActivityType.EDUCA_INSCRIPTION,
+        dni_reference="12345678",
+        documents=[_doc("DJ", 0.35), _doc("FINS", 0.90)],
+        context={"confidence_thresholds": {"DJ": 0.65, "FINS": 0.60}},
+    )
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    assert conf_issues == []
 
 
 @pytest.mark.asyncio
@@ -64,8 +78,8 @@ async def test_strategy_high_confidence_no_confidence_discrepancy():
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
-        documents=[_doc("DJ", 0.74), _doc("FINS", 0.70)],
-        context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.60}},
+        documents=[_doc("DNIBE", 0.74), _doc("FINS", 0.70)],
+        context={"confidence_thresholds": {"DNIBE": 0.65, "FINS": 0.60}},
     )
     conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
     assert conf_issues == []
@@ -78,15 +92,15 @@ async def test_strategy_single_float_threshold_via_context():
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
-        documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
+        documents=[_doc("DNIBE", 0.55), _doc("FINS", 0.70)],
         context={"confidence_threshold": 0.60},
     )
     conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
     # Single consolidated warning
     assert len(conf_issues) == 1
     assert conf_issues[0].document_code == "GENERAL"
-    # Mensaje amigable: DJ por debajo de 0.60, FINS por encima
-    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    # Mensaje amigable: DNIBE por debajo de 0.60, FINS por encima
+    assert "copia del dni del niño" in conf_issues[0].rule_description.lower()
     assert "revis" in conf_issues[0].rule_description.lower()
 
 
@@ -97,14 +111,14 @@ async def test_strategy_threshold_dict_vs_float_priority():
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
-        documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
+        documents=[_doc("DNIBE", 0.55), _doc("FINS", 0.70)],
         context={
-            "confidence_thresholds": {"DJ": 0.55, "FINS": 0.60},
+            "confidence_thresholds": {"DNIBE": 0.55, "FINS": 0.60},
             "confidence_threshold": 0.60,
         },
     )
     conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
-    # Dict has priority: DJ 0.55 -> OK, FINS 0.60 -> OK
+    # Dict has priority: DNIBE 0.55 -> OK, FINS 0.60 -> OK
     assert [d for d in case.discrepancies if d.field_name == "general_confidence"] == []
 
 
@@ -115,14 +129,14 @@ async def test_strategy_missing_threshold_uses_default():
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
-        documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
+        documents=[_doc("DNIBE", 0.55), _doc("FINS", 0.70)],
         context={},
     )
     conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
-    # Default 0.80 -> DJ 0.55 WARNING, FINS 0.70 WARNING -> consolidated into 1
+    # Default 0.80 -> DNIBE 0.55 WARNING, FINS 0.70 WARNING -> consolidated into 1
     assert len(conf_issues) == 1
     assert conf_issues[0].document_code == "GENERAL"
     # Mensaje amigable: ambos documentos por debajo del umbral por defecto
-    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "copia del dni del niño" in conf_issues[0].rule_description.lower()
     assert "ficha de inscripción" in conf_issues[0].rule_description.lower()
     assert "revis" in conf_issues[0].rule_description.lower()
