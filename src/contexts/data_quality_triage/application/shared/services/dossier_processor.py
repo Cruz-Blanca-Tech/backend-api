@@ -819,7 +819,10 @@ class ProcessDossierUseCase:
         # beneficiario quedaba cargado en `persons` pero el caso para siempre en
         # PENDING, y `retry-sync` lo reintentaría en bucle.
         await self.session.commit()
+        had_events = bool(case.pending_events)
         await self._audit_and_dispatch(case, is_new=(existing_case is None))
+        if had_events and hasattr(self.session, "expire_all"):
+            self.session.expire_all()
         # Va después del despacho: recién ahí el handler de MDM dejó el
         # `sync_status` en SYNCED o FAILED, y de eso depende si el lote se
         # cierra o queda esperando.
@@ -849,5 +852,8 @@ class ProcessDossierUseCase:
             },
         ))
         for event in case.pending_events:
-            await EventDispatcher.dispatch(event)
+            try:
+                await EventDispatcher.dispatch(event)
+            except Exception as e:
+                logger.error(f"Error dispatching event {type(event).__name__} for case {case.id}: {e}", exc_info=True)
         case.clear_events()
