@@ -19,6 +19,13 @@ EDUCA_PROGRAM_ID = UUID("e561e788-f053-40cc-a4a3-5040627f27de")
 ACTIVIDAD_SEM1_ID = UUID("05194c0c-9ff7-4b4d-97f6-af51d62521c3")
 ACTIVIDAD_SEM2_ID = UUID("fa9e45e9-7e0c-4e71-bc17-64e8a8489344")
 
+# Usuario de desarrollo. Se fija en ADMIN para que pueda administrar el maestro
+# (crear/editar actividades y catálogo de documentos son ALLOW_ADMIN_ONLY).
+# OJO: iniciar la extracción NO depende del rol — `POST /api/v1/batches` solo
+# exige un usuario autenticado, no tiene RoleChecker.
+DEV_USER_EMAIL = "enzo.trujillo@cruz-blanca.org"
+DEV_USER_NAME = "Enzo Trujillo"
+
 # Configuración de documentos para EDUCA.
 #
 # `model_id` es el ID REAL del modelo en Azure Document Intelligence: el intake lo
@@ -230,6 +237,34 @@ async def seed_full():
                         "confidence_threshold": req["confidence_threshold"],
                     })
                     print(f"  Requisito creado: {act['name']} -> {req['code']} (req: {req['is_required']}, thr: {req['confidence_threshold']})")
+
+        # 4. Rol del usuario de desarrollo.
+        # ADMIN habilita la gestión del maestro (actividades y catálogo de
+        # documentos son ALLOW_ADMIN_ONLY). Sin esto el usuario queda como lo
+        # hubiera dejado el registro previo, normalmente VISUALIZADOR.
+        result = await session.execute(
+            text("SELECT role FROM users WHERE email = :email"),
+            {"email": DEV_USER_EMAIL},
+        )
+        user = result.fetchone()
+        if user:
+            if user[0] != "admin":
+                await session.execute(
+                    text("UPDATE users SET role = 'admin', is_active = true WHERE email = :email"),
+                    {"email": DEV_USER_EMAIL},
+                )
+                print(f"Rol de {DEV_USER_EMAIL}: {user[0]} -> admin")
+            else:
+                print(f"Rol de {DEV_USER_EMAIL}: ya es admin")
+        else:
+            await session.execute(text("""
+                INSERT INTO users (id, email, full_name, role, is_active, last_login)
+                VALUES (gen_random_uuid(), :email, :name, 'admin', true, now())
+            """), {
+                "email": DEV_USER_EMAIL,
+                "name": DEV_USER_NAME,
+            })
+            print(f"Usuario {DEV_USER_EMAIL} creado con rol admin")
 
         await session.commit()
         print("\n¡Seed completo!")
