@@ -16,7 +16,8 @@ from src.contexts.security_access.application.services.user_service import UserS
 
 router = APIRouter(prefix="/users")
 
-@router.get("/", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
+@router.get("", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
+@router.get("/", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ANY_STAFF)], include_in_schema=False)
 async def list_users(
     user_service: UserService = Depends(get_user_service)
 ):

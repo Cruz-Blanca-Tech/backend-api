@@ -28,7 +28,8 @@ from src.contexts.security_access.infrastructure.api.dependencies.policies impor
 router = APIRouter(prefix="/activities", tags=["Activities Configuration"])
 
 
-@router.post("/", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_ADMIN_ONLY)])
+@router.post("", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_ADMIN_ONLY)])
+@router.post("/", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_ADMIN_ONLY)], include_in_schema=False)
 async def create_activity(
     request: ActivityCreateRequest,
     use_case: CreateActivityUseCase = Depends(get_create_activity_use_case)
