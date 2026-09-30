@@ -96,7 +96,8 @@ async def patch_beneficiary(
         logger.error(f"Error patching beneficiary {beneficiary_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-@router.post("/", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def create_beneficiary(
     payload: BeneficiaryCreateRequest,
     use_case: CreateBeneficiaryUseCase = Depends(get_create_beneficiary_use_case)
