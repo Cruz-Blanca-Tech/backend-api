@@ -21,7 +21,7 @@ class MedicalEnrichedMapper(BaseEnrichedMapper):
             allergy_sulfa_drugs=self.build_field(raw_dto.allergy_sulfa_drugs, "Alergia Sulfas", DataType.BOOL),
             allergy_fish_shellfish=self.build_field(raw_dto.allergy_fish_shellfish, "Alergia Pescado/Marisco", DataType.BOOL),
             allergy_nsaid_analgesics=self.build_field(raw_dto.allergy_nsaid_analgesics, "Alergia AINES", DataType.BOOL),
-            allergy_others=self.build_field(raw_dto.allergy_others, "Otras Alergias", DataType.BOOL),
+            allergy_others=self.build_field(raw_dto.allergy_other_details or raw_dto.allergy_others, "Otras Alergias", DataType.STRING),
             # Enfermedades
             disease_cancer=self.build_field(raw_dto.disease_cancer, "Cáncer", DataType.BOOL),
             disease_seizures=self.build_field(raw_dto.disease_seizures, "Convulsiones", DataType.BOOL),

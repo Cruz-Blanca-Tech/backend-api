@@ -8,7 +8,7 @@ from src.contexts.data_quality_triage.application.shared.normalizers.base import
 
 class BoolNormalizer(FieldNormalizer):
 
-    TRUE_VALUES = {"true", "1", "yes", "y", "si", "sí", "t", "selected", "sì"}
+    TRUE_VALUES = {"true", "1", "yes", "y", "si", "sí", "t", "selected", "sì", "x", "51", "s1", "sl"}
     FALSE_VALUES = {"false", "0", "no", "n", "f", "unselected", "none", "null"}
 
     def normalize(self, value):
@@ -19,7 +19,7 @@ class BoolNormalizer(FieldNormalizer):
         if isinstance(value, bool):
             return value
 
-        value = str(value).strip().lower()
+        value = re.sub(r"[.,;:!]+$", "", str(value).strip().lower()).strip()
 
         if value in self.TRUE_VALUES:
             return True        
