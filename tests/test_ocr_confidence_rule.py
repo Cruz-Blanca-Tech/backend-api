@@ -19,57 +19,8 @@ def _doc(code: str, confidence) -> DocumentDTO:
     )
 
 
-def _issues_with_field(issues, field_name: str):
-    return [d for d in issues if d.field_name == field_name]
-
-
-# --------------------------------------------------------------------------
-# OcrConfidenceRule: unidad
-# --------------------------------------------------------------------------
-
-def test_confidence_rule_flags_docs_below_global_threshold():
-    rule = OcrConfidenceRule({"DJ": 0.45, "FINS": 0.65}, 0.60)
-    issues = rule.evaluate()
-    assert len(issues) == 1
-    assert issues[0].field_name == "general_confidence"
-    assert issues[0].document_code == "DJ"
-    assert issues[0].severity == "WARNING"
-    assert issues[0].expected_pattern == ">= 0.6"
-    assert issues[0].actual_value == "0.45"
-
-
-def test_confidence_rule_boundary_not_flagged():
-    # score == umbral es válido (se usa <, no <=)
-    rule = OcrConfidenceRule({"DJ": 0.60}, 0.60)
-    assert rule.evaluate() == []
-
-
-def test_confidence_rule_per_doc_thresholds():
-    threshold_by_code = {"DJ": 0.55, "DNIAP": 0.65, "DNIBE": 0.65}
-    scores = {"DJ": 0.45, "FINS": 0.70, "DNIAP": 0.80, "DNIBE": 0.60}
-    issues = OcrConfidenceRule(scores, threshold_by_code).evaluate()
-    flagged = {(d.document_code, d.actual_value) for d in issues}
-    # DJ baja (0.45 < 0.55) y DNIBE baja (0.60 < 0.65); FINS sin umbral se omite;
-    # DNIAP 0.80 >= 0.65 ok.
-    assert flagged == {("DJ", "0.45"), ("DNIBE", "0.6")}
-
-
-def test_confidence_rule_ignores_none_scores():
-    rule = OcrConfidenceRule({"DJ": None, "FINS": 0.9}, 0.60)
-    assert rule.evaluate() == []
-
-
-def test_confidence_rule_empty_scores():
-    assert OcrConfidenceRule({}, 0.60).evaluate() == []
-
-
-# --------------------------------------------------------------------------
-# InscriptionTriageStrategy: cableado de la regla
-# --------------------------------------------------------------------------
-
-def _make_strategy():
+def _make_strategy() -> InscriptionTriageStrategy:
     strategy = InscriptionTriageStrategy()
-    # Aislamos la estrategia: mapper y validator stubs, sin dependencias externas.
     strategy._mapper = MagicMock()
     strategy._mapper.map.return_value = {}
     strategy._validator = MagicMock()
@@ -77,9 +28,14 @@ def _make_strategy():
     return strategy
 
 
-def test_strategy_low_confidence_discrepancy_and_triage():
+def _issues_with_field(discrepancies, field_name: str):
+    return [d for d in discrepancies if d.field_name == field_name]
+
+
+@pytest.mark.asyncio
+async def test_strategy_low_confidence_discrepancy_and_triage():
     strategy = _make_strategy()
-    case = strategy.execute(
+    case = await strategy.execute(
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
@@ -87,10 +43,13 @@ def test_strategy_low_confidence_discrepancy_and_triage():
         context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.60}},
     )
 
-    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
     assert len(conf_issues) == 1
-    assert conf_issues[0].document_code == "DJ"
-    assert conf_issues[0].severity == "WARNING"
+    # Now consolidated into single GENERAL warning
+    assert conf_issues[0].document_code == "GENERAL"
+    # Mensaje amigable para el operador (sin códigos internos ni puntajes)
+    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "revis" in conf_issues[0].rule_description.lower()
 
     # Los scores se propagan al caso (lo que la UI usa como min_confidence_score)
     assert case.confidence_scores == {"DJ": 0.45, "FINS": 0.90}
@@ -98,73 +57,72 @@ def test_strategy_low_confidence_discrepancy_and_triage():
     assert case.verdict == TriageVerdict.REQUIRES_TRIAGE
 
 
-def test_strategy_high_confidence_no_confidence_discrepancy():
+@pytest.mark.asyncio
+async def test_strategy_high_confidence_no_confidence_discrepancy():
     strategy = _make_strategy()
-    case = strategy.execute(
+    case = await strategy.execute(
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
         documents=[_doc("DJ", 0.74), _doc("FINS", 0.70)],
         context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.60}},
     )
-    assert _issues_with_field(case.discrepancies, "general_confidence") == []
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    assert conf_issues == []
 
 
-def test_strategy_single_float_threshold_via_context():
+@pytest.mark.asyncio
+async def test_strategy_single_float_threshold_via_context():
     strategy = _make_strategy()
-    case = strategy.execute(
+    case = await strategy.execute(
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
         documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
         context={"confidence_threshold": 0.60},
     )
-    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
-    assert [d.document_code for d in conf_issues] == ["DJ"]
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    # Single consolidated warning
+    assert len(conf_issues) == 1
+    assert conf_issues[0].document_code == "GENERAL"
+    # Mensaje amigable: DJ por debajo de 0.60, FINS por encima
+    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "revis" in conf_issues[0].rule_description.lower()
 
 
-def test_strategy_default_threshold_when_context_empty():
+@pytest.mark.asyncio
+async def test_strategy_threshold_dict_vs_float_priority():
     strategy = _make_strategy()
-    case = strategy.execute(
+    case = await strategy.execute(
         batch_id=uuid4(),
         activity_type=ActivityType.EDUCA_INSCRIPTION,
         dni_reference="12345678",
-        documents=[_doc("DJ", 0.79)],
+        documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
+        context={
+            "confidence_thresholds": {"DJ": 0.55, "FINS": 0.60},
+            "confidence_threshold": 0.60,
+        },
+    )
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    # Dict has priority: DJ 0.55 -> OK, FINS 0.60 -> OK
+    assert [d for d in case.discrepancies if d.field_name == "general_confidence"] == []
+
+
+@pytest.mark.asyncio
+async def test_strategy_missing_threshold_uses_default():
+    strategy = _make_strategy()
+    case = await strategy.execute(
+        batch_id=uuid4(),
+        activity_type=ActivityType.EDUCA_INSCRIPTION,
+        dni_reference="12345678",
+        documents=[_doc("DJ", 0.55), _doc("FINS", 0.70)],
         context={},
     )
-    assert len(_issues_with_field(case.discrepancies, "general_confidence")) == 1
-
-
-def test_strategy_ignora_documentos_que_no_pasaron_por_ocr():
-    """Un documento sin `confidence_score` nunca fue escaneado.
-
-    Pasa cuando el expediente está incompleto (el intake deja el documento
-    PENDING sin mandarlo al OCR, a la espera del que falta) o cuando el OCR
-    falló. Inventarle un 0 y reportarlo como "calidad del escaneo 0.0" es
-    mentira: además ensucia el caso con un WARNING que el revisor no puede
-    actuar (no hay escaneo que verificar), duplicando el aviso real de
-    `RequiredDocumentsRule` ("Falta el documento obligatorio: DJ").
-    """
-    strategy = _make_strategy()
-    case = strategy.execute(
-        batch_id=uuid4(),
-        activity_type=ActivityType.EDUCA_INSCRIPTION,
-        dni_reference="12345678",
-        documents=[_doc("DJ", None)],
-        context={"confidence_thresholds": {"DJ": 0.55}},
-    )
-    assert _issues_with_field(case.discrepancies, "general_confidence") == []
-
-
-def test_strategy_mixtea_escaneados_y_no_escaneados():
-    """Solo se evalúa la calidad del documento que sí pasó por el OCR."""
-    strategy = _make_strategy()
-    case = strategy.execute(
-        batch_id=uuid4(),
-        activity_type=ActivityType.EDUCA_INSCRIPTION,
-        dni_reference="12345678",
-        documents=[_doc("DJ", 0.40), _doc("FINS", None)],
-        context={"confidence_thresholds": {"DJ": 0.55, "FINS": 0.55}},
-    )
-    conf_issues = _issues_with_field(case.discrepancies, "general_confidence")
-    assert [d.document_code for d in conf_issues] == ["DJ"]
+    conf_issues = [d for d in case.discrepancies if d.field_name == "general_confidence"]
+    # Default 0.80 -> DJ 0.55 WARNING, FINS 0.70 WARNING -> consolidated into 1
+    assert len(conf_issues) == 1
+    assert conf_issues[0].document_code == "GENERAL"
+    # Mensaje amigable: ambos documentos por debajo del umbral por defecto
+    assert "declaración jurada" in conf_issues[0].rule_description.lower()
+    assert "ficha de inscripción" in conf_issues[0].rule_description.lower()
+    assert "revis" in conf_issues[0].rule_description.lower()

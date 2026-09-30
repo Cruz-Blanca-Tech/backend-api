@@ -10,6 +10,7 @@ class DiscrepancySchema(BaseModel):
     rule_description: str
     severity: str
     document_code: Optional[str] = None
+    navigation_hint: Optional[str] = None
 
     @classmethod
     def from_domain(cls, domain_obj: Any) -> "DiscrepancySchema":
@@ -20,7 +21,8 @@ class DiscrepancySchema(BaseModel):
             actual_value=getattr(domain_obj, "actual_value", None),
             rule_description=getattr(domain_obj, "rule_description", "Sin descripción"),
             severity=getattr(domain_obj, "severity", "WARNING") if isinstance(getattr(domain_obj, "severity", "WARNING"), str) else getattr(domain_obj, "severity").value,
-            document_code=getattr(domain_obj, "document_code", None)
+            document_code=getattr(domain_obj, "document_code", None),
+            navigation_hint=getattr(domain_obj, "navigation_hint", None)
         )
 class AuditLogEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)

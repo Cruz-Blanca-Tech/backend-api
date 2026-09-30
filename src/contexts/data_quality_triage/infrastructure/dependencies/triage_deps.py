@@ -1,6 +1,10 @@
+import logging
+from typing import Optional
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from openai import AsyncAzureOpenAI
 from src.core.database import get_async_db
+from src.core.config import settings
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_document_read_repository import SqlDocumentReadRepository
 from src.contexts.data_quality_triage.domain.shared.strategies.triage_strategy_factory import TriageStrategyFactory
@@ -15,6 +19,24 @@ from src.contexts.data_quality_triage.application.use_cases.get_batch_summary_us
 from src.contexts.data_quality_triage.application.use_cases.retry_batch_sync_use_case import RetryBatchSyncUseCase
 from src.contexts.data_quality_triage.application.use_cases.retry_case_sync_use_case import RetryCaseSyncUseCase
 
+logger = logging.getLogger(__name__)
+
+# Cliente LLM compartido para triage (Azure OpenAI)
+_llm_client: AsyncAzureOpenAI | None = None
+
+def get_llm_client() -> AsyncAzureOpenAI:
+    global _llm_client
+    if _llm_client is None:
+        if not settings.AZURE_OPENAI_API_KEY or not settings.AZURE_OPENAI_ENDPOINT:
+            logger.warning("Azure OpenAI no configurado para triage; LLMNameReconciler no disponible")
+            return None
+        _llm_client = AsyncAzureOpenAI(
+            api_key=settings.AZURE_OPENAI_API_KEY,
+            azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+            api_version=settings.AZURE_OPENAI_API_VERSION or "2024-02-15-preview",
+        )
+    return _llm_client
+
 def get_triage_repository(session: AsyncSession = Depends(get_async_db)) -> SqlTriageRepository:
     return SqlTriageRepository(session=session)
 
@@ -24,8 +46,19 @@ def get_document_read_repository(session: AsyncSession = Depends(get_async_db)) 
 def get_strategy_factory() -> TriageStrategyFactory:
     return TriageStrategyFactory()
 
-def get_dossier_processor(session: AsyncSession = Depends(get_async_db), triage_repo: SqlTriageRepository = Depends(get_triage_repository), doc_repo: SqlDocumentReadRepository = Depends(get_document_read_repository)) -> ProcessDossierUseCase:
-    return ProcessDossierUseCase(triage_repo=triage_repo, doc_repo=doc_repo, strategy_factory=TriageStrategyFactory(), session=session)
+def get_dossier_processor(
+    session: AsyncSession = Depends(get_async_db), 
+    triage_repo: SqlTriageRepository = Depends(get_triage_repository), 
+    doc_repo: SqlDocumentReadRepository = Depends(get_document_read_repository),
+    llm_client: Optional[AsyncAzureOpenAI] = Depends(get_llm_client)
+) -> ProcessDossierUseCase:
+    return ProcessDossierUseCase(
+        triage_repo=triage_repo, 
+        doc_repo=doc_repo, 
+        strategy_factory=TriageStrategyFactory(), 
+        session=session,
+        llm_client=llm_client
+    )
 
 def get_dossier_status_validator(session: AsyncSession = Depends(get_async_db)) -> DossierStatusValidator:
     from src.contexts.document_intake_ocr.infrastructure.persistence.repositories.sql_batch_repository import SqlBatchRepository
