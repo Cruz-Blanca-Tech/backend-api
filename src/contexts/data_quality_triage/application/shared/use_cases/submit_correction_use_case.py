@@ -171,9 +171,21 @@ class SubmitCorrectionUseCase:
         # el `merge()` de `save()` deja la fila sucia en el identity map. Un commit
         # posterior reescribiría el `sync_status` a PENDING y se perdería el SYNCED.
         await self.session.commit()
+        had_events = bool(case.pending_events)
         for event in case.pending_events:
-            await EventDispatcher.dispatch(event)
+            try:
+                await EventDispatcher.dispatch(event)
+            except Exception as e:
+                logger.error(f"Error dispatching event {type(event).__name__} for case {case.id}: {e}", exc_info=True)
         case.clear_events()
+
+        if had_events:
+            if hasattr(self.session, "expire_all"):
+                self.session.expire_all()
+            refreshed = await self.triage_repo.get_by_id(case_id)
+            if refreshed is not None and hasattr(refreshed, "sync_status"):
+                case.sync_status = refreshed.sync_status
+                case.sync_error = getattr(refreshed, "sync_error", None)
 
         # El lote se cierra solo si este expediente fue el último en decidirse.
         # Va DESPUÉS del despacho a propósito: recién ahí el handler de MDM dejó
