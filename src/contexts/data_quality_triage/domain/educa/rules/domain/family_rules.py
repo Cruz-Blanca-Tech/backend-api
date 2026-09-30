@@ -64,13 +64,6 @@ class GuardianPresenceRule(DomainRule):
                     severity="ERROR", document_code="DOMINIO",
                     navigation_hint="contactos_apoderados"
                 ))
-            elif not guardian.full_name or not guardian.full_name.strip():
-                issues.append(FieldDiscrepancy(
-                    field_name="related_adults.guardian_name", expected_pattern="Nombre completo", actual_value="(vacío)",
-                    rule_description=f"El apoderado asignado (DNI: {guardian_dni}) debe tener Nombre completo.", 
-                    severity="ERROR", document_code="DOMINIO",
-                    navigation_hint="contactos_apoderados"
-                ))
         return issues
 
 class EmergencyContactRule(DomainRule):
@@ -127,9 +120,18 @@ class AdultsDniFormatRule(DomainRule):
     """
     def evaluate(self, domain_entity: EducaInscriptionDossier) -> List[FieldDiscrepancy]:
         issues = []
+        guardian_dni = (domain_entity.related_adults.guardian_dni or "").strip()
         for adult in domain_entity.related_adults.adults:
-            label = adult.full_name or _t(adult.relationship) or "un familiar"
             dni = (adult.dni or "").strip()
+            is_guardian = bool(dni and guardian_dni and dni == guardian_dni)
+            role_label = _t(adult.relationship) or "Familiar"
+            if is_guardian:
+                role_ctx = f"{role_label}, Apoderado, DNI: {dni}"
+            elif dni:
+                role_ctx = f"{role_label}, DNI: {dni}"
+            else:
+                role_ctx = role_label
+            label = (adult.full_name or "").strip() or role_ctx
             
             if not dni:
                 issues.append(FieldDiscrepancy(
@@ -138,7 +140,8 @@ class AdultsDniFormatRule(DomainRule):
                     actual_value="(vacío)",
                     rule_description=f"El familiar '{label}' no tiene DNI registrado. El DNI es obligatorio para cada familiar.",
                     severity="ERROR",
-                    document_code="DOMINIO"
+                    document_code="DOMINIO",
+                    navigation_hint="contactos_apoderados"
                 ))
             elif not (dni.isdigit() and len(dni) == 8):
                 issues.append(FieldDiscrepancy(
@@ -147,7 +150,8 @@ class AdultsDniFormatRule(DomainRule):
                     actual_value=dni,
                     rule_description=f"El DNI '{dni}' del familiar '{label}' no es válido: debe tener exactamente 8 dígitos numéricos.",
                     severity="ERROR",
-                    document_code="DOMINIO"
+                    document_code="DOMINIO",
+                    navigation_hint="contactos_apoderados"
                 ))
 
             if not (adult.full_name or "").strip():
@@ -155,9 +159,10 @@ class AdultsDniFormatRule(DomainRule):
                     field_name="related_adults.adults",
                     expected_pattern="Nombre completo",
                     actual_value="(vacío)",
-                    rule_description=f"El familiar registrado ({_t(adult.relationship)}) debe tener Nombre completo.",
+                    rule_description=f"El familiar registrado ({role_ctx}) debe tener Nombre completo.",
                     severity="ERROR",
-                    document_code="DOMINIO"
+                    document_code="DOMINIO",
+                    navigation_hint="contactos_apoderados"
                 ))
         return issues
 
