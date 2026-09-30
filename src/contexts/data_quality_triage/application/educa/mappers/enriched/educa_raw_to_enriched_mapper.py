@@ -35,9 +35,9 @@ class EducaRawToEnrichedMapper:
         dni_generic = raw_docs.get(EducaDocumentCode.DNI_GENERIC.value)
 
         return {
-            EducaDocumentCode.FINS.value:            self._fins.map(FinsRaw.from_dict(fins_raw)) if fins_raw else None,
-            EducaDocumentCode.DJ.value:              self._dj.map(DjRaw.from_dict(dj_raw))       if dj_raw   else None,
-            EducaDocumentCode.DNI_BENEFICIARY.value: self._dni.map(DniRaw.from_dict(dnibe))      if dnibe    else None,
-            EducaDocumentCode.DNI_APODERADO.value:   self._dni.map(DniRaw.from_dict(dniap))      if dniap    else None,
-            EducaDocumentCode.DNI_GENERIC.value:     self._dni.map(DniRaw.from_dict(dni_generic)) if dni_generic else None,
+            EducaDocumentCode.FINS.value:            self._fins.map(FinsRaw.from_dict(fins_raw)) if fins_raw is not None else None,
+            EducaDocumentCode.DJ.value:              self._dj.map(DjRaw.from_dict(dj_raw))       if dj_raw is not None else None,
+            EducaDocumentCode.DNI_BENEFICIARY.value: self._dni.map(DniRaw.from_dict(dnibe))      if dnibe is not None else None,
+            EducaDocumentCode.DNI_APODERADO.value:   self._dni.map(DniRaw.from_dict(dniap))      if dniap is not None else None,
+            EducaDocumentCode.DNI_GENERIC.value:     self._dni.map(DniRaw.from_dict(dni_generic)) if dni_generic is not None else None,
         }

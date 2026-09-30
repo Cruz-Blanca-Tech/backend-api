@@ -21,6 +21,9 @@ class TriageVerdict(str, Enum):
     REQUIRES_TRIAGE = "REQUIRES_TRIAGE"
     MANUALLY_APPROVED = "MANUALLY_APPROVED"
     MANUALLY_REJECTED = "MANUALLY_REJECTED"
+    # Verdicto para rechazos que decide el sistema (p. ej. inscripción
+    # duplicada en la misma actividad), sin intervención del operador.
+    AUTOMATICALLY_REJECTED = "AUTOMATICALLY_REJECTED"
 
     # --- LEGADO (solo lectura) ---
     # Mismo motivo que en TriageStatus: veredictos retirados del dominio que

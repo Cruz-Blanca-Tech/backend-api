@@ -15,6 +15,9 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepa
 
 from src.contexts.data_quality_triage.domain.shared.rules.dossier_status_validator import DossierStatusValidator
 from src.contexts.data_quality_triage.domain.shared.ports.batch_status_validator import BatchStatusValidatorPort
+from src.contexts.data_quality_triage.application.shared.use_cases.finalize_batch_if_complete_use_case import (
+    FinalizeBatchIfCompleteUseCase,
+)
 from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
 
 logger = logging.getLogger(__name__)
@@ -107,12 +110,12 @@ class SubmitCorrectionUseCase:
         # 3. CHECK DUPLICADO: solo si es EDUCA_INSCRIPTION, está completo y no faltan docs
         if (is_complete and not missing_doc_discrepancies 
                 and case.activity_type == "EDUCA_INSCRIPTION" and dni):
-            activity_code = "EDUCA"
+            activity_id = await self._resolve_activity_id(case.batch_id)
             existing = await self.beneficiary_repo.get_by_dni(dni)
-            if existing and any(e.activity_code == activity_code for e in existing.enrollments):
+            if existing and any(e.activity_code == activity_id for e in existing.enrollments):
                 reject_detail = (
                     f"El beneficiario {existing.first_name} {existing.last_name} "
-                    f"(DNI {dni}) ya está inscrito en {activity_code} (MDM id: {existing.id}). "
+                    f"(DNI {dni}) ya está inscrito en esta actividad (MDM id: {existing.id}). "
                     "Para modificar sus datos, use la pantalla de Beneficiarios."
                 )
                 case.reject(user_id, REJECT_DUPLICATE_ENROLLMENT)
@@ -120,7 +123,7 @@ class SubmitCorrectionUseCase:
                 case.update_discrepancies([
                     FieldDiscrepancy(
                         field_name="beneficiary.dni",
-                        expected_pattern="DNI no inscrito en EDUCA",
+                        expected_pattern="DNI no inscrito en esta actividad",
                         actual_value=dni,
                         rule_description=reject_detail,
                         severity="ERROR",
@@ -133,6 +136,7 @@ class SubmitCorrectionUseCase:
                     "existing_beneficiary_id": str(existing.id)
                 })
                 await self.triage_repo.save(case)
+                await self._maybe_finalize_batch(case.batch_id)
                 await self.session.commit()
                 return case
 
@@ -162,12 +166,57 @@ class SubmitCorrectionUseCase:
             })
 
         await self.triage_repo.save(case)
+        # Commit antes de despachar, por el mismo motivo que en `dossier_processor`:
+        # el handler de MDM marca `sync_status = "SYNCED"` desde su propia sesión, y
+        # el `merge()` de `save()` deja la fila sucia en el identity map. Un commit
+        # posterior reescribiría el `sync_status` a PENDING y se perdería el SYNCED.
+        await self.session.commit()
         for event in case.pending_events:
             await EventDispatcher.dispatch(event)
         case.clear_events()
+
+        # El lote se cierra solo si este expediente fue el último en decidirse.
+        # Va DESPUÉS del despacho a propósito: recién ahí el handler de MDM dejó
+        # `sync_status` en SYNCED o en FAILED, y de eso depende si el lote queda
+        # FINALIZED o SYNC_FAILED. Consultarlo antes miraría un PENDING viejo y
+        # cerraría el lote como si todo estuviera cargado.
+        await self._maybe_finalize_batch(case.batch_id)
         await self.session.commit()
         
         return case
+
+    async def _resolve_activity_id(self, batch_id: UUID) -> str:
+        """Devuelve el `activity_id` del lote, que es lo que se guarda en
+        `beneficiary_enrollments.activity_code`.
+
+        Antes este chequeo comparaba contra el literal `"EDUCA"`, pero la columna
+        guarda el UUID de la actividad (mismo valor que `extraction_batches.activity_id`).
+        La comparación no podía coincidir nunca, así que el rechazo por inscripción
+        duplicada no se disparaba al aprobar a mano: solo funcionaba en el
+        reprocesado (`dossier_processor`), que sí usa el UUID.
+        """
+        from sqlalchemy import text
+
+        result = await self.session.execute(
+            text("SELECT activity_id FROM extraction_batches WHERE id = :bid"),
+            {"bid": str(batch_id)},
+        )
+        row = result.fetchone()
+        if row and row[0]:
+            return str(row[0])
+        # Sin lote no se puede determinar la actividad: no se rechaza nada, porque
+        # inventar un id haría matchear cualquier Beneficiario con cualquier otra.
+        logger.warning(
+            "No se pudo resolver la actividad del lote %s; se omite el chequeo de duplicado.",
+            batch_id,
+        )
+        return ""
+
+    async def _maybe_finalize_batch(self, batch_id: UUID) -> None:
+        """Cierra el lote si con este expediente ya quedaron todos decididos."""
+        await FinalizeBatchIfCompleteUseCase(
+            session=self.session, triage_repo=self.triage_repo
+        ).execute(batch_id)
 
     def _add_audit_log(self, case_id: UUID, action: str, performed_by: UUID, previous_status: str, new_status: str, details: dict = None) -> None:
         audit_log = TriageAuditLogModel(id=uuid4(), triage_case_id=case_id, action=action, performed_by=performed_by, previous_status=previous_status, new_status=new_status, details=details)

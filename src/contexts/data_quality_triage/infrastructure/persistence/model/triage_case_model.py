@@ -37,6 +37,8 @@ class TriageCaseModel(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    # Cuándo terminó el procesamiento del expediente (auto o manual)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     audit_logs: Mapped[List["TriageAuditLogModel"]] = relationship(  # type: ignore
         "TriageAuditLogModel",

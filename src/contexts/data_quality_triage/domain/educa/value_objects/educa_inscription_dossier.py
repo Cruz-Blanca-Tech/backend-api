@@ -28,7 +28,7 @@ class EducaInscriptionDossier(DossierData):
         
         # Importamos las reglas ultra-modulares
         from src.contexts.data_quality_triage.domain.educa.rules.domain.beneficiary_rules import BeneficiaryCompletenessRule, AgeCoherenceRule, GenderCoherenceRule
-        from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import GuardianPresenceRule, EmergencyContactRule, FamilyDniUniquenessRule, AdultsDniFormatRule, UniqueParentRoleRule, ParentLastNameCoherenceRule, DjFinsSignerCoherenceRule, DjSignerPresenceRule
+        from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import GuardianPresenceRule, EmergencyContactRule, FamilyDniUniquenessRule, AdultsDniFormatRule, UniqueParentRoleRule, ParentPresenceRule, ParentLastNameCoherenceRule, DjFinsSignerCoherenceRule, DjSignerPresenceRule
         from src.contexts.data_quality_triage.domain.educa.rules.domain.medical_rules import MedicalRules
         from src.contexts.data_quality_triage.domain.educa.rules.domain.education_rules import EducationRules
         
@@ -41,6 +41,7 @@ class EducaInscriptionDossier(DossierData):
             AdultsDniFormatRule(),
             FamilyDniUniquenessRule(),
             UniqueParentRoleRule(),
+            ParentPresenceRule(),
             ParentLastNameCoherenceRule(),
             DjFinsSignerCoherenceRule(),
             DjSignerPresenceRule(),

@@ -47,7 +47,19 @@ async def get_cases_by_batch(
 
 @router.post("/{batch_id}/verify-completion")
 async def verify_batch_completion(batch_id: UUID, uc: VerifyBatchCompletionUseCase = Depends(get_verify_batch_completion_use_case)):
-    """Verifica si todos los expedientes de un lote están aprobados y sincroniza los beneficiarios."""
+    """Verifica si todos los expedientes de un lote están decididos y sincroniza los que falten.
+
+    Ya no hay un botón que lo llame: cada expediente se carga a MDM al aprobarlo, y
+    el lote se cierra solo cuando todos están rechazados y/o cargados
+    (`FinalizeBatchIfCompleteUseCase`). Queda el endpoint porque la lógica de
+    verificar y sincronizar pendientes es la misma que usa el cierre automático, y
+    borrar el use case entero es más riesgoso que dejar el endpoint sin UI.
+
+    OJO: este endpoint devuelve `COMPLETED` con dos significados distintos según
+    donde corte (línea 34: "no había nada pendiente", sin haber sincronizado nada;
+    línea 186: sincronizó de verdad). Es un nombre sobrecargado: el front ya no lo
+    consume, pero si alguien lo vuelve a usar tiene que mirar el `message`.
+    """
     return await uc.execute(batch_id)
 
 @router.post("/{batch_id}/retry-sync")
