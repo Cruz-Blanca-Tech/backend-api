@@ -14,8 +14,9 @@ from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sq
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import _is_valid_phone
 from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import score_candidate
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
 from src.core.events.event_dispatcher import EventDispatcher
-from src.core.validators.exceptions import EntityNotFoundException, DomainValidationError
+from src.core.validators.exceptions import ConflictException, EntityNotFoundException, DomainValidationError
 
 logger = logging.getLogger(__name__)
 SYSTEM_UUID = UUID("00000000-0000-0000-0000-000000000000")
@@ -442,6 +443,25 @@ class ProcessDossierUseCase:
 
         # 3. Ejecutar la validacion cruzada y construir el caso
         existing_case = await self.triage_repo.get_by_dossier(batch_id, dni)
+        if existing_case is not None:
+            # Reprocesar es volver a evaluar el expediente con la IA. Si ya tiene
+            # una decisión tomada no se puede: el caso se reconstruye más abajo y
+            # pisaría el veredicto, perdiéndose tanto la decisión del revisor
+            # como el beneficiario ya escrito en MDM.
+            #
+            # Se bloquea el RECHAZADO siempre, y el APROBADO también: aunque la
+            # carga al MDM haya fallado y siga reintentable, reprocesar de nuevo
+            # tiraría abajo un veredicto que el revisor ya firmó. Para eso está
+            # "Reintentar sincronización" en la ficha, que no reevalúa nada.
+            if existing_case.status == TriageStatus.REJECTED:
+                raise ConflictException(
+                    "Este expediente fue rechazado y no se puede reprocesar."
+                )
+            if existing_case.status == TriageStatus.APPROVED:
+                raise ConflictException(
+                    "Este expediente ya fue aprobado y no se puede reprocesar."
+                )
+
         case = await strategy.execute(
             batch_id=batch_id, 
             activity_type=activity_type, 
@@ -760,9 +780,11 @@ class ProcessDossierUseCase:
                         duplicate_reason = f"El DNI {b_dni} ya tiene un expediente en trámite (pendiente de revisión o aprobación) para esta actividad. No se pueden procesar inscripciones duplicadas."
 
                 if duplicate_reason:
-                    from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
-                    from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
-                    
+                    # `FieldDiscrepancy`, `TriageStatus` y `TriageVerdict` ya están
+                    # importados arriba del módulo. Reimportarlos acá convertía
+                    # `TriageStatus` en variable local de `execute()`, y entonces el
+                    # candado de reproceso de más arriba la encontraba sin valor.
+                    #
                     # SOLO este error, limpiar todas las demás discrepancias
                     case.discrepancies = [FieldDiscrepancy(
                         field_name="beneficiary.dni",

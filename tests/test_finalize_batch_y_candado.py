@@ -216,3 +216,21 @@ class TestCandadoPorCargaAlMdm:
         caso = _make_case(TriageStatus.PENDING_REVIEW)
         with pytest.raises(ConflictException, match="cerrado"):
             await validator.validate_can_be_corrected(caso)
+
+    @pytest.mark.asyncio
+    async def test_deja_corregir_si_el_lote_esta_esperando_un_reintento(self):
+        """`SYNC_FAILED` no es un lote cerrado: hay que poder arreglar el que falló.
+
+        `is_batch_completed` no incluye `SYNC_FAILED`, y el frontend espeja esa
+        misma lista (`LOADED_BATCH_STATUSES`). Si se los agregara, el expediente
+        que no llegó al MDM quedaría bloqueado y sin forma de corregirlo: solo
+        podría reintentarse, y si el MDM lo rechazó por un dato malo, el reintento
+        fallaría igual.
+        """
+        validator_mock = MagicMock()
+        validator_mock.is_batch_completed = AsyncMock(return_value=False)
+        validator = DossierStatusValidator(batch_status_validator=validator_mock)
+
+        caso = _make_case(TriageStatus.APPROVED, "FAILED")
+        await validator.validate_can_be_corrected(caso)  # no debe lanzar
+        await validator.validate_can_be_rejected(caso)   # no debe lanzar
