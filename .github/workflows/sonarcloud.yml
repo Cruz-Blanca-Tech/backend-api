@@ -1,9 +1,10 @@
 name: SonarQube Cloud Analysis
 
 on:
+  # main/master se analizan dentro del pipeline de despliegue (con Quality Gate
+  # bloqueante). Aquí: ramas de desarrollo y Pull Requests.
   push:
     branches:
-      - main
       - develop
   pull_request:
     branches:
@@ -36,10 +37,12 @@ jobs:
       - name: Run tests with coverage
         run: |
           pytest --cov=src --cov-report=xml -q
-        continue-on-error: true
 
       - name: SonarQube Cloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
