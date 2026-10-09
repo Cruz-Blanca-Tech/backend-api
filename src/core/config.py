@@ -1,5 +1,5 @@
 from typing import Literal, Optional
-from pydantic import computed_field
+from pydantic import computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,15 +36,22 @@ class Settings(BaseSettings):
                 url = url.replace("postgres://", "postgresql+asyncpg://", 1)
             return url
             
-        # Hardcoded for Production (Connection Pooler)
+        # En producción la cadena de conexión SOLO llega por variable de entorno
+        # (DATABASE_URL, inyectada como secreto en Azure Container Apps).
+        # Nunca se escriben credenciales en el código fuente (ISO/IEC 27001 A.8.24).
         if self.ENVIRONMENT == "production":
-            return "postgresql+asyncpg://postgres.panujqoelvpjebiiohjf:NZqjyYr0yZ4oGQZS@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
-            
+            raise RuntimeError(
+                "DATABASE_URL no está configurada. En producción debe definirse "
+                "como variable de entorno/secreto del contenedor."
+            )
+
         # Fallback para local
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # Security & Access (OAuth2 & RBAC)
-    SECRET_KEY: str = "super-secret-key-change-in-production-1234567890"  # Cambiar en producción
+    # Valor solo apto para desarrollo local; en producción se exige uno propio
+    # (ver _validar_secretos_produccion más abajo).
+    SECRET_KEY: str = "dev-only-insecure-key"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 días
     
@@ -66,5 +73,18 @@ class Settings(BaseSettings):
     # Azure OpenAI
     AZURE_OPENAI_ENDPOINT: str = ""
     AZURE_OPENAI_API_KEY: str = ""
+
+    @model_validator(mode="after")
+    def _validar_secretos_produccion(self) -> "Settings":
+        """Falla al arrancar si producción usa secretos por defecto o débiles."""
+        if self.ENVIRONMENT == "production":
+            if self.SECRET_KEY == "dev-only-insecure-key" or len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "SECRET_KEY debe definirse por variable de entorno en producción "
+                    "(mínimo 32 caracteres aleatorios)."
+                )
+            if not self.DATABASE_URL:
+                raise ValueError("DATABASE_URL es obligatoria en producción.")
+        return self
 
 settings = Settings()

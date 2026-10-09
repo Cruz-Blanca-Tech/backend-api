@@ -177,6 +177,12 @@ class LLMDataNormalizer(DataNormalizer):
                - Nombres masculinos (ej. "Jonathan", "Jeffer", "Mario", "Juan", "Pedro", "Carlos", "Luis", "José", etc.) y/o cuyo primer apellido coincide con el PRIMER apellido (paterno) del niño corresponden SIEMPRE al PADRE (`parents_father_full_name` en FINS / `parents_father_name` en DJ). Si estaban en el campo de madre, muévelos al campo de padre junto con su DNI/teléfono.
                - Nombres femeninos (ej. "Jackeline", "Mayra", "Laura", "María", "Carmen", "Rosa", "Ana", etc.) y/o cuyo primer apellido coincide con el SEGUNDO apellido (materno) del niño corresponden SIEMPRE a la MADRE (`parents_mother_full_name` en FINS / `parents_mother_name` en DJ). Si estaban en el campo de padre, muévelos al campo de madre junto con su DNI/teléfono.
              * NUNCA asignes a un hombre al rol de Madre ni a una mujer al rol de Padre.
+           - SEPARACIÓN INTELIGENTE DE NOMBRES Y APELLIDOS DEL NIÑO:
+             * En el formulario FINS a veces el OCR extrae el nombre completo en `child_first_name` (ej. "Enoc Gadiel Condori" o "Jeremy Gianfranco Valenthyn Montalvo") y en `child_last_name` deja solo un apellido (ej. "Ruiz") o texto basura (ej. "Bir.").
+             * Si en `child_first_name` hay palabras que coinciden con el primer apellido del padre o de la madre:
+               DEBES retirarlas de `child_first_name` (dejando solo los nombres de pila, ej. "Enoc Gadiel" o "Jeremy Gianfranco Valenthyn")
+               y colocarlas en `child_last_name` en el orden correcto peruano: <Apellido Paterno> <Apellido Materno> (ej. "Condori Rivera", "Montalvo Ruiz", "Paredes Escobar").
+               NUNCA dejes un apellido dentro de `child_first_name` si coincide con los apellidos de los padres.
            - Si una misma persona fue extraída fragmentada en dos campos (ej. "Laura Sondoval Urguia" en Padre y "Sondoval" en Apoderado), consolida su nombre completo en el rol correcto según su género y apellido, y deja el campo incorrecto en `null`.
 
       Devuelve ÚNICAMENTE un JSON válido que replique la estructura original pero con los datos limpios y el campo adicional 'warnings' si aplica.

@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_ANY_STAFF, ALLOW_OPERATIONS
 from fastapi.openapi.utils import get_openapi
 
 from src.contexts.reporting_analytics.features.demographics.presentation.api.demographics_routes import router as demographics_router
@@ -12,10 +13,12 @@ reporting_app = FastAPI(
     version="1.0.0"
 )
 
-reporting_app.include_router(demographics_router)
-reporting_app.include_router(exports_router)
-reporting_app.include_router(ops_dashboard_router)
-reporting_app.include_router(ops_exports_router)
+# Dashboards (datos agregados): todo el personal.
+# Exportaciones CSV (contienen DNI y nombres): solo roles de operación (RF-02, RF-11).
+reporting_app.include_router(demographics_router, dependencies=[Depends(ALLOW_ANY_STAFF)])
+reporting_app.include_router(exports_router, dependencies=[Depends(ALLOW_OPERATIONS)])
+reporting_app.include_router(ops_dashboard_router, dependencies=[Depends(ALLOW_ANY_STAFF)])
+reporting_app.include_router(ops_exports_router, dependencies=[Depends(ALLOW_OPERATIONS)])
 
 @reporting_app.get("/health", tags=["Reporting & Analytics"])
 async def health_check():
