@@ -11,7 +11,8 @@ def _is_valid_phone(value) -> bool:
     v = (value or "").strip()
     if not v:
         return False
-    return bool(re.match(r"^\+?[0-9\s\-()]{7,20}$", v))
+    clean = re.sub(r"[\s\-\(\)\.]", "", v)
+    return bool(re.match(r"^(?:\+?51)?9\d{8}$", clean))
 
 
 def _t(role) -> str:
@@ -104,8 +105,8 @@ class EmergencyContactRule(DomainRule):
             phone = (contact_adult.phone or "").strip()
             if not _is_valid_phone(phone):
                 issues.append(FieldDiscrepancy(
-                    field_name="related_adults.adults", expected_pattern="Número de teléfono válido (7–20 dígitos)", actual_value=phone or "(vacío)",
-                    rule_description=f"El contacto de emergencia ({contact_adult.full_name or emergency_dni}) no tiene un número de teléfono válido. Es obligatorio: el número de contacto debe tener entre 7 y 20 dígitos (p. ej. 9XXXXXXXX).", 
+                    field_name="related_adults.adults", expected_pattern="Número de celular válido de 9 dígitos (ej. 9XXXXXXXX o +51 9XXXXXXXX)", actual_value=phone or "(vacío)",
+                    rule_description=f"El contacto de emergencia ({contact_adult.full_name or emergency_dni}) no tiene un número de teléfono válido. Es obligatorio: el número de contacto debe ser un celular ordinario de 9 dígitos (p. ej. 9XXXXXXXX o con código de país +51).", 
                     severity="ERROR", document_code="DOMINIO",
                     navigation_hint="contactos_apoderados"
                 ))
@@ -164,6 +165,20 @@ class AdultsDniFormatRule(DomainRule):
                     document_code="DOMINIO",
                     navigation_hint="contactos_apoderados"
                 ))
+
+            ad_phone = (adult.phone or "").strip()
+            if ad_phone and not _is_valid_phone(ad_phone):
+                emergency_dni = (domain_entity.related_adults.emergency_contact_dni or "").strip()
+                if dni != emergency_dni:
+                    issues.append(FieldDiscrepancy(
+                        field_name="related_adults.adults",
+                        expected_pattern="Número de celular válido de 9 dígitos (ej. 9XXXXXXXX o +51 9XXXXXXXX)",
+                        actual_value=ad_phone,
+                        rule_description=f"El teléfono '{ad_phone}' del familiar '{label}' no es válido: debe ser un número celular ordinario de 9 dígitos (p. ej. 9XXXXXXXX o con código de país +51).",
+                        severity="ERROR",
+                        document_code="DOMINIO",
+                        navigation_hint="contactos_apoderados"
+                    ))
         return issues
 
 
