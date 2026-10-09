@@ -15,10 +15,12 @@ from src.contexts.data_quality_triage.application.use_cases.verify_batch_complet
 from src.contexts.data_quality_triage.application.use_cases.get_batch_summary_use_case import GetBatchSummaryUseCase
 from src.contexts.data_quality_triage.application.use_cases.retry_batch_sync_use_case import RetryBatchSyncUseCase
 from src.contexts.security_access.infrastructure.dependencies import get_current_user
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_OPERATIONS
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/batch", tags=["Triage Batches"])
+# RF-02: solo roles de operación (Admin, Operativo, Revisor) acceden al triaje.
+router = APIRouter(prefix="/batch", tags=["Triage Batches"], dependencies=[Depends(ALLOW_OPERATIONS)])
 
 
 @router.post("/{batch_id}/reject")
