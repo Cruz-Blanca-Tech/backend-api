@@ -492,7 +492,11 @@ class ProcessDossierUseCase:
             correction_types = []
             for d in auto_corrections:
                 if d.field_name and d.expected_pattern:
-                    fields_changed[d.field_name] = d.expected_pattern
+                    fields_changed[d.field_name] = (
+                        {"antes": d.actual_value, "despues": d.expected_pattern}
+                        if d.actual_value
+                        else d.expected_pattern
+                    )
                 if "surname" in d.rule_description.lower() or "apellido" in d.rule_description.lower():
                     correction_types.append("surname_autocorrect")
                 elif "apoderado" in d.rule_description.lower():

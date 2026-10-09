@@ -29,8 +29,10 @@ from fastapi import Query
 # Mantenemos el desacoplamiento: importamos solo el modelo de Auth para el tipado
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 from src.contexts.security_access.infrastructure.dependencies import get_current_user
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_OPERATIONS
 
-router = APIRouter(prefix="/api/v1/batches", tags=["Batch Extractor Process"])
+# RF-02: solo roles de operación (Admin, Operativo, Revisor) cargan y consultan lotes.
+router = APIRouter(prefix="/api/v1/batches", tags=["Batch Extractor Process"], dependencies=[Depends(ALLOW_OPERATIONS)])
 
 @router.post("", response_model=ProcessBatchResponse, summary="Inicia el procesamiento masivo de un lote documental")
 async def create_batch(

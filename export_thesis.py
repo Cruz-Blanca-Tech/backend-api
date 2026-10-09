@@ -297,6 +297,91 @@ async def export_thesis_data(
 
             resolved_by_str = str(row.resolved_by) if row.resolved_by else None
             resolved_by_name = _format_user_name(resolved_by_str, row.resolved_by_name, row.resolved_by_email)
+            if not resolved_by_name and row.verdict == "AUTO_APPROVED":
+                resolved_by_name = "SISTEMA (Automático)"
+
+            duracion_segundos = None
+            duracion_minutos = None
+            if row.created_at and row.completed_at:
+                try:
+                    c_ini = row.created_at
+                    c_fin = _aware(row.completed_at, c_ini)
+                    secs = (c_fin - c_ini).total_seconds()
+                    duracion_segundos = round(secs, 1)
+                    duracion_minutos = round(secs / 60, 1)
+                except Exception:
+                    pass
+
+            # Mapear notas reales de SurnameAutoCorrector desde discrepancies
+            surname_notes = {}
+            for d in (row.discrepancies or []):
+                if (
+                    isinstance(d, dict)
+                    and d.get("severity") == "INFO"
+                    and str(d.get("rule_description") or "").startswith("Corrección automática:")
+                    and d.get("field_name")
+                ):
+                    surname_notes[d["field_name"]] = d.get("actual_value")
+
+            # Filtrar entradas fantasma de AUTO_CORRECTION (p. ej. ApoderadoNameReconciler
+            # previo al fix que emitía INFO sin mutar el dossier)
+            valid_auto_details = []
+            for ac in (row.auto_corrections_detail or []):
+                ac_fields = ac.get("fields") or {}
+                if isinstance(ac_fields, dict):
+                    clean_fields = {}
+                    for fk, fv in ac_fields.items():
+                        if fk.startswith("related_adults.adults[") and fk.endswith("].full_name"):
+                            try:
+                                idx = int(fk.split("[")[1].split("]")[0])
+                                orig_adults = (orig.get("related_adults") or {}).get("adults") or []
+                                actual_adult_name = (
+                                    orig_adults[idx].get("full_name")
+                                    if idx < len(orig_adults) and isinstance(orig_adults[idx], dict)
+                                    else None
+                                )
+                                target_val = fv.get("despues") if isinstance(fv, dict) else fv
+                                if (
+                                    isinstance(target_val, str)
+                                    and isinstance(actual_adult_name, str)
+                                    and target_val != actual_adult_name
+                                ):
+                                    if fk in surname_notes and surname_notes[fk] != actual_adult_name:
+                                        fv = {"antes": surname_notes[fk], "despues": actual_adult_name}
+                                    else:
+                                        continue
+                                elif fk in surname_notes and not isinstance(fv, dict):
+                                    fv = {"antes": surname_notes[fk], "despues": actual_adult_name}
+                            except Exception:
+                                pass
+                        clean_fields[fk] = fv
+                    if clean_fields:
+                        valid_auto_details.append({**ac, "fields": clean_fields})
+                else:
+                    valid_auto_details.append(ac)
+
+            # Incluir cambios de SurnameAutoCorrector en campos_cambiados si aún no figuran
+            existing_change_keys = {(c["section"], c["field"]) for c in fields_changed}
+            for fk, before_val in surname_notes.items():
+                if fk.startswith("related_adults."):
+                    sub_field = fk.split("related_adults.", 1)[1]
+                    try:
+                        idx = int(sub_field.split("[")[1].split("]")[0])
+                        final_adults = (final.get("related_adults") or {}).get("adults") or []
+                        after_val = (
+                            final_adults[idx].get("full_name")
+                            if idx < len(final_adults) and isinstance(final_adults[idx], dict)
+                            else None
+                        )
+                        if before_val and after_val and before_val != after_val and ("related_adults", sub_field) not in existing_change_keys:
+                            fields_changed.append({
+                                "section": "related_adults",
+                                "field": sub_field,
+                                "original": before_val,
+                                "final": after_val,
+                            })
+                    except Exception:
+                        pass
 
             rows.append({
                 "id": str(row.id),
@@ -319,9 +404,11 @@ async def export_thesis_data(
                 "warnings_finales": row.warnings_finales,
                 "ai_insights_finales": row.ai_insights_finales,
                 "correcciones_usuario": row.correcciones_usuario,
-                "correcciones_auto": row.correcciones_auto,
+                "correcciones_auto": len(valid_auto_details),
+                "duracion_segundos": duracion_segundos,
+                "duracion_minutos": duracion_minutos,
                 "campos_cambiados": fields_changed,
-                "auto_corrections_detail": row.auto_corrections_detail,
+                "auto_corrections_detail": valid_auto_details or None,
                 "manual_corrections_detail": processed_manual_corrections,
             })
         
@@ -389,6 +476,11 @@ async def export_batch_data(batch_id: UUID | None = None) -> list[dict]:
             proc_fin = _aware(row.procesamiento_fin, creado)
             triage_fin = _aware(row.triage_fin, creado)
 
+            def segundos(a, b):
+                if a is None or b is None:
+                    return None
+                return round((b - a).total_seconds(), 1)
+
             def minutos(a, b):
                 if a is None or b is None:
                     return None
@@ -415,6 +507,9 @@ async def export_batch_data(batch_id: UUID | None = None) -> list[dict]:
                 "expedientes_rechazados": row.expedientes_rechazados,
                 "expedientes_sincronizados": row.expedientes_sincronizados,
                 "triage_fin": triage_fin.isoformat() if triage_fin else None,
+                "segundos_lectura": segundos(creado, proc_fin),
+                "segundos_triage": segundos(proc_fin, triage_fin),
+                "segundos_total": segundos(creado, triage_fin),
                 "minutos_lectura": minutos(creado, proc_fin),
                 "minutos_triage": minutos(proc_fin, triage_fin),
                 "minutos_total": minutos(creado, triage_fin),
@@ -440,6 +535,7 @@ async def export_audit_data(batch_id: UUID | None = None) -> list[dict]:
                 tc.id AS triage_case_id,
                 tc.original_dossier_data,
                 tc.dossier_data,
+                tc.discrepancies,
                 al.action,
                 al.previous_status,
                 al.new_status,
@@ -468,7 +564,54 @@ async def export_audit_data(batch_id: UUID | None = None) -> list[dict]:
                 prev_snapshots[case_id_str] = orig
 
             details = dict(row.details) if isinstance(row.details, dict) else row.details
-            if row.action == "CORRECTED" and isinstance(details, dict) and "corrected_fields" in details:
+            action_name = row.action
+            if action_name == "AUTO_APPROVED" and isinstance(details, dict) and details.get("verdict") == "MANUALLY_APPROVED":
+                action_name = "MANUALLY_APPROVED"
+
+            if action_name == "AUTO_CORRECTION" and isinstance(details, dict):
+                surname_notes = {}
+                for d in (row.discrepancies or []):
+                    if (
+                        isinstance(d, dict)
+                        and d.get("severity") == "INFO"
+                        and str(d.get("rule_description") or "").startswith("Corrección automática:")
+                        and d.get("field_name")
+                    ):
+                        surname_notes[d["field_name"]] = d.get("actual_value")
+
+                ac_fields = details.get("fields_changed") or {}
+                if isinstance(ac_fields, dict):
+                    clean_fields = {}
+                    for fk, fv in ac_fields.items():
+                        if fk.startswith("related_adults.adults[") and fk.endswith("].full_name"):
+                            try:
+                                idx = int(fk.split("[")[1].split("]")[0])
+                                orig_adults = (orig.get("related_adults") or {}).get("adults") or []
+                                actual_adult_name = (
+                                    orig_adults[idx].get("full_name")
+                                    if idx < len(orig_adults) and isinstance(orig_adults[idx], dict)
+                                    else None
+                                )
+                                target_val = fv.get("despues") if isinstance(fv, dict) else fv
+                                if (
+                                    isinstance(target_val, str)
+                                    and isinstance(actual_adult_name, str)
+                                    and target_val != actual_adult_name
+                                ):
+                                    if fk in surname_notes and surname_notes[fk] != actual_adult_name:
+                                        fv = {"antes": surname_notes[fk], "despues": actual_adult_name}
+                                    else:
+                                        continue
+                                elif fk in surname_notes and not isinstance(fv, dict):
+                                    fv = {"antes": surname_notes[fk], "despues": actual_adult_name}
+                            except Exception:
+                                pass
+                        clean_fields[fk] = fv
+                    if not clean_fields:
+                        continue
+                    details = {**details, "fields_changed": clean_fields, "count": len(clean_fields)}
+
+            if action_name == "CORRECTED" and isinstance(details, dict) and "corrected_fields" in details:
                 curr_snap = details.get("corrected_fields")
                 if isinstance(curr_snap, dict):
                     step_changes = _diff_dossier(prev_snapshots[case_id_str], curr_snap)
@@ -489,7 +632,7 @@ async def export_audit_data(batch_id: UUID | None = None) -> list[dict]:
                 "triage_case_id": case_id_str,
                 "dni_reference": dni,
                 "beneficiary_name": ben_name,
-                "action": row.action,
+                "action": action_name,
                 "previous_status": row.previous_status,
                 "new_status": row.new_status,
                 "performed_by": uid_str,
@@ -544,6 +687,7 @@ def write_excel(data: list[dict], filepath: Path, batches: list[dict] | None = N
         "Documentos", "Documentos leídos", "Terminó de leer (DERIVADO)",
         "Expedientes", "Terminados", "Resueltos", "Rechazados", "Cargados al maestro",
         "Terminó el triaje (DERIVADO)",
+        "Segundos lectura", "Segundos triaje", "Segundos total",
         "Minutos lectura", "Minutos triaje", "Minutos total",
     ]
     _style_header(ws0, headers0, "1F6F43")
@@ -554,6 +698,7 @@ def write_excel(data: list[dict], filepath: Path, batches: list[dict] | None = N
             "documentos", "documentos_procesados", "procesamiento_fin",
             "expedientes", "expedientes_terminados", "expedientes_resueltos",
             "expedientes_rechazados", "expedientes_sincronizados", "triage_fin",
+            "segundos_lectura", "segundos_triage", "segundos_total",
             "minutos_lectura", "minutos_triage", "minutos_total",
         ], 1):
             ws0.cell(row=row_idx, column=col, value=b.get(key))
@@ -570,20 +715,11 @@ def write_excel(data: list[dict], filepath: Path, batches: list[dict] | None = N
         "Errores Iniciales", "Warnings Iniciales", "Issues en Snapshot",
         "Errores Finales", "Warnings Finales", "AI Insights Finales",
         "Errores Resueltos", "Correcciones Usuario", "Correcciones Auto",
-        "Duración (minutos)"
+        "Duración (segundos)", "Duración (minutos)"
     ]
     _style_header(ws1, headers)
 
     for row_idx, item in enumerate(data, 2):
-        duracion = None
-        if item["created_at"] and item["completed_at"]:
-            try:
-                ini = datetime.fromisoformat(item["created_at"].replace('Z', '+00:00'))
-                fin = datetime.fromisoformat(item["completed_at"].replace('Z', '+00:00'))
-                duracion = round((fin - ini).total_seconds() / 60, 1)
-            except Exception:
-                pass
-
         values = [
             item["id"],
             item["dni_reference"],
@@ -607,7 +743,8 @@ def write_excel(data: list[dict], filepath: Path, batches: list[dict] | None = N
             (item["errores_iniciales"] - item["errores_finales"]),
             item["correcciones_usuario"],
             item["correcciones_auto"],
-            duracion,
+            item.get("duracion_segundos"),
+            item.get("duracion_minutos"),
         ]
 
         for col, val in enumerate(values, 1):

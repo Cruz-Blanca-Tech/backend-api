@@ -5,6 +5,7 @@ from sqlalchemy import select
 from pydantic import BaseModel, UUID4
 
 from src.core.database import get_async_db
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_ANY_STAFF, ALLOW_ADMIN_OR_OPERATIVO
 from src.contexts.core_beneficiary_management.infrastructure.persistence.model.school_model import SchoolModel
 
 router = APIRouter(prefix="/schools", tags=["MDM - Schools"])
@@ -31,13 +32,13 @@ class SchoolResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("", response_model=List[SchoolResponse])
+@router.get("", response_model=List[SchoolResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
 async def list_schools(db: AsyncSession = Depends(get_async_db)):
     result = await db.execute(select(SchoolModel).order_by(SchoolModel.name))
     schools = result.scalars().all()
     return schools
 
-@router.post("", response_model=SchoolResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SchoolResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_ADMIN_OR_OPERATIVO)])
 async def create_school(school: SchoolCreate, db: AsyncSession = Depends(get_async_db)):
     new_school = SchoolModel(
         name=school.name,
@@ -54,7 +55,7 @@ async def create_school(school: SchoolCreate, db: AsyncSession = Depends(get_asy
         await db.rollback()
         raise HTTPException(status_code=400, detail="El colegio ya existe o hubo un error.")
 
-@router.patch("/{school_id}", response_model=SchoolResponse)
+@router.patch("/{school_id}", response_model=SchoolResponse, dependencies=[Depends(ALLOW_ADMIN_OR_OPERATIVO)])
 async def update_school(school_id: UUID4, update_data: SchoolUpdate, db: AsyncSession = Depends(get_async_db)):
     result = await db.execute(select(SchoolModel).filter(SchoolModel.id == school_id))
     school = result.scalar_one_or_none()

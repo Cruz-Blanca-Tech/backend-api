@@ -4,7 +4,7 @@ from uuid import UUID
 
 # 1. Importamos nuestros DTOs
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
-from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_ADMIN_ONLY, ALLOW_ANY_STAFF
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_ADMIN_ONLY, ALLOW_ADMIN_OR_OPERATIVO
 from src.contexts.security_access.infrastructure.dependencies import get_current_user, get_user_service
 from src.contexts.security_access.presentation.dto.user_dto import UpdateRoleRequest, UserResponse
 
@@ -16,14 +16,14 @@ from src.contexts.security_access.application.services.user_service import UserS
 
 router = APIRouter(prefix="/users")
 
-@router.get("", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ANY_STAFF)])
-@router.get("/", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ANY_STAFF)], include_in_schema=False)
+@router.get("", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ADMIN_OR_OPERATIVO)])
+@router.get("/", response_model=List[UserResponse], dependencies=[Depends(ALLOW_ADMIN_OR_OPERATIVO)], include_in_schema=False)
 async def list_users(
     user_service: UserService = Depends(get_user_service)
 ):
     """
     Lista todos los usuarios del sistema. 
-    Protección: Solo administradores y revisores pueden ver esta lista.
+    Protección: Administrador u Operativo (misma regla que la pantalla Usuarios).
     """
     # El Application Service orquesta la    llamada al repositorio
     users = await user_service.list_users()
@@ -33,7 +33,7 @@ async def list_users(
     return users_list
 
 
-@router.patch("/{user_id}/role", response_model=UserResponse, dependencies=[Depends(ALLOW_ANY_STAFF)])
+@router.patch("/{user_id}/role", response_model=UserResponse, dependencies=[Depends(ALLOW_ADMIN_ONLY)])
 async def update_user_role(
     user_id: UUID,
     request: UpdateRoleRequest,

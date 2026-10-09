@@ -5,14 +5,15 @@ from dataclasses import dataclass
 class PhoneNumber:
     value: str
 
-    _PATTERN = re.compile(r"^\+?[\d\s-]{7,15}$")
+    _PATTERN = re.compile(r"^(?:\+?51)?9\d{8}$")
 
     @classmethod
     def is_valid(cls, phone_str: str) -> bool:
         """
-        Valida matemáticamente si una cadena puede ser considerada un número de teléfono.
-        Reglas: Entre 7 y 15 caracteres (dígitos, guiones o espacios) y puede iniciar con '+'.
+        Valida si una cadena es un número de teléfono celular ordinario.
+        Reglas: 9 dígitos comenzando con 9, opcionalmente con código de país (+51 o 51).
         """
         if not phone_str:
             return False
-        return bool(cls._PATTERN.match(phone_str.strip()))
+        clean = re.sub(r"[\s\-\(\)\.]", "", str(phone_str).strip())
+        return bool(cls._PATTERN.match(clean))
