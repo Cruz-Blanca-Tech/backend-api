@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
@@ -7,9 +7,11 @@ from src.contexts.document_intake_ocr.domain.value_objects.file_item import File
 from src.contexts.document_intake_ocr.infrastructure.dependencies.batch_deps import get_storage_adapter, get_extractor_adapter
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 from src.contexts.security_access.infrastructure.dependencies import get_current_user
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_OPERATIONS
 from src.core.config import settings
 
-router = APIRouter(prefix="/api/v1/sync-extract", tags=["Sync Extraction"])
+# RF-02: solo roles de operación (Admin, Operativo, Revisor) cargan y consultan lotes.
+router = APIRouter(prefix="/api/v1/sync-extract", tags=["Sync Extraction"], dependencies=[Depends(ALLOW_OPERATIONS)])
 
 class SyncExtractRequest(BaseModel):
     file: FileItemSchema

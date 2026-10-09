@@ -55,6 +55,9 @@ cover/
 *.mo
 *.pot
 
+# Diagnostic scratch scripts
+diagnose_batch.py
+
 # Django stuff:
 *.log
 local_settings.py

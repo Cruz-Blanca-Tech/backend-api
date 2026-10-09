@@ -72,83 +72,12 @@ class ApoderadoNameReconciler:
             fuente_apellido_fins = "FINS"
             nombre_fins_ap = self._build_full_name(fins_match.first_name, fins_match.last_name)
 
-        # 3. EXTRAER LOS 4 APELLIDOS
-        # A) DNIAP - apellido apoderado
-        # B) FINS_apoderado - apellido del padre/madre/apoderado según match
-        # C) FINS_niño - apellido del niño en FINS
-        apellido_fins_nino = self._extract_last_word(self._get_norm(self.fins.child_last_name))
-        
-        # D) DNIBE - apellido del niño en DNIBE (modelo actual: apellido completo)
-        apellido_dnibe_nino = self._get_norm(self.dnibe.last_name)
-
-        # 4. TABLA DE COINCIDENCIAS (normalizadas a upper/strip)
-        coincidencias_raw = {
-            "DNIAP": self._get_norm(self.dniap.last_name),
-            "FINS_apoderado": self._get_norm(fins_match.last_name) if fins_match else None,
-            "FINS_niño": apellido_fins_nino,
-            "DNIBE_niño": self._get_norm(self.dnibe.last_name),
-        }
-        # Si no hubo match en FINS, no contamos FINS_apoderado
-        if not fins_match:
-            coincidencias_raw.pop("FINS_apoderado", None)
-
-        # Normalizar para comparar (upper, strip)
-        coincidencias = {k: (v.upper().strip() if v else None) for k, v in coincidencias_raw.items()}
-
-        # 5. VOTACIÓN: apellido con más fuentes
-        votos = {}
-        for fuente, ape in coincidencias.items():
-            if ape:
-                votos[ape] = votos.get(ape, 0) + 1
-
-        if not votos:
-            return []  # Sin apellidos para comparar
-
-        apellido_ganador = max(votos, key=votos.get)
-        fuentes_ganadoras = [f for f, a in coincidencias.items() if a == apellido_ganador]
-
-        # 6. DECISIÓN DEL NOMBRE
-        # Prioridad: DNIAP > FINS_apoderado (si ambos en ganadores, DNIAP gana por ser doc oficial)
-        dniap_en_ganadores = coincidencias.get("DNIAP") == apellido_ganador
-        fins_ap_en_ganadores = coincidencias.get("FINS_apoderado") == apellido_ganador
-
-        if dniap_en_ganadores:
-            elegido = "DNIAP"
-            nombre_elegido = self._build_full_name(self.dniap.first_name, self.dniap.last_name)
-        elif fins_ap_en_ganadores:
-            elegido = "FINS"
-            # Buscar el nombre completo en FINS
-            fins_ap = self._find_fins_adult(dni_ap)
-            nombre_elegido = self._build_full_name(fins_ap.first_name, fins_ap.last_name) if fins_ap else None
-        else:
-            elegido = "DNIAP"  # fallback seguro
-            nombre_elegido = self._build_full_name(self.dniap.first_name, self.dniap.last_name)
-
-        # 7. GENERAR CORRECCIÓN SI EL NOMBRE CAMBIA EN EL DOSSIER
-        for i, adulto in enumerate(self.dossier_adults):
-            dni_adulto = self._get_norm(getattr(adulto, "dni", None))
-            if dni_adulto == dni_ap:
-                nombre_actual = self._get_norm(getattr(adulto, "full_name", None))
-                if nombre_elegido and nombre_elegido != nombre_actual:
-                    # Construir descripción legible
-                    coincidencias_str = ", ".join(f"{k}='{v}'" for k, v in coincidencias_raw.items())
-                    desc = (
-                        f"Apoderado DNI {dni_ap}: nombre reconciliado → '{nombre_elegido}' (fuente: {elegido}). "
-                        f"Votación apellidos: {coincidencias_str}. "
-                        f"Ganador: '{list(votos.keys())[list(votos.values()).index(max(votos.values()))]}' "
-                        f"respaldado por {fuentes_ganadoras}."
-                    )
-                    return [FieldDiscrepancy(
-                        field_name=f"related_adults.adults[{i}].full_name",
-                        expected_pattern=nombre_elegido,
-                        actual_value=nombre_actual,
-                        rule_description=desc,
-                        severity="INFO",
-                        document_code="DNIAP"
-                    )]
-                break
-
+        # Nota: la corrección automática de apellidos en el dossier la realiza
+        # SurnameAutoCorrector (corroborando FINS + DNIBE y mutando full_name).
+        # Aquí no se emite discrepancia INFO porque DNIAP (prebuilt-idDocument)
+        # suele traer solo el primer apellido y truncaría el segundo apellido.
         return []
+
 
     # --- Helpers ---
     @staticmethod
