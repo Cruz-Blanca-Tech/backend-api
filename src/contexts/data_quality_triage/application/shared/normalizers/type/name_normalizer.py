@@ -14,5 +14,6 @@ class NameNormalizer(FieldNormalizer):
             if unicodedata.category(c) != 'Mn'
         )
         val_str = val_str.upper()
-        val_str = re.sub(r'[^A-Z0-9\s]', ' ', val_str)
+        val_str = re.sub(r'[0-9]+', ' ', val_str)
+        val_str = re.sub(r'[^A-Z\s]', ' ', val_str)
         return " ".join(val_str.split())

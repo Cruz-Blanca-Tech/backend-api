@@ -16,11 +16,13 @@ from src.contexts.data_quality_triage.application.use_cases.retry_case_sync_use_
 from src.contexts.data_quality_triage.application.shared.factories.dossier_factory import DossierFactory
 from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type import ActivityType
 from src.contexts.security_access.infrastructure.dependencies import get_current_user
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_OPERATIONS
 from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
 from dataclasses import asdict
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/educa", tags=["Educa Triage"])
+# RF-02: solo roles de operación (Admin, Operativo, Revisor) acceden al triaje.
+router = APIRouter(prefix="/educa", tags=["Educa Triage"], dependencies=[Depends(ALLOW_OPERATIONS)])
 
 @router.get("/{case_id}", response_model=EducaTriageCasePreviewResponse)
 async def get_educa_triage_case(
