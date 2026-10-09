@@ -10,8 +10,9 @@ class Phone:
         if not val:
             raise ValueError("Phone cannot be empty")
         
-        # Permit basic phone number formats (e.g., +51 987 654 321 or just 987654321)
-        if not re.match(r"^\+?[0-9\s\-()]{7,20}$", val):
+        # Validar número de celular ordinario (9 dígitos empezando en 9, opcionalmente con prefijo +51 o 51)
+        clean = re.sub(r"[\s\-\(\)\.]", "", val)
+        if not re.match(r"^(?:\+?51)?9\d{8}$", clean):
             raise ValueError(f"Invalid phone format: {val}")
         
         # We need to bypass frozen to set the normalized value

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_OPERATIONS
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.database import get_async_db
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_analytics_repository import SqlAnalyticsRepository
@@ -11,6 +12,7 @@ from src.contexts.data_quality_triage.application.shared.schemas.analytics_schem
 router = APIRouter(
     prefix="/api/v1/triage/analytics",
     tags=["Triage Analytics"],
+    dependencies=[Depends(ALLOW_OPERATIONS)],
     responses={404: {"description": "Not found"}}
 )
 

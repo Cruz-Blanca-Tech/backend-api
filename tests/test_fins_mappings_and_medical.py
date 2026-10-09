@@ -88,3 +88,19 @@ def test_hospitalization_and_operation_reasons_are_optional():
     assert domain.medical.has_been_operated is True
     assert domain.medical.has_been_hospitalized is True
     assert MedicalRules().evaluate(domain) == []
+
+
+def test_operation_and_hospitalization_dash_reason_is_treated_as_none():
+    _, domain = _map_fins_to_domain(
+        {
+            "medical_has_been_operated": "NO",
+            "medical_operation_reason": "-",
+            "medical_has_been_hospitalized": "NO",
+            "medical_hospitalization_reason": "--",
+        }
+    )
+
+    assert domain.medical.has_been_operated is False
+    assert domain.medical.operation_reason is None
+    assert domain.medical.has_been_hospitalized is False
+    assert domain.medical.hospitalization_reason is None

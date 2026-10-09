@@ -154,18 +154,23 @@ class SurnameAutoCorrector:
                 if _ocr_similar(norm, norm_surname):
                     # Unificación al apellido corroborado (escritura de la FINS).
                     words[i] = spelling
-                    notes.append(self._build_note(index, role, original_name, word, spelling))
+                    notes.append((word, spelling))
                     break
 
         if notes:
-            adult.full_name = " ".join(words)
-        return notes
+            new_name = " ".join(words)
+            adult.full_name = new_name
+            return [
+                self._build_note(index, role, original_name, new_name, wrong_word, spelling)
+                for wrong_word, spelling in notes
+            ]
+        return []
 
-    def _build_note(self, index, role, original_name, wrong_word, spelling) -> FieldDiscrepancy:
+    def _build_note(self, index, role, original_name, new_name, wrong_word, spelling) -> FieldDiscrepancy:
         label = "el Padre" if role == "FATHER" else "la Madre"
         return FieldDiscrepancy(
             field_name=f"related_adults.adults[{index}].full_name",
-            expected_pattern="Apellido unificado al del beneficiario",
+            expected_pattern=new_name,
             actual_value=original_name,
             rule_description=(
                 f"Corrección automática: el apellido de {label} se leyó '{wrong_word}' "

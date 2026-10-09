@@ -16,6 +16,11 @@ from src.contexts.core_beneficiary_management.application.use_cases.get_benefici
 from src.contexts.core_beneficiary_management.application.use_cases.patch_beneficiary_use_case import PatchBeneficiaryUseCase
 from src.contexts.core_beneficiary_management.application.use_cases.create_beneficiary_use_case import CreateBeneficiaryUseCase
 from src.core.validators.exceptions import ConflictException, DomainValidationError
+from src.contexts.security_access.infrastructure.api.dependencies.policies import ALLOW_ANY_STAFF, ALLOW_OPERATIONS
+from src.contexts.security_access.infrastructure.dependencies import get_current_user
+from src.contexts.security_access.domain.value_objects.token_claims import TokenClaims
+from src.contexts.security_access.domain.value_objects.role import Role
+from src.contexts.core_beneficiary_management.presentation.mappers.privacy_mask import mask_summary
 from src.core.database import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -26,7 +31,7 @@ router = APIRouter(prefix="/beneficiaries", tags=["Master Data - Beneficiaries"]
 
 from sqlalchemy import or_
 
-@router.get("/adults/search")
+@router.get("/adults/search", dependencies=[Depends(ALLOW_OPERATIONS)])
 async def search_adult(query: str, db: AsyncSession = Depends(get_async_db)):
     """Busca un adulto por su DNI o Nombre/Apellido para autocompletar formularios."""
     stmt = select(AdultModel).where(
@@ -52,16 +57,25 @@ async def search_adult(query: str, db: AsyncSession = Depends(get_async_db)):
         for adult in adults
     ]
 
-@router.get("", response_model=PaginatedBeneficiaryResponse)
+@router.get("", response_model=PaginatedBeneficiaryResponse, dependencies=[Depends(ALLOW_ANY_STAFF)])
 async def get_beneficiaries(
     skip: int = 0,
     limit: int = 100,
-    use_case: GetBeneficiariesUseCase = Depends(get_beneficiaries_use_case)
+    use_case: GetBeneficiariesUseCase = Depends(get_beneficiaries_use_case),
+    current_user: TokenClaims = Depends(get_current_user),
 ):
-    """Obtiene una lista paginada de todos los beneficiarios."""
-    return await use_case.execute(skip=skip, limit=limit)
+    """Obtiene una lista paginada de todos los beneficiarios.
 
-@router.get("/by-dni/{dni}", response_model=MdmBeneficiaryMatchResponse)
+    RF-11: para el rol Visualizador el enmascarado se aplica en el servidor
+    (DNI reducido a sus últimos 4 dígitos y nombres a iniciales), de modo que
+    el dato completo nunca sale del backend hacia ese rol.
+    """
+    page = await use_case.execute(skip=skip, limit=limit)
+    if current_user.role == Role.VISUALIZADOR:
+        page.items = [mask_summary(item) for item in page.items]
+    return page
+
+@router.get("/by-dni/{dni}", response_model=MdmBeneficiaryMatchResponse, dependencies=[Depends(ALLOW_OPERATIONS)])
 async def get_beneficiary_by_dni(
     dni: str,
     use_case: GetBeneficiaryByDniUseCase = Depends(get_beneficiary_by_dni_use_case)
@@ -70,7 +84,7 @@ async def get_beneficiary_by_dni(
     de identidad y familiares si está registrado, `exists=false` si no."""
     return await use_case.execute(dni)
 
-@router.get("/{beneficiary_id}", response_model=BeneficiaryResponse)
+@router.get("/{beneficiary_id}", response_model=BeneficiaryResponse, dependencies=[Depends(ALLOW_OPERATIONS)])
 async def get_beneficiary(
     beneficiary_id: UUID,
     use_case: GetBeneficiaryByIdUseCase = Depends(get_beneficiary_by_id_use_case)
@@ -81,7 +95,7 @@ async def get_beneficiary(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Beneficiary not found")
     return beneficiary
 
-@router.patch("/{beneficiary_id}", response_model=BeneficiaryResponse)
+@router.patch("/{beneficiary_id}", response_model=BeneficiaryResponse, dependencies=[Depends(ALLOW_OPERATIONS)])
 async def patch_beneficiary(
     beneficiary_id: UUID,
     payload: BeneficiaryPatchRequest,
@@ -96,8 +110,8 @@ async def patch_beneficiary(
         logger.error(f"Error patching beneficiary {beneficiary_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-@router.post("", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+@router.post("", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_OPERATIONS)])
+@router.post("/", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False, dependencies=[Depends(ALLOW_OPERATIONS)])
 async def create_beneficiary(
     payload: BeneficiaryCreateRequest,
     use_case: CreateBeneficiaryUseCase = Depends(get_create_beneficiary_use_case)
@@ -113,7 +127,7 @@ async def create_beneficiary(
         logger.error(f"Error creating beneficiary: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@router.post("/{beneficiary_id}", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{beneficiary_id}", response_model=BeneficiaryResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(ALLOW_OPERATIONS)])
 async def create_beneficiary_with_id(
     beneficiary_id: UUID,
     payload: BeneficiaryCreateRequest,

@@ -192,6 +192,60 @@ def test_emergency_contact_acepta_telefono_valido():
     assert not any(i.severity == "ERROR" and "teléfono" in i.rule_description for i in issues)
 
 
+def test_emergency_contact_rechaza_telefono_concatenado_dual():
+    # Caso real Exp. 05: dos teléfonos unidos por guión ("918158048-967552092") no deben pasar
+    issues = EmergencyContactRule().evaluate(_contact_dossier(phone="918158048-967552092"))
+    assert any(i.severity == "ERROR" and "teléfono" in i.rule_description for i in issues)
+
+
+def test_emergency_contact_acepta_telefono_con_prefijo_pais():
+    for phone in ["+51 925 917 655", "+51925917655", "51925917655", "925-917-655"]:
+        issues = EmergencyContactRule().evaluate(_contact_dossier(phone=phone))
+        assert not any(i.severity == "ERROR" and "teléfono" in i.rule_description for i in issues)
+
+
+def test_is_valid_phone_helper_cobertura_completa():
+    from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import _is_valid_phone
+    from src.contexts.data_quality_triage.domain.shared.value_objects.phone_number import PhoneNumber
+    from src.contexts.core_beneficiary_management.domain.value_objects.phone import Phone
+
+    valid_phones = [
+        "918158048",
+        "918 158 048",
+        "918-158-048",
+        "+51 918 158 048",
+        "+51918158048",
+        "51918158048",
+        "(+51) 918158048",
+    ]
+    invalid_phones = [
+        "918158048-967552092",
+        "123",
+        "530045",
+        "47321588",
+        "91815804",
+        "9181580480",
+        "",
+        None,
+    ]
+
+    for p in valid_phones:
+        assert _is_valid_phone(p) is True, f"Esperado válido: {p}"
+        assert PhoneNumber.is_valid(p) is True, f"PhoneNumber esperado válido: {p}"
+        vo = Phone(p)
+        assert vo.value == p
+
+    for p in invalid_phones:
+        assert _is_valid_phone(p) is False, f"Esperado inválido: {p}"
+        assert PhoneNumber.is_valid(p) is False, f"PhoneNumber esperado inválido: {p}"
+        if p:
+            try:
+                Phone(p)
+                assert False, f"Phone VO debió lanzar ValueError para {p}"
+            except ValueError:
+                pass
+
+
 # ------------------------------------- preservación en reuso (repo save)
 
 
