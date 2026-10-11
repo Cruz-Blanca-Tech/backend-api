@@ -79,6 +79,25 @@ def custom_openapi():
         version="1.0.0",
         routes=app.routes,
     )
+    
+    # Unificar los contratos OpenAPI de los 5 Bounded Contexts montados
+    mounted_apps = [
+        ("/auth", security_app),
+        (f"{settings.API_V1_STR}/intake", intake_app),
+        (f"{settings.API_V1_STR}/triage", triage_app),
+        (f"{settings.API_V1_STR}/mdm", beneficiary_app),
+        (f"{settings.API_V1_STR}/reporting", reporting_app),
+    ]
+    for prefix, sub_app in mounted_apps:
+        sub_openapi = sub_app.openapi()
+        for path, path_item in sub_openapi.get("paths", {}).items():
+            full_path = f"{prefix}{path}" if path != "/" else prefix
+            openapi_schema.setdefault("paths", {})[full_path] = path_item
+        if "components" in sub_openapi and "schemas" in sub_openapi["components"]:
+            openapi_schema.setdefault("components", {}).setdefault("schemas", {}).update(
+                sub_openapi["components"]["schemas"]
+            )
+
     openapi_schema.setdefault("components", {})["securitySchemes"] = {
         "Bearer Auth": {
             "type": "http",
