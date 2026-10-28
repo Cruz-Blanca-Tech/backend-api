@@ -328,8 +328,8 @@ class FamilyDomainMapper:
             is_male = any(t in male_names for t in given_tokens) and not any(t in female_names for t in given_tokens)
             is_female = any(t in female_names for t in given_tokens) and not any(t in male_names for t in given_tokens)
 
-            # Coherencia por apellido paterno/materno del niño (ej. niño PAREDES ESCOBAR:
-            # adulto con apellido PAREDES -> línea paterna; adulto con apellido ESCOBAR -> línea materna)
+            # Coherencia por apellido paterno/materno del niño (ej. niño PÉREZ LÓPEZ:
+            # adulto con apellido PÉREZ -> línea paterna; adulto con apellido LÓPEZ -> línea materna)
             matches_paternal = False
             matches_maternal = False
             if child_paternal and child_maternal and child_paternal != child_maternal and surname_tokens:
