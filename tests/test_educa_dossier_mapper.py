@@ -208,3 +208,77 @@ def test_alta_deduplicates_by_dni_and_builds_flags():
     assert sorted(by_dni.keys()) == ["11223344", "87654321"]
     assert by_dni["11223344"].is_guardian is True
     assert by_dni["87654321"].is_emergency_contact is True
+
+
+# --- EDUCACIÓN (D1: preservación de datos educativos desde triaje) ------------
+
+def test_education_record_mapping_from_triage_fields():
+    """Verifica que los campos de educación con nombres de triaje (knows_read, etc.)
+    no se conviertan en false por defecto en el MDM (Defecto D1)."""
+    from src.contexts.core_beneficiary_management.application.use_cases.strategies.educa_dossier_processor import EducaDossierProcessor
+
+    triage_payload = {
+        "beneficiary": {
+            "dni": "88776655",
+            "first_name": "CARLOS",
+            "last_name": "MENDOZA",
+            "birth_date": "2015-05-10",
+            "gender": "M",
+        },
+        "education": {
+            "school": "Colegio San Martin",
+            "grade": "3RO_PRIMARIA",
+            "knows_read": True,
+            "knows_write": True,
+            "repeated_grade": True,
+            "learning_difficulties": True,
+        },
+        "related_adults": {
+            "adults": [
+                {"dni": "44332211", "full_name": "LUCIA MENDOZA", "relationship": "MOTHER"}
+            ],
+            "guardian_dni": "44332211",
+        },
+    }
+
+    processor = EducaDossierProcessor()
+    beneficiary = processor.process(triage_payload, None)
+
+    assert beneficiary.education_record is not None
+    assert beneficiary.education_record.school == "Colegio San Martin"
+    assert beneficiary.education_record.knows_how_to_read is True
+    assert beneficiary.education_record.knows_how_to_write is True
+    assert beneficiary.education_record.has_repeated_grade is True
+    assert beneficiary.education_record.has_learning_difficulties is True
+
+
+def test_education_record_mapping_preserves_explicit_false():
+    """Verifica que cuando un valor es explícitamente False se respete."""
+    from src.contexts.core_beneficiary_management.application.use_cases.strategies.educa_dossier_processor import EducaDossierProcessor
+
+    triage_payload = {
+        "beneficiary": {
+            "dni": "88776655",
+            "first_name": "CARLOS",
+            "last_name": "MENDOZA",
+            "birth_date": "2015-05-10",
+            "gender": "M",
+        },
+        "education": {
+            "school": "Colegio San Martin",
+            "grade": "3RO_PRIMARIA",
+            "knows_read": False,
+            "knows_write": False,
+            "repeated_grade": False,
+            "learning_difficulties": False,
+        },
+    }
+
+    processor = EducaDossierProcessor()
+    beneficiary = processor.process(triage_payload, None)
+
+    assert beneficiary.education_record is not None
+    assert beneficiary.education_record.knows_how_to_read is False
+    assert beneficiary.education_record.knows_how_to_write is False
+    assert beneficiary.education_record.has_repeated_grade is False
+    assert beneficiary.education_record.has_learning_difficulties is False
