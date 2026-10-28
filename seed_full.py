@@ -85,7 +85,7 @@ DOCUMENT_CONFIGS = [
 # salia en el 100% de los casos y no distinguia nada.
 #
 # 0.65 separa las lecturas reales de los fracasos del OCR: los 23 documentos
-# leidos caen por encima, y el unico 0.0000 (DNIBE del DNI 78876488) queda
+# leidos caen por encima, y el unico 0.0000 (DNIBE con imagen ilegible) queda
 # fuera, que es justo lo que tiene que quedar fuera.
 #
 # OJO: el aviso de confianza es WARNING, y los WARNING bloquean la ruta
