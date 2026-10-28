@@ -282,3 +282,95 @@ def test_education_record_mapping_preserves_explicit_false():
     assert beneficiary.education_record.knows_how_to_write is False
     assert beneficiary.education_record.has_repeated_grade is False
     assert beneficiary.education_record.has_learning_difficulties is False
+
+
+def test_education_record_mapping_handles_none_learning_difficulties_in_triage():
+    """Verifica que learning_difficulties=None en el triaje no rompa Pydantic y
+    se guarde como False para beneficiarios nuevos debido al NOT NULL de PostgreSQL."""
+    from src.contexts.core_beneficiary_management.application.use_cases.strategies.educa_dossier_processor import EducaDossierProcessor
+
+    triage_payload = {
+        "beneficiary": {
+            "dni": "88776655",
+            "first_name": "CARLOS",
+            "last_name": "MENDOZA",
+            "birth_date": "2015-05-10",
+            "gender": "M",
+        },
+        "education": {
+            "school": "Colegio San Martin",
+            "grade": "3RO_PRIMARIA",
+            "knows_read": True,
+            "knows_write": True,
+            "repeated_grade": False,
+            "learning_difficulties": None,
+        },
+        "related_adults": {
+            "adults": [
+                {"dni": "44332211", "full_name": "LUCIA MENDOZA", "relationship": "MOTHER"}
+            ],
+            "guardian_dni": "44332211",
+        },
+    }
+
+    processor = EducaDossierProcessor()
+    beneficiary = processor.process(triage_payload, None)
+
+    assert beneficiary.education_record is not None
+    assert beneficiary.education_record.knows_how_to_read is True
+    assert beneficiary.education_record.knows_how_to_write is True
+    assert beneficiary.education_record.has_repeated_grade is False
+    assert beneficiary.education_record.has_learning_difficulties is False
+
+
+def test_education_record_mapping_preserves_existing_beneficiary_data_when_none():
+    """Verifica que al procesar un expediente para un beneficiario existente, si un campo
+    educativo viene en None en el DTO/triaje, no sobreescriba con False el dato maestro existente."""
+    from src.contexts.core_beneficiary_management.application.use_cases.strategies.educa_dossier_processor import EducaDossierProcessor
+    from src.contexts.core_beneficiary_management.domain.entities.beneficiary import Beneficiary
+    from src.contexts.core_beneficiary_management.domain.value_objects.education_record import EducationRecord
+    import uuid
+
+    # Beneficiario existente con dificultades de aprendizaje registradas y lectoescritura afirmativa
+    existing = Beneficiary(
+        id=uuid.uuid4(),
+        dni="88776655",
+        first_name="CARLOS",
+        last_name="MENDOZA",
+        birth_date=None,
+        gender="M",
+        address=None,
+    )
+    existing.education_record = EducationRecord(
+        id=uuid.uuid4(),
+        beneficiary_id=existing.id,
+        school="Colegio Antiguo",
+        grade=None,
+        knows_how_to_read=True,
+        knows_how_to_write=True,
+        has_repeated_grade=True,
+        has_learning_difficulties=True,
+    )
+
+    # Nuevo expediente donde learning_difficulties es None (no evaluado) y no se tocan los otros
+    triage_payload = {
+        "beneficiary": {
+            "dni": "88776655",
+            "first_name": "CARLOS",
+            "last_name": "MENDOZA",
+        },
+        "education": {
+            "school": "Colegio San Martin Actualizado",
+            "learning_difficulties": None,
+        },
+    }
+
+    processor = EducaDossierProcessor()
+    updated = processor.process(triage_payload, existing)
+
+    assert updated.education_record.school == "Colegio San Martin Actualizado"
+    # Se preservan los datos preexistentes porque el payload trajo None
+    assert updated.education_record.knows_how_to_read is True
+    assert updated.education_record.knows_how_to_write is True
+    assert updated.education_record.has_repeated_grade is True
+    assert updated.education_record.has_learning_difficulties is True
