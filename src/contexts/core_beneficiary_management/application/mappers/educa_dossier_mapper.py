@@ -132,17 +132,49 @@ class EducaDossierMapper:
             )
             
         e = beneficiary.education_record
-        e.school = edu_dto.school
+        if edu_dto.school is not None or not existing_beneficiary:
+            e.school = edu_dto.school
         
-        try:
-            e.grade = Grade(edu_dto.grade) if edu_dto.grade else None
-        except ValueError:
+        if edu_dto.grade is not None:
+            try:
+                e.grade = Grade(edu_dto.grade) if edu_dto.grade else None
+            except ValueError:
+                e.grade = None
+        elif not existing_beneficiary:
             e.grade = None
-            
-        e.knows_how_to_read = edu_dto.knows_how_to_read
-        e.knows_how_to_write = edu_dto.knows_how_to_write
-        e.has_repeated_grade = edu_dto.has_repeated_grade
-        e.has_learning_difficulties = edu_dto.has_learning_difficulties
+
+        # Datos educativos (Defecto D1):
+        # Si el DTO trae un booleano explícito (True/False), se actualiza.
+        # Si el beneficiario ya existe y el DTO trae None, se preserva el valor existente del maestro.
+        # Si es un alta nueva y el DTO trae None, se asigna False por defecto.
+        if edu_dto.knows_how_to_read is not None:
+            e.knows_how_to_read = edu_dto.knows_how_to_read
+        elif not existing_beneficiary:
+            e.knows_how_to_read = False
+
+        if edu_dto.knows_how_to_write is not None:
+            e.knows_how_to_write = edu_dto.knows_how_to_write
+        elif not existing_beneficiary:
+            e.knows_how_to_write = False
+
+        if edu_dto.has_repeated_grade is not None:
+            e.has_repeated_grade = edu_dto.has_repeated_grade
+        elif not existing_beneficiary:
+            e.has_repeated_grade = False
+
+        # REGLA DOCUMENTADA (Defecto D1):
+        # 'has_learning_difficulties' en el triaje puede ser None ("no se sabe" o no especificado).
+        # Sin embargo, la columna 'has_learning_difficulties' en PostgreSQL (tabla education_records)
+        # tiene restricción NOT NULL (is_nullable = 'NO') con default false.
+        # Por lo tanto:
+        # - Si viene un booleano explícito (True/False), se guarda dicho booleano.
+        # - Si viene None en un alta nueva, se convierte explícitamente a False para evitar violaciones
+        #   de restricción NOT NULL en la base de datos.
+        # - Si viene None en un beneficiario ya existente en el MDM, se conserva el valor existente en el maestro.
+        if edu_dto.has_learning_difficulties is not None:
+            e.has_learning_difficulties = bool(edu_dto.has_learning_difficulties)
+        elif not existing_beneficiary:
+            e.has_learning_difficulties = False
 
         # Map Relatives (Adults)
         if not existing_beneficiary:

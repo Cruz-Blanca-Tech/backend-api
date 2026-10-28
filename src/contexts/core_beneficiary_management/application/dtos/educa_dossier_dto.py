@@ -31,29 +31,26 @@ class EducaMedicalDTO(BaseModel):
 class EducaEducationDTO(BaseModel):
     school: Optional[str] = None
     grade: Optional[str] = None
-    knows_how_to_read: bool = False
-    knows_how_to_write: bool = False
-    has_repeated_grade: bool = False
-    has_learning_difficulties: bool = False
+    knows_how_to_read: Optional[bool] = None
+    knows_how_to_write: Optional[bool] = None
+    has_repeated_grade: Optional[bool] = None
+    has_learning_difficulties: Optional[bool] = None
 
     @model_validator(mode="before")
     @classmethod
     def map_triage_education_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            # Mapear campos desde el formato de triaje (knows_read, knows_write, etc.)
-            # al formato MDM / Ficha Maestra (knows_how_to_read, knows_how_to_write, etc.)
-            if "knows_read" in data and "knows_how_to_read" not in data:
-                val = data.get("knows_read")
-                data["knows_how_to_read"] = bool(val) if val is not None else False
-            if "knows_write" in data and "knows_how_to_write" not in data:
-                val = data.get("knows_write")
-                data["knows_how_to_write"] = bool(val) if val is not None else False
-            if "repeated_grade" in data and "has_repeated_grade" not in data:
-                val = data.get("repeated_grade")
-                data["has_repeated_grade"] = bool(val) if val is not None else False
-            if "learning_difficulties" in data and "has_learning_difficulties" not in data:
-                val = data.get("learning_difficulties")
-                data["has_learning_difficulties"] = bool(val) if val is not None else False
+            # Mapear claves de triaje (knows_read, knows_write, repeated_grade, learning_difficulties)
+            # a las claves del DTO de MDM (knows_how_to_read, knows_how_to_write, etc.)
+            field_mapping = {
+                "knows_read": "knows_how_to_read",
+                "knows_write": "knows_how_to_write",
+                "repeated_grade": "has_repeated_grade",
+                "learning_difficulties": "has_learning_difficulties",
+            }
+            for triage_key, dto_key in field_mapping.items():
+                if triage_key in data and dto_key not in data:
+                    data[dto_key] = data[triage_key]
         return data
 
 class EducaAdultDTO(BaseModel):
