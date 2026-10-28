@@ -84,7 +84,6 @@ class LLMDataNormalizer(DataNormalizer):
         # Extract valid schools and diseases from context if provided
         valid_schools = context.get("valid_schools", []) if context else []
         
-        
         valid_schools_str = ""
         try:
             async with async_session_maker() as session:
@@ -163,10 +162,10 @@ class LLMDataNormalizer(DataNormalizer):
 
         9. CRUCE Y CONSOLIDACIÓN DE PADRES, MADRES Y NIÑO (GÉNERO + COHERENCIA DE APELLIDOS + ANTI-AUTOPADRE):
            Esta regla aplica tanto a la Ficha FINS (`child_first_name`, `child_last_name`, `child_dni`, `parents_father_full_name`, `parents_father_dni`, `parents_mother_full_name`, `parents_mother_dni`, `parents_guardian_full_name`, `parents_guardian_dni`) como a la Declaración Jurada DJ (`child_name`, `child_dni`, `parents_father_name`, `parents_father_dni`, `parents_mother_name`, `parents_mother_dni`, `guardian_dni`):
-           - LEY PERUANA DE APELLIDOS: En Perú toda persona tiene `<Nombres> <Apellido Paterno> <Apellido Materno>`. El hijo hereda como primer apellido el primer apellido del padre y como segundo apellido el primer apellido de la madre (ej. si el padre es "Jonathan Paredes Negrón" y la madre es "Jackeline Escobar Chávez", el niño se apellida "Paredes Escobar").
+           - LEY PERUANA DE APELLIDOS: En Perú toda persona tiene `<Nombres> <Apellido Paterno> <Apellido Materno>`. El hijo hereda como primer apellido el primer apellido del padre y como segundo apellido el primer apellido de la madre (ej. si el padre es "Carlos Alberto Quispe Rojas" y la madre es "María Elena Flores Soto", el niño se apellida "Quispe Flores").
            - PROHIBIDO QUE EL NIÑO SEA SU PROPIO PADRE O MADRE (Y CORRECCIÓN DE DESFASE EN DJ):
              * El niño beneficiario es la persona cuyos dos apellidos combinan el primer apellido del padre + el primer apellido de la madre (o cuyo DNI coincide con la clave de agrupación `{dni_reference}`).
-             * En la DJ es común que el OCR desfase las líneas: por ejemplo, pone a la madre/apoderado ("Jackeline Escobar Chávez", DNI "00000001") en `child_name`/`child_dni`, al niño ("Aarón Matheus Paredes Escobar") en `parents_father_name` y su DNI ("{dni_reference}") en `parents_mother_dni`, y al padre ("Jonathan Paredes Negrón") en `parents_mother_name`.
+             * En la DJ es común que el OCR desfase las líneas: por ejemplo, pone a la madre/apoderado ("María Elena Flores Soto", DNI "00000001") en `child_name`/`child_dni`, al niño ("Juan Carlos Quispe Flores") en `parents_father_name` y su DNI ("{dni_reference}") en `parents_mother_dni`, y al padre ("Carlos Alberto Quispe Rojas") en `parents_mother_name`.
              * Si detectas este desfase, REORDENA cada nombre y su DNI a su campo verdadero:
                1) El niño va en `child_name` y su DNI en `child_dni`.
                2) El padre (hombre / primer apellido del niño) va en `parents_father_name` y su DNI en `parents_father_dni`.
@@ -174,16 +173,16 @@ class LLMDataNormalizer(DataNormalizer):
              * NUNCA dejes el nombre ni el DNI del niño beneficiario dentro de `parents_father_name`, `parents_mother_name`, `parents_father_full_name` o `parents_mother_full_name`. Si el niño aparece repetido como padre o madre, pon ese campo de padre/madre en `null`.
            - ASIGNACIÓN DE PADRE VS MADRE POR GÉNERO DEL NOMBRE Y APELLIDO:
              * Analiza semánticamente el GÉNERO del nombre de pila Y sus apellidos respecto al niño:
-               - Nombres masculinos (ej. "Jonathan", "Jeffer", "Mario", "Juan", "Pedro", "Carlos", "Luis", "José", etc.) y/o cuyo primer apellido coincide con el PRIMER apellido (paterno) del niño corresponden SIEMPRE al PADRE (`parents_father_full_name` en FINS / `parents_father_name` en DJ). Si estaban en el campo de madre, muévelos al campo de padre junto con su DNI/teléfono.
-               - Nombres femeninos (ej. "Jackeline", "Mayra", "Laura", "María", "Carmen", "Rosa", "Ana", etc.) y/o cuyo primer apellido coincide con el SEGUNDO apellido (materno) del niño corresponden SIEMPRE a la MADRE (`parents_mother_full_name` en FINS / `parents_mother_name` en DJ). Si estaban en el campo de padre, muévelos al campo de madre junto con su DNI/teléfono.
+               - Nombres masculinos (ej. "Carlos", "Juan", "Pedro", "Luis", "José", "Mario", "Jorge", etc.) y/o cuyo primer apellido coincide con el PRIMER apellido (paterno) del niño corresponden SIEMPRE al PADRE (`parents_father_full_name` en FINS / `parents_father_name` en DJ). Si estaban en el campo de madre, muévelos al campo de padre junto con su DNI/teléfono.
+               - Nombres femeninos (ej. "María", "Rosa", "Ana", "Carmen", "Elena", "Lucía", "Laura", etc.) y/o cuyo primer apellido coincide con el SEGUNDO apellido (materno) del niño corresponden SIEMPRE a la MADRE (`parents_mother_full_name` en FINS / `parents_mother_name` en DJ). Si estaban en el campo de padre, muévelos al campo de madre junto con su DNI/teléfono.
              * NUNCA asignes a un hombre al rol de Madre ni a una mujer al rol de Padre.
            - SEPARACIÓN INTELIGENTE DE NOMBRES Y APELLIDOS DEL NIÑO:
-             * En el formulario FINS a veces el OCR extrae el nombre completo en `child_first_name` (ej. "Enoc Gadiel Condori" o "Jeremy Gianfranco Valenthyn Montalvo") y en `child_last_name` deja solo un apellido (ej. "Ruiz") o texto basura (ej. "Bir.").
+             * En el formulario FINS a veces el OCR extrae el nombre completo en `child_first_name` (ej. "Juan Carlos Quispe" o "Luis Alberto Quispe") y en `child_last_name` deja solo un apellido (ej. "Flores") o texto basura (ej. "Bir.").
              * Si en `child_first_name` hay palabras que coinciden con el primer apellido del padre o de la madre:
-               DEBES retirarlas de `child_first_name` (dejando solo los nombres de pila, ej. "Enoc Gadiel" o "Jeremy Gianfranco Valenthyn")
-               y colocarlas en `child_last_name` en el orden correcto peruano: <Apellido Paterno> <Apellido Materno> (ej. "Condori Rivera", "Montalvo Ruiz", "Paredes Escobar").
+               DEBES retirarlas de `child_first_name` (dejando solo los nombres de pila, ej. "Juan Carlos" o "Luis Alberto")
+               y colocarlas en `child_last_name` en el orden correcto peruano: <Apellido Paterno> <Apellido Materno> (ej. "Quispe Flores").
                NUNCA dejes un apellido dentro de `child_first_name` si coincide con los apellidos de los padres.
-           - Si una misma persona fue extraída fragmentada en dos campos (ej. "Laura Sondoval Urguia" en Padre y "Sondoval" en Apoderado), consolida su nombre completo en el rol correcto según su género y apellido, y deja el campo incorrecto en `null`.
+           - Si una misma persona fue extraída fragmentada en dos campos (ej. "Rosa Gómez Morales" en Padre y "Gómez" en Apoderado), consolida su nombre completo en el rol correcto según su género y apellido, y deja el campo incorrecto en `null`.
 
       Devuelve ÚNICAMENTE un JSON válido que replique la estructura original pero con los datos limpios y el campo adicional 'warnings' si aplica.
         """

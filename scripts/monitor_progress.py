@@ -1,28 +1,52 @@
 import asyncio
+import os
+import sys
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-DB_URL = "postgresql+asyncpg://postgres.panujqoelvpjebiiohjf:REDACTED_DB_PASSWORD@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
-BATCH_ID = "720e3c54-0eb3-4e09-ba54-923dc7b40805"
+def get_db_url() -> str:
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        try:
+            from src.core.config import Settings
+            db_url = Settings().ASYNC_DATABASE_URI
+        except Exception:
+            pass
+
+    if not db_url:
+        print("Error: DATABASE_URL environment variable must be set.", file=sys.stderr)
+        sys.exit(1)
+
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    return db_url
 
 async def check():
-    engine = create_async_engine(DB_URL)
+    batch_id = sys.argv[1] if len(sys.argv) > 1 else os.getenv("BATCH_ID")
+    if not batch_id:
+        print("Uso: python monitor_progress.py <batch_id> (o defina variable BATCH_ID)")
+        return
+
+    db_url = get_db_url()
+    engine = create_async_engine(db_url)
     async with engine.connect() as conn:
         res_batch = await conn.execute(
             text("SELECT id, status, description, created_by FROM extraction_batches WHERE id = :bid"),
-            {"bid": BATCH_ID}
+            {"bid": batch_id}
         )
         batch = res_batch.fetchone()
         
         res_docs = await conn.execute(
             text("SELECT status, count(id) FROM document_items WHERE batch_id = :bid GROUP BY status"),
-            {"bid": BATCH_ID}
+            {"bid": batch_id}
         )
         docs = res_docs.fetchall()
         
         res_cases = await conn.execute(
             text("SELECT count(id) FROM triage_cases WHERE batch_id = :bid"),
-            {"bid": BATCH_ID}
+            {"bid": batch_id}
         )
         cases = res_cases.scalar()
         
