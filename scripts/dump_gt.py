@@ -1,8 +1,13 @@
+import os
+import sys
 import openpyxl
 
-import os
-GT_PATH = r"C:\Users\enzot\Documents\code\CruzBlanca\Ground truth\Excel\ground truth.xlsx"
-wb = openpyxl.load_workbook(GT_PATH, data_only=True)
+gt_path = sys.argv[1] if len(sys.argv) > 1 else os.getenv("GT_PATH", r"Ground truth/Excel/ground truth.xlsx")
+if not os.path.exists(gt_path):
+    print(f"Archivo no encontrado: {gt_path}. Uso: python dump_gt.py <ruta_al_excel>")
+    sys.exit(1)
+
+wb = openpyxl.load_workbook(gt_path, data_only=True)
 s = wb.active
 headers = [c.value for c in s[4]]
 
