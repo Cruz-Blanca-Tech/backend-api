@@ -52,9 +52,8 @@ class EducationDtoMapper:
             beneficiary_id=beneficiary_id,
             school=request.school,
             grade=grade_vo,
-            knows_how_to_read=request.knows_how_to_read,
-            knows_how_to_write=request.knows_how_to_write,
-            has_repeated_grade=request.has_repeated_grade,
-            has_learning_difficulties=request.has_learning_difficulties
+            knows_how_to_read=bool(request.knows_how_to_read) if request.knows_how_to_read is not None else False,
+            knows_how_to_write=bool(request.knows_how_to_write) if request.knows_how_to_write is not None else False,
+            has_repeated_grade=bool(request.has_repeated_grade) if request.has_repeated_grade is not None else False,
+            has_learning_difficulties=bool(request.has_learning_difficulties) if request.has_learning_difficulties is not None else False
         )
-

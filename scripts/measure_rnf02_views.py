@@ -1,9 +1,29 @@
 import asyncio
+import os
+import sys
 import time
 import statistics
 import asyncpg
 
-DATABASE_URL = "postgresql://postgres.panujqoelvpjebiiohjf:REDACTED_DB_PASSWORD@aws-1-us-west-2.pooler.supabase.com:5432/postgres"
+def get_db_url() -> str:
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        try:
+            from src.core.config import Settings
+            db_url = Settings().DATABASE_URL or Settings().ASYNC_DATABASE_URI
+        except Exception:
+            pass
+
+    if not db_url:
+        print("Error: DATABASE_URL environment variable must be set.", file=sys.stderr)
+        sys.exit(1)
+
+    # asyncpg expects standard postgresql://
+    if db_url.startswith("postgresql+asyncpg://"):
+        db_url = db_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    elif db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    return db_url
 
 VIEWS = [
     ("vw_reporting_population_pyramid", "SELECT * FROM vw_reporting_population_pyramid", "Demografía: Pirámide Poblacional"),
@@ -18,11 +38,12 @@ VIEWS = [
 ITERATIONS = 15
 
 async def benchmark():
-    conn = await asyncpg.connect(DATABASE_URL)
+    db_url = get_db_url()
+    conn = await asyncpg.connect(db_url)
     print("=" * 105)
     print("MEDICIÓN EXPERIMENTAL DE EFICIENCIA DE CONSULTAS SQL - REQUISITO NO FUNCIONAL RNF-02")
     print("Sistema de Gestión y Triaje Documental - Cruz Blanca")
-    print(f"Base de datos: PostgreSQL 17.6 (AWS US-West-2)")
+    print(f"Base de datos: PostgreSQL 17.6")
     print(f"Criterio de Aceptación: Tiempo de Respuesta < 5.000 segundos (5,000 ms)")
     print(f"Muestras por consulta: {ITERATIONS} iteraciones")
     print("=" * 105)
@@ -39,10 +60,9 @@ async def benchmark():
         for r in explain_rows:
             line = r[0]
             if "Execution Time:" in line:
-                # Execution Time: 0.123 ms
                 try:
                     pg_exec_time = float(line.split("Execution Time:")[1].replace("ms", "").strip())
-                except:
+                except Exception:
                     pass
 
         # 3. Medir tiempo de respuesta total (Round-trip) en 15 iteraciones
