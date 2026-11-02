@@ -63,3 +63,49 @@ def test_token_valido_devuelve_la_identidad(monkeypatch):
     assert str(identity.email) == "ana@cruz-blanca.org"
     assert capturado["audience"] == "client-id"
     assert capturado["clock_skew_in_seconds"] == 30
+
+
+@pytest.mark.asyncio
+async def test_usuario_inactivo_no_puede_iniciar_sesion_d25():
+    """D25: Una cuenta de usuario desactivada (is_active=False) debe ser rechazada
+    con PermissionError impidiendo el acceso al sistema."""
+    from unittest.mock import AsyncMock, MagicMock
+    from src.contexts.security_access.application.services.auth_service import AuthService
+    from src.contexts.security_access.domain.entities.user import User
+    from src.contexts.security_access.domain.entities.external_user_identity import ExternalUserIdentity
+    from src.contexts.security_access.domain.value_objects.email import Email
+    from src.contexts.security_access.domain.value_objects.role import Role
+    import uuid
+
+    mock_idp = MagicMock()
+    mock_idp.verify_token.return_value = ExternalUserIdentity(
+        email="inactivo@cruz-blanca.org",
+        full_name="Usuario Inactivo",
+        picture_url=None
+    )
+
+    inactive_user = User(
+        id=uuid.uuid4(),
+        email=Email("inactivo@cruz-blanca.org"),
+        full_name="Usuario Inactivo",
+        role=Role.OPERATIVO,
+        is_active=False
+    )
+
+    mock_repo = AsyncMock()
+    mock_repo.get_by_email.return_value = inactive_user
+
+    mock_policy = MagicMock()
+    mock_token_provider = AsyncMock()
+    mock_refresh_repo = AsyncMock()
+
+    service = AuthService(
+        external_auth_provider=mock_idp,
+        user_repo=mock_repo,
+        refresh_token_repo=mock_refresh_repo,
+        token_provider=mock_token_provider,
+        policy=mock_policy
+    )
+
+    with pytest.raises(PermissionError, match="La cuenta de usuario está desactivada."):
+        await service.authenticate_user("valid-google-token")
