@@ -36,6 +36,8 @@ class AuthService:
             user = User.create_new_user(external_identity)
             await self.user_repo.save(user)
         else:
+            if not user.is_active:
+                raise PermissionError("La cuenta de usuario está desactivada.")
             user.update_profile(external_identity)
             await self.user_repo.save(user)
             
@@ -54,6 +56,8 @@ class AuthService:
         user = await self.user_repo.get_by_id(active_session.user_id) 
         if not user:
             raise PermissionError("Usuario no encontrado.")
+        if not user.is_active:
+            raise PermissionError("La cuenta de usuario está desactivada.")
 
         # AQUI: Deberías usar una transacción si es posible
         # Borrar viejo
