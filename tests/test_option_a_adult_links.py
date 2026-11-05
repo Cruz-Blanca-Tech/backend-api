@@ -98,7 +98,7 @@ def _run_adult(rows, full_name, dni=None):
 def test_matcher_adult_usa_type_adult_y_unica_persona_a_sugerir():
     # Maestro: una adulta "MARIA ELENA ROJAS TORRES" con DNI distinto al de la ficha.
     suggestions, session = _run_adult(
-        [("ROSA LUZ", "ROJAS TORRES", "00123456")],
+        [("MARIA ELENA", "ROJAS TORRES", "00123456")],
         full_name="MARIA ROJAS T.",
         dni="00123459",
     )
@@ -111,7 +111,7 @@ def test_matcher_adult_usa_type_adult_y_unica_persona_a_sugerir():
 def test_matcher_adult_dni_identico_no_sugiere_touchless():
     # Regla touchless: DNI idéntico + nombre igual/variación → match MDM, nada.
     suggestions, _ = _run_adult(
-        [("ROSA LUZ", "ROJAS TORRES", "00123456")],
+        [("MARIA ELENA", "ROJAS TORRES", "00123456")],
         full_name="MARIA ROJAS TORRES",
         dni="00123456",
     )
@@ -274,7 +274,7 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
             pass
 
     session = _SeqSession([
-        [_Row(id=person_id, dni="12345678", first_name="ROSA LUZ", last_name="ROJAS TORRES")],  # personas existentes por DNI
+        [_Row(id=person_id, dni="12345678", first_name="MARIA ELENA", last_name="ROJAS TORRES")],  # personas existentes por DNI
         [_Row(id=person_id, phone="925917655", role="MOTHER")],  # adults: phone, role
     ])
 
@@ -310,7 +310,7 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
     assert adult.id == person_id
     assert adult.phone is not None and adult.phone.value == "925917655"
     assert adult.role == RelationshipRole.MOTHER
-    assert adult.first_name == "ROSA LUZ"
+    assert adult.first_name == "MARIA ELENA"
     assert adult.last_name == "ROJAS TORRES"
 
 
@@ -336,7 +336,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
             pass
 
     session = _SeqSession([
-        [_Row(id=person_id, dni="12345678", first_name="ROSA LUZ", last_name="ROJAS TORRES")],
+        [_Row(id=person_id, dni="12345678", first_name="MARIA ELENA", last_name="ROJAS TORRES")],
         [_Row(id=person_id, phone="925917655", role="MOTHER")],
     ])
 
@@ -344,7 +344,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
     adult = Adult(
         id=uuid4(),
         dni=DNI("12345678"),
-        first_name="ROSA",
+        first_name="MARIA",
         last_name="ROJAS",
     )
     adult.phone = Phone("997230421")
@@ -367,7 +367,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
 
     assert adult.phone.value == "997230421"
     # El nombre siempre viene del maestro en reuso.
-    assert adult.first_name == "ROSA LUZ"
+    assert adult.first_name == "MARIA ELENA"
     assert adult.last_name == "ROJAS TORRES"
 
 
@@ -385,7 +385,7 @@ from src.contexts.data_quality_triage.application.shared.services.dossier_proces
 
 def test_normalize_name_y_dni_valid():
     assert _normalize_name("Maria Elena Rojas Torres") == "MARIA ELENA ROJAS TORRES"
-    assert _normalize_name("  ROSA   mamani ") == "MARIA ROJAS"
+    assert _normalize_name("  MARIA   rojas ") == "MARIA ROJAS"
     assert _normalize_name("") == ""
     assert _dni_valid("00123456") is True
     assert _dni_valid(" 00123456 ") is True
@@ -466,7 +466,7 @@ def test_sibling_suggestions_nombre_desconocido_no_emite_nada():
 
 
 def test_emergency_phone_suggestion_desde_maestro():
-    master = _Row(dni="00123456", first_name="ROSA", last_name="ROJAS", phone="925917655")
+    master = _Row(dni="00123456", first_name="MARIA", last_name="ROJAS", phone="925917655")
     out = _build_emergency_phone_suggestion(
         adult_index=1, is_emergency=True, dossier_phone="", master_row=master
     )
@@ -481,7 +481,7 @@ def test_emergency_phone_suggestion_desde_maestro():
     # El teléfono del expediente ya es válido → nada.
     assert _build_emergency_phone_suggestion(1, True, "987654321", master) is None
     # El maestro tampoco tiene teléfono válido → nada.
-    bad_master = _Row(dni="00123456", first_name="ROSA", last_name="ROJAS", phone="123")
+    bad_master = _Row(dni="00123456", first_name="MARIA", last_name="ROJAS", phone="123")
     assert _build_emergency_phone_suggestion(1, True, "", bad_master) is None
 
 
@@ -551,7 +551,7 @@ def test_group_dni_sugerido_cuando_el_maestro_corrobora_el_nombre():
     # El lote agrupó con 00123456 y el maestro registra a esa persona con ese
     # nombre; el expediente trae 00123459 (OCR mal leído) → se sugiere el de agrupación.
     out = _group_dni(
-        "00123456", "00123459", "ROSA LUZ", "ROJAS TORRES", ("ROSA LUZ", "ROJAS TORRES")
+        "00123456", "00123459", "MARIA ELENA", "ROJAS TORRES", ("MARIA ELENA", "ROJAS TORRES")
     )
     assert out is not None
     assert out.severity == "AI_INSIGHT"
@@ -562,24 +562,24 @@ def test_group_dni_sugerido_cuando_el_maestro_corrobora_el_nombre():
 
 
 def test_group_dni_sugerido_con_dni_vacio_en_la_ficha():
-    out = _group_dni("00123456", "", "ROSA LUZ", "ROJAS TORRES", ("ROSA LUZ", "ROJAS TORRES"))
+    out = _group_dni("00123456", "", "MARIA ELENA", "ROJAS TORRES", ("MARIA ELENA", "ROJAS TORRES"))
     assert out is not None
     assert out.expected_pattern == "00123456"
     assert out.actual_value == "(vacío)"
 
 
 def test_group_dni_no_sugerido_si_el_maestro_no_conoce_el_dni():
-    assert _group_dni("00123456", "00123459", "ROSA LUZ", "ROJAS", None) is None
+    assert _group_dni("00123456", "00123459", "MARIA ELENA", "ROJAS", None) is None
 
 
 def test_group_dni_no_sugerido_si_el_nombre_del_maestro_no_coincide():
     # Persona distinta con ese DNI → el revisor debe verificar a mano.
-    assert _group_dni("00123456", "00123459", "ROSA LUZ", "ROJAS", ("PEDRO", "GUTIERREZ")) is None
+    assert _group_dni("00123456", "00123459", "MARIA ELENA", "ROJAS", ("PEDRO", "GUTIERREZ")) is None
 
 
 def test_group_dni_no_sugerido_si_el_dni_ya_coincide():
-    assert _group_dni("00123456", "00123456", "ROSA LUZ", "ROJAS", ("ROSA LUZ", "ROJAS")) is None
+    assert _group_dni("00123456", "00123456", "MARIA ELENA", "ROJAS", ("MARIA ELENA", "ROJAS")) is None
 
 
 def test_group_dni_no_sugerido_si_el_dni_de_agrupacion_no_es_valido():
-    assert _group_dni("9847", "00123459", "ROSA LUZ", "ROJAS", ("ROSA LUZ", "ROJAS")) is None
+    assert _group_dni("9847", "00123459", "MARIA ELENA", "ROJAS", ("MARIA ELENA", "ROJAS")) is None

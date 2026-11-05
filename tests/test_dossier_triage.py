@@ -5,7 +5,7 @@ from src.contexts.data_quality_triage.domain.shared.value_objects.activity_type 
 RAW_PAYLOAD = {
     "beneficiary": {
         "dni": "70000001",
-        "first_name": "SARAI MILENA",
+        "first_name": "VALERIA SOFIA",
         "last_name": "ALVAREZ",
         "birth_date": "2021-06-28",
         "gender": "F"

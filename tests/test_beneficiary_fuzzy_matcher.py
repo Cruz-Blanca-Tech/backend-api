@@ -30,7 +30,7 @@ def _run(rows, **kwargs):
     matcher = BeneficiaryFuzzyMatcher(_FakeSession(rows))
     return asyncio.run(
         matcher.find_suggestions(
-            first_name=kwargs.get("first_name", "ANDRE CI"),
+            first_name=kwargs.get("first_name", "MATEO CI"),
             last_name=kwargs.get("last_name", "DELGADO NAVARRO"),
             dni=kwargs.get("dni", "81000054"),
             limit=kwargs.get("limit", 3),
@@ -42,14 +42,14 @@ def _run(rows, **kwargs):
 
 
 def test_normalize_name_strips_accents_punctuation_and_case():
-    assert normalize_name("JOSÉ MARÍA CHÁVEZ-GÓMEZ") == "jose maria chavez gomez"
-    assert normalize_name("  ANDRE  CI  ") == "andre ci"
+    assert normalize_name("JOSÉ MARÍA DELGADO-GÓMEZ") == "jose maria delgado gomez"
+    assert normalize_name("  MATEO  CI  ") == "mateo ci"
     assert normalize_name(None) == ""
 
 
 def test_score_candidate_weights():
     # Nombre idéntico + DNI cercano → casi 1.
-    s = score_candidate("ANDRE", "DELGADO", "81000054", "ANDRE", "DELGADO", "81000034")
+    s = score_candidate("MATEO", "DELGADO", "81000054", "MATEO", "DELGADO", "81000034")
     assert s > 0.85
     # Nada en común (ni apellido ni DNI) → cerca de 0.
     s = score_candidate("MARIA", "QUISPE", "11111111", "PEDRO", "GUTIERREZ", "99999999")
@@ -62,10 +62,10 @@ def test_score_candidate_weights():
 # --- Caso de negocio (ANDRE) -----------------------------------------------
 
 
-def test_andre_case_suggests_master_with_different_dni():
+def test_mateo_case_suggests_master_with_different_dni():
     # OCR leyó mal el DNI: el maestro tiene el nombre idéntico con otro DNI
     # (81000054 -> 81000034). Debe sugerirse, no ocultarse.
-    suggestions = _run([("ANDRE CI", "DELGADO NAVARRO", "81000034")])
+    suggestions = _run([("MATEO CI", "DELGADO NAVARRO", "81000034")])
     assert len(suggestions) == 1
     assert suggestions[0].dni == "81000034"
     assert suggestions[0].score > 0.7
@@ -73,7 +73,7 @@ def test_andre_case_suggests_master_with_different_dni():
 
 def test_identical_dni_is_excluded_as_match_mdm():
     # Mismo DNI y mismo nombre → match MDM de identidad, nunca sugerencia.
-    suggestions = _run([("ANDRE CI", "DELGADO NAVARRO", "81000054")])
+    suggestions = _run([("MATEO CI", "DELGADO NAVARRO", "81000054")])
     assert suggestions == []
 
 
@@ -91,7 +91,7 @@ def test_homonym_same_name_different_dni_is_suggested():
 
 def test_accents_are_normalized():
     suggestions = _run(
-        [("JOSÉ", "CHÁVEZ GÓMEZ", "70123456")],
+        [("JOSÉ", "DELGADO GÓMEZ", "70123456")],
         first_name="JOSE", last_name="DELGADO GOMEZ", dni="70887766",
     )
     assert len(suggestions) == 1
@@ -109,7 +109,7 @@ def test_ocr_typo_in_given_name_still_matches_by_surname():
 
 def test_swapped_first_and_last_columns_still_match():
     # El maestro guardó el nombre apellido-primero.
-    suggestions = _run([("DELGADO NAVARRO", "ANDRE CI", "81000034")])
+    suggestions = _run([("DELGADO NAVARRO", "MATEO CI", "81000034")])
     assert len(suggestions) == 1
     assert suggestions[0].dni == "81000034"
 
@@ -117,8 +117,8 @@ def test_swapped_first_and_last_columns_still_match():
 def test_second_given_name_intermediate_does_not_break_match():
     # El OCR añadió un segundo nombre de pila que el maestro no tiene.
     suggestions = _run(
-        [("ANDRE", "DELGADO NAVARRO", "81000034")],
-        first_name="ANDRE MIGUEL CI", last_name="DELGADO NAVARRO", dni="81000054",
+        [("MATEO", "DELGADO NAVARRO", "81000034")],
+        first_name="MATEO MIGUEL CI", last_name="DELGADO NAVARRO", dni="81000054",
     )
     assert len(suggestions) == 1
     assert suggestions[0].dni == "81000034"
@@ -151,7 +151,7 @@ def test_ranking_prefers_best_match():
     suggestions = _run([
         ("PEDRO", "DELGADO NAVARRO", "99999999"),   # solo apellido
         ("ANA", "CIFUENTES", "81184555"),          # apellido parecido, nombre otro
-        ("ANDRE CI", "DELGADO NAVARRO", "81000034"),  # el mejor: nombre idéntico
+        ("MATEO CI", "DELGADO NAVARRO", "81000034"),  # el mejor: nombre idéntico
     ])
     assert len(suggestions) >= 1
     assert suggestions[0].dni == "81000034"
@@ -159,19 +159,19 @@ def test_ranking_prefers_best_match():
 
 def test_same_dni_rows_are_deduplicated_keeping_best():
     suggestions = _run([
-        ("ANDRE A", "DELGADO NAVARRO", "81000034"),
-        ("ANDRE CI", "DELGADO NAVARRO", "81000034"),
+        ("MATEO A", "DELGADO NAVARRO", "81000034"),
+        ("MATEO CI", "DELGADO NAVARRO", "81000034"),
     ])
     assert len(suggestions) == 1
-    assert suggestions[0].first_name == "ANDRE CI"
+    assert suggestions[0].first_name == "MATEO CI"
 
 
 def test_limit_caps_suggestions():
     rows = [
-        ("ANDRE CI", "DELGADO NAVARRO", "81000034"),
-        ("ANDRES", "DELGADO NAVARRO", "91234567"),
-        ("ANDREA", "DELGADO NAVARRO", "92234567"),
-        ("ANDRES J", "DELGADO NAVARRO", "93234567"),
+        ("MATEO CI", "DELGADO NAVARRO", "81000034"),
+        ("MATEO S", "DELGADO NAVARRO", "91234567"),
+        ("MATEO R", "DELGADO NAVARRO", "92234567"),
+        ("MATEO J", "DELGADO NAVARRO", "93234567"),
     ]
     suggestions = _run(rows, limit=2)
     assert len(suggestions) == 2

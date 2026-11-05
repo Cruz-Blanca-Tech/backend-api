@@ -154,10 +154,10 @@ class TestD17AdultNameSplitting:
     @pytest.mark.parametrize("full_name, expected_first, expected_last", [
         ("JUAN CARLOS PEREZ LOPEZ", "JUAN CARLOS", "PEREZ LOPEZ"),
         ("MARIA ELENA SOTO QUISPE", "MARIA ELENA", "SOTO QUISPE"),
-        ("ROSA LUZ ROJAS", "ROSA", "LUZ ROJAS"),
+        ("MARIA ELENA CASTILLO", "MARIA", "ELENA CASTILLO"),
         ("CARLOS PEREZ", "CARLOS", "PEREZ"),
         ("PEDRO", "PEDRO", ""),
-        ("ANA MARIA DEL CARMEN ROJAS DELGADO", "ANA MARIA DEL CARMEN", "ROJAS DELGADO"),
+        ("ANA MARIA DEL CARMEN DIAZ PEREZ", "ANA MARIA DEL CARMEN", "DIAZ PEREZ"),
     ])
     def test_d17_build_adult_preserva_nombres_compuestos_correctamente(self, full_name, expected_first, expected_last):
         ad_dto = EducaAdultDTO(dni="10000001", full_name=full_name, relationship="FATHER")

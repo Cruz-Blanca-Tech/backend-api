@@ -210,7 +210,7 @@ def test_caso_6_maestro_corroba_nombre_y_fecha_touchless_aprueba():
     dossier = {
         "beneficiary": {
             "dni": "(vacío)",
-            "first_name": "AYLEN",
+            "first_name": "VALENTINA",
             "last_name": "CASTILLO MORALES",
             "birth_date": "2016-05-10",
         }
@@ -236,10 +236,10 @@ def test_caso_6_maestro_corroba_nombre_y_fecha_touchless_aprueba():
     case = _case(dossier, discrepancies)
     # El maestro registra a VALENTINA CASTILLO MORALES (nombre calza) con su fecha de
     # nacimiento y el DNI candidato.
-    master_row = ("AYLEN", "CASTILLO MORALES", _birth("2016-05-10"))
+    master_row = ("VALENTINA", "CASTILLO MORALES", _birth("2016-05-10"))
 
     processor = _processor_with(_CorrobSession(master_row))
-    applied = _run(processor._apply_corroborated_dni_touchless(case, "AYLEN", "CASTILLO MORALES"))
+    applied = _run(processor._apply_corroborated_dni_touchless(case, "VALENTINA", "CASTILLO MORALES"))
 
     assert applied == candidate
     assert case.dossier_data["beneficiary"]["dni"] == candidate
@@ -255,7 +255,7 @@ def test_caso_6_maestro_no_conoce_el_dni_no_aplica_y_conserva_insight():
     dossier = {
         "beneficiary": {
             "dni": "(vacío)",
-            "first_name": "AYLEN",
+            "first_name": "VALENTINA",
             "last_name": "CASTILLO MORALES",
             "birth_date": "2016-05-10",
         }
@@ -273,7 +273,7 @@ def test_caso_6_maestro_no_conoce_el_dni_no_aplica_y_conserva_insight():
     case = _case(dossier, discrepancies)
 
     processor = _processor_with(_CorrobSession(None))  # el maestro no conoce ese DNI
-    applied = _run(processor._apply_corroborated_dni_touchless(case, "AYLEN", "CASTILLO MORALES"))
+    applied = _run(processor._apply_corroborated_dni_touchless(case, "VALENTINA", "CASTILLO MORALES"))
 
     assert applied is None
     assert case.status == TriageStatus.PENDING_REVIEW
@@ -285,7 +285,7 @@ def test_caso_6_nombre_distinto_en_el_maestro_no_aplica():
     dossier = {
         "beneficiary": {
             "dni": "(vacío)",
-            "first_name": "AYLEN",
+            "first_name": "VALENTINA",
             "last_name": "CASTILLO MORALES",
             "birth_date": "2016-05-10",
         }
@@ -305,7 +305,7 @@ def test_caso_6_nombre_distinto_en_el_maestro_no_aplica():
     master_row = ("PEDRO", "GUTIERREZ", _birth("2016-05-10"))
 
     processor = _processor_with(_CorrobSession(master_row))
-    applied = _run(processor._apply_corroborated_dni_touchless(case, "AYLEN", "CASTILLO MORALES"))
+    applied = _run(processor._apply_corroborated_dni_touchless(case, "VALENTINA", "CASTILLO MORALES"))
 
     assert applied is None
     assert any(d.severity == "AI_INSIGHT" for d in case.discrepancies)
@@ -315,7 +315,7 @@ def test_caso_6_fecha_de_nacimiento_distinta_no_aplica():
     dossier = {
         "beneficiary": {
             "dni": "(vacío)",
-            "first_name": "AYLEN",
+            "first_name": "VALENTINA",
             "last_name": "CASTILLO MORALES",
             "birth_date": "2016-05-10",
         }
@@ -332,10 +332,10 @@ def test_caso_6_fecha_de_nacimiento_distinta_no_aplica():
     ]
     case = _case(dossier, discrepancies)
     # Mismo nombre pero fecha de nacimiento distinta → no es la misma persona.
-    master_row = ("AYLEN", "CASTILLO MORALES", _birth("2010-01-01"))
+    master_row = ("VALENTINA", "CASTILLO MORALES", _birth("2010-01-01"))
 
     processor = _processor_with(_CorrobSession(master_row))
-    applied = _run(processor._apply_corroborated_dni_touchless(case, "AYLEN", "CASTILLO MORALES"))
+    applied = _run(processor._apply_corroborated_dni_touchless(case, "VALENTINA", "CASTILLO MORALES"))
 
     assert applied is None
     assert any(d.severity == "AI_INSIGHT" for d in case.discrepancies)
@@ -346,7 +346,7 @@ def test_caso_6_fecha_calza_si_alguna_falta_y_nombre_coincide():
     dossier = {
         "beneficiary": {
             "dni": "(vacío)",
-            "first_name": "AYLEN",
+            "first_name": "VALENTINA",
             "last_name": "CASTILLO MORALES",
             "birth_date": "",
         }
@@ -362,10 +362,10 @@ def test_caso_6_fecha_calza_si_alguna_falta_y_nombre_coincide():
         ),
     ]
     case = _case(dossier, discrepancies)
-    master_row = ("AYLEN", "CASTILLO MORALES", None)
+    master_row = ("VALENTINA", "CASTILLO MORALES", None)
 
     processor = _processor_with(_CorrobSession(master_row))
-    applied = _run(processor._apply_corroborated_dni_touchless(case, "AYLEN", "CASTILLO MORALES"))
+    applied = _run(processor._apply_corroborated_dni_touchless(case, "VALENTINA", "CASTILLO MORALES"))
 
     assert applied == "90000001"
     assert case.status == TriageStatus.APPROVED
