@@ -32,14 +32,9 @@ class DniRaw(BaseModel):
                 else:
                     flattened[key] = extracted_val
                     
-            # Auto-limpiar el DNI (quitar guiones, espacios y dígito verificador)
-            for dni_key in ["DocumentNumber", "document_number"]:
-                if dni_key in flattened and flattened[dni_key]:
-                    import re
-                    val_clean = str(flattened[dni_key]).replace(" ", "").replace("-", "")
-                    match = re.search(r'\d{8}', val_clean)
-                    if match:
-                        flattened[dni_key] = match.group(0)
+            # El DNI se deja tal como lo leyó el OCR: DniNormalizer decide si es
+            # un DNI válido. Quitar guiones y espacios aquí juntaba fragmentos
+            # («1234567-8» → 8 dígitos) y armaba un DNI inexistente (D8).
 
             # Auto-limpiar fechas a YYYY-MM-DD (soporta "02 10 2009", "02/10/2009")
             for date_key in ["DateOfBirth", "date_of_birth", "DateOfExpiration", "date_of_expiration"]:
