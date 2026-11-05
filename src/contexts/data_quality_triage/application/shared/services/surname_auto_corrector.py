@@ -18,15 +18,15 @@ from typing import List, Optional, Tuple
 
 from src.contexts.data_quality_triage.domain.educa.value_objects.educa_inscription_dossier import EducaInscriptionDossier
 from src.contexts.data_quality_triage.domain.shared.value_objects.field_discrepancy import FieldDiscrepancy
+from src.contexts.data_quality_triage.domain.shared.utils.string_utils import name_match_key
 
 # Pares de letras que el OCR confunde al leer apellidos (sustitución de una sola letra).
 _OCR_SUBSTITUTION_GROUPS = ("aeiou", "szc", "bv", "iy")
 
 
 def _normalize(value) -> str:
-    if value is None:
-        return ""
-    return re.sub(r"[^a-z0-9\s]", "", str(value).lower()).strip()
+    # D9: comparar sin tildes (NÚÑEZ = NUNEZ); el valor guardado conserva la tilde.
+    return name_match_key(value)
 
 
 def _is_plausible_ocr_substitution(ch1: str, ch2: str) -> bool:
