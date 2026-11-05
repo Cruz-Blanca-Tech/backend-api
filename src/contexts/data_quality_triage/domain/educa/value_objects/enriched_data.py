@@ -58,6 +58,7 @@ class EnrichedMedical:
     medical_insurance_essalud: EnrichedField
     medical_insurance_fospoli: EnrichedField
     medical_insurance_other: EnrichedField
+    disease_when_and_treatment: Optional[EnrichedField] = None
 
 @dataclass
 class EnrichedReligion:

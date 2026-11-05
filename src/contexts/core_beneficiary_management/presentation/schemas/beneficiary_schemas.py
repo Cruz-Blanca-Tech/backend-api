@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import date
 from uuid import UUID
@@ -99,6 +99,13 @@ class BeneficiaryCreateRequest(BaseModel):
     dni: str
     first_name: str
     last_name: str
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def validate_name_min_length(cls, v: str) -> str:
+        if not v or not str(v).strip() or len(str(v).strip()) < 2:
+            raise ValueError("El nombre y los apellidos deben contener al menos 2 caracteres.")
+        return str(v).strip()
     birth_date: Optional[date] = None
     gender: Optional[str] = None
     address: Optional[str] = None

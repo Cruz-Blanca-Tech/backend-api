@@ -42,6 +42,13 @@ class MedicalDomainMapper:
         if m.disease_parasites.normalized_value: diseases.append("Parásitos")
         if m.disease_chickenpox.normalized_value: diseases.append("Varicela")
         if m.disease_tuberculosis.normalized_value: diseases.append("Tuberculosis")
+        
+        # D7: Si disease_when_and_treatment contiene texto libre, no descartarlo: agregarlo a diseases
+        other_disease = getattr(m, "disease_when_and_treatment", None)
+        if other_disease is not None:
+            val = getattr(other_disease, "normalized_value", other_disease)
+            if val and isinstance(val, str) and not self._is_empty_or_noise(val):
+                diseases.append(val.strip().title())
             
         insurance = []
         if m.medical_insurance_sis.normalized_value: insurance.append("S.I.S.")

@@ -12,7 +12,7 @@ class Phone:
         
         # Validar número de celular ordinario (9 dígitos empezando en 9, opcionalmente con prefijo +51 o 51)
         clean = re.sub(r"[\s\-\(\)\.]", "", val)
-        if not re.match(r"^(?:\+?51)?9\d{8}$", clean):
+        if not re.match(r"^(?:\+?51)?(?:9\d{8}|(?:0?1)?[2-8]\d{6})$", clean):
             raise ValueError(f"Invalid phone format: {val}")
         
         # We need to bypass frozen to set the normalized value
