@@ -4,10 +4,10 @@ Búsqueda fuzzy de beneficiarios contra el maestro (persons).
 Reemplaza la heurística anterior (primer token de first_name y last_name con
 ILIKE al prefijo de 5 letras, sin acentos ni ranking). Problemas que resuelve:
 
-- Acentos: "CHÁVEZ" (maestro) vs "DELGADO" (OCR) no coincidían en ILIKE.
+- Acentos: "GÓMEZ" (maestro) vs "GOMEZ" (OCR) no coincidían en ILIKE.
 - Tokens intermedios: solo se miraba el PRIMER token de cada campo; un segundo
   nombre o apellido (o un "CI" intermedio) rompía el match.
-- Intercambio de columnas: nombres apellido-primero ("DELGADO NAVARRO ANDRE")
+- Intercambio de columnas: nombres apellido-primero ("DELGADO NAVARRO MATEO")
   no se detectaban.
 - Sin scoring: el candidato "primario" era la primera fila del LIMIT 3,
   sin orden por cercanía real.

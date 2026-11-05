@@ -74,14 +74,25 @@ class Settings(BaseSettings):
     AZURE_OPENAI_ENDPOINT: str = ""
     AZURE_OPENAI_API_KEY: str = ""
 
+    PROHIBITED_SECRET_KEYS: tuple[str, ...] = (
+        "dev-only-insecure-key",
+        "super-secret-key-change-in-production-1234567890",
+    )
+
     @model_validator(mode="after")
     def _validar_secretos_produccion(self) -> "Settings":
-        """Falla al arrancar si producción usa secretos por defecto o débiles."""
+        """Falla al arrancar si producción usa secretos por defecto, conocidos o débiles (D24)."""
         if self.ENVIRONMENT == "production":
-            if self.SECRET_KEY == "dev-only-insecure-key" or len(self.SECRET_KEY) < 32:
+            key_lower = (self.SECRET_KEY or "").strip().lower()
+            if (
+                self.SECRET_KEY in self.PROHIBITED_SECRET_KEYS
+                or "super-secret" in key_lower
+                or "dev-only" in key_lower
+                or len(self.SECRET_KEY or "") < 32
+            ):
                 raise ValueError(
-                    "SECRET_KEY debe definirse por variable de entorno en producción "
-                    "(mínimo 32 caracteres aleatorios)."
+                    "SECRET_KEY no es segura para producción o corresponde a una clave prohibida/comprometida. "
+                    "Debe definirse por variable de entorno en producción con un mínimo de 32 caracteres aleatorios."
                 )
             if not self.DATABASE_URL:
                 raise ValueError("DATABASE_URL es obligatoria en producción.")
