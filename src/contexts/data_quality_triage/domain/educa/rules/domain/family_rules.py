@@ -12,7 +12,7 @@ def _is_valid_phone(value) -> bool:
     if not v:
         return False
     clean = re.sub(r"[\s\-\(\)\.]", "", v)
-    return bool(re.match(r"^(?:\+?51)?9\d{8}$", clean))
+    return bool(re.match(r"^(?:\+?51)?(?:9\d{8}|(?:0?1)?[2-8]\d{6})$", clean))
 
 
 def _t(role) -> str:

@@ -1,10 +1,17 @@
 from typing import List, Optional, Any
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 
 class EducaBeneficiaryDTO(BaseModel):
     dni: str
     first_name: str
     last_name: str
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def validate_name_min_length(cls, v: str) -> str:
+        if not v or not str(v).strip() or len(str(v).strip()) < 2:
+            raise ValueError("El nombre y los apellidos deben contener al menos 2 caracteres.")
+        return str(v).strip()
     birth_date: Optional[str] = None
     gender: str = "UNKNOWN"
     address: Optional[str] = None
@@ -22,6 +29,7 @@ class EducaMedicalDTO(BaseModel):
     hospitalization_reason: Optional[str] = None
     has_been_operated: bool = False
     operation_reason: Optional[str] = None
+    has_complete_vaccines: Optional[bool] = None
     vaccines: List[str] = Field(default_factory=list)
     medications: List[str] = Field(default_factory=list)
     allergies: List[str] = Field(default_factory=list)

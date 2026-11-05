@@ -129,6 +129,29 @@ class FinalizeBatchIfCompleteUseCase:
             batch_id,
             len(casos),
         )
+
+        # D30: Disparar generacion de PDFs consolidados en background al cerrarse el lote automaticamente
+        try:
+            from src.core.events.event_dispatcher import EventDispatcher
+            from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
+            approved_dossiers = {}
+            for c in casos:
+                if c.status == TriageStatus.APPROVED:
+                    corrected_dni = c.dossier_data.get("beneficiary", {}).get("dni", c.dni_reference)
+                    docs = list(c.document_ids.values()) if hasattr(c, "document_ids") and c.document_ids else []
+                    approved_dossiers[c.dni_reference] = {
+                        "corrected_dni": corrected_dni,
+                        "documents": docs
+                    }
+            if approved_dossiers:
+                EventDispatcher.dispatch_background(BatchTriageCompletedEvent(
+                    batch_id=batch_id,
+                    approved_dossiers=approved_dossiers
+                ))
+                logger.info("D30: BatchTriageCompletedEvent disparado exitosamente para lote %s con %d aprobados.", batch_id, len(approved_dossiers))
+        except Exception as ex:
+            logger.error("D30: Error disparando BatchTriageCompletedEvent en cierre automatico de lote %s: %s", batch_id, ex)
+
         return BatchStatus.FINALIZED.value
 
 

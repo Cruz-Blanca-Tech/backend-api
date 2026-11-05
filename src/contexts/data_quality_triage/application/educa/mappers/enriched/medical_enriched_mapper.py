@@ -28,6 +28,7 @@ class MedicalEnrichedMapper(BaseEnrichedMapper):
             disease_parasites=self.build_field(raw_dto.disease_parasites, "Parásitos", DataType.BOOL),
             disease_chickenpox=self.build_field(raw_dto.disease_chickenpox, "Varicela", DataType.BOOL),
             disease_tuberculosis=self.build_field(raw_dto.disease_tuberculosis, "Tuberculosis", DataType.BOOL),
+            disease_when_and_treatment=self.build_field(raw_dto.disease_when_and_treatment, "Tratamiento / Enfermedad", DataType.STRING),
             # Seguros
             medical_insurance_sis=self.build_field(raw_dto.medical_insurance_sis, "SIS", DataType.BOOL),
             medical_insurance_essalud=self.build_field(raw_dto.medical_insurance_essalud, "EsSalud", DataType.BOOL),

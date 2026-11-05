@@ -111,7 +111,11 @@ class EducaDossierMapper:
         m.hospitalization_reason = med_dto.hospitalization_reason
         m.has_been_operated = med_dto.has_been_operated
         m.operation_reason = med_dto.operation_reason
-        m.vaccines = med_dto.vaccines
+        # D28: Si has_complete_vaccines es True, asegurar que 'COMPLETAS' se refleje en la lista de vacunas si no estaba
+        vac_list = list(med_dto.vaccines or [])
+        if med_dto.has_complete_vaccines and "COMPLETAS" not in [v.upper() for v in vac_list]:
+            vac_list.append("COMPLETAS")
+        m.vaccines = vac_list
         m.medications = med_dto.medications
         m.allergies = med_dto.allergies
         m.diseases = med_dto.diseases
@@ -213,9 +217,19 @@ class EducaDossierMapper:
 def _build_adult(ad_dto, dto, ad_dni_raw: str):
     """Construye un Adult a partir de un EducaAdultDTO (lógica compartida entre
     la alta y el append de tutores). Devuelve None si el adulto no es válido."""
-    parts = ad_dto.full_name.split(" ", 1)
-    ad_first_name = parts[0] if parts else ""
-    ad_last_name = parts[1] if len(parts) > 1 else ""
+    tokens = [t for t in (ad_dto.full_name or "").strip().split() if t]
+    if len(tokens) >= 3:
+        ad_first_name = " ".join(tokens[:-2])
+        ad_last_name = " ".join(tokens[-2:])
+    elif len(tokens) == 2:
+        ad_first_name = tokens[0]
+        ad_last_name = tokens[1]
+    elif len(tokens) == 1:
+        ad_first_name = tokens[0]
+        ad_last_name = ""
+    else:
+        ad_first_name = ""
+        ad_last_name = ""
 
     raw_rel = (ad_dto.relationship or "").upper()
     if raw_rel == "APODERADO":
