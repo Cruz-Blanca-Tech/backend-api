@@ -4,6 +4,7 @@ from src.contexts.data_quality_triage.application.shared.schemas.triage_schemas 
     TriageCaseListItem, PaginatedTriageResponse, DiscrepancySchema
 )
 from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sql_triage_repository import SqlTriageRepository
+from src.contexts.data_quality_triage.domain.educa.rules.document.confidence_rules import OcrConfidenceRule
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +48,12 @@ class GetCasesByBatchUseCase:
     def _effective_threshold(self, case: "TriageCase", thresholds: dict) -> float:
         """El umbral efectivo del caso = el más exigente entre los documentos
         presentes (los que la evaluación compara). Si la actividad no define
-        umbrales, se usa el default 0.80 (el mismo del engine)."""
-        codes = (case.confidence_scores or {}).keys()
-        vals = [thresholds.get(code) or self.DEFAULT_THRESHOLD for code in codes]
+        umbrales, se usa el default 0.80 (el mismo del engine).
+        D13: igual que OcrConfidenceRule, la DJ no se evalúa por confianza, y un
+        umbral 0.0 se respeta (antes «or 0.80» lo convertía en 0.80)."""
+        codes = [c for c in (case.confidence_scores or {}).keys()
+                 if str(c).upper() not in OcrConfidenceRule.EXCLUDED_DOC_CODES]
+        vals = [thresholds.get(code) if thresholds.get(code) is not None else self.DEFAULT_THRESHOLD for code in codes]
         if not vals:
             vals = [self.DEFAULT_THRESHOLD]
         return max(vals)

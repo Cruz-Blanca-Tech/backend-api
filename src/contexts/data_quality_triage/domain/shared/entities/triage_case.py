@@ -240,5 +240,9 @@ class TriageCase:
 
     @property 
     def min_confidence_score(self) -> float:
-        scores = [s for s in self.confidence_scores.values() if s is not None]
+        # D13: la DJ no se evalúa por confianza (OcrConfidenceRule.EXCLUDED_DOC_CODES),
+        # así que no entra en el mínimo que muestra la bandeja.
+        from src.contexts.data_quality_triage.domain.educa.rules.document.confidence_rules import OcrConfidenceRule
+        scores = [s for c, s in self.confidence_scores.items()
+                  if s is not None and str(c).upper() not in OcrConfidenceRule.EXCLUDED_DOC_CODES]
         return min(scores) if scores else 0.0
