@@ -2,6 +2,7 @@ from typing import Any, Optional
 from src.contexts.data_quality_triage.domain.educa.value_objects.enriched_data import EnrichedFins, EnrichedDj
 from src.contexts.data_quality_triage.domain.educa.value_objects.family_data import FamilyData
 from src.contexts.data_quality_triage.domain.educa.value_objects.related_adult import RelatedAdult
+from src.contexts.data_quality_triage.domain.shared.utils.string_utils import name_match_key
 
 class FamilyDomainMapper:
     def map(self, enriched_fins: EnrichedFins, enriched_dj: Optional[EnrichedDj] = None, enriched_dniap: Any = None) -> FamilyData:
@@ -18,8 +19,8 @@ class FamilyDomainMapper:
             if a1.dni and a2_dni and a1.dni == a2_dni:
                 return True
             if a1.full_name and a2_name:
-                n1 = a1.full_name.lower().strip()
-                n2 = a2_name.lower().strip()
+                n1 = name_match_key(a1.full_name)  # D9: comparar sin tildes
+                n2 = name_match_key(a2_name)
                 if n1 == n2:
                     return True
                 ratio = difflib.SequenceMatcher(None, n1, n2).ratio()
@@ -60,7 +61,7 @@ class FamilyDomainMapper:
             if enriched_fins and enriched_fins.child_dni and enriched_fins.child_dni.normalized_value
             else None
         )
-        child_last_tokens = [t.lower() for t in child_last.split() if t.strip()]
+        child_last_tokens = name_match_key(child_last).split()
         child_paternal = child_last_tokens[0] if len(child_last_tokens) >= 1 else None
         child_maternal = child_last_tokens[-1] if len(child_last_tokens) >= 2 else None
 
@@ -69,13 +70,13 @@ class FamilyDomainMapper:
                 return True
             if not child_full_name or not cand_name:
                 return False
-            c1 = child_full_name.lower().strip()
-            c2 = cand_name.lower().strip()
+            c1 = name_match_key(child_full_name)  # D9: comparar sin tildes
+            c2 = name_match_key(cand_name)
             if c1 == c2 or difflib.SequenceMatcher(None, c1, c2).ratio() > 0.85:
                 return True
             # Si comparte ambos apellidos del niño (paterno y materno) y además algún nombre de pila del niño
             tokens_cand = set(c2.split())
-            tokens_child_first = {t.lower() for t in child_first.split() if len(t) > 2}
+            tokens_child_first = {t for t in name_match_key(child_first).split() if len(t) > 2}
             if (
                 child_paternal
                 and child_maternal
@@ -318,7 +319,7 @@ class FamilyDomainMapper:
         for a in adults:
             if not a.full_name:
                 continue
-            tokens = [t.lower() for t in a.full_name.split() if t.strip()]
+            tokens = name_match_key(a.full_name).split()  # D9: comparar sin tildes
             if not tokens:
                 continue
             # Los primeros tokens son nombres de pila (si hay >=3 tokens, los últimos 2 suelen ser apellidos)

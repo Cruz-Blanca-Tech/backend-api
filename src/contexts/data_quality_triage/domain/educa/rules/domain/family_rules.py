@@ -335,9 +335,9 @@ class ParentLastNameCoherenceRule(DomainRule):
         ben_name = f"{domain_entity.beneficiary.first_name or ''} {domain_entity.beneficiary.last_name or ''}".strip()
         
         def _normalize_name_for_match(name: str) -> str:
-            name = name.lower()
-            name = re.sub(r'[^a-z0-9\s]', '', name)
-            return name
+            # D9: comparar sin tildes (NÚÑEZ = NUNEZ).
+            from src.contexts.data_quality_triage.domain.shared.utils.string_utils import name_match_key
+            return name_match_key(name)
             
         ben_norm = _normalize_name_for_match(ben_name)
         ben_words = ben_norm.split()
