@@ -60,9 +60,9 @@ def test_fins_raw_maps_azure_general_and_checkbox_keys():
     assert domain.permissions.haircut_permission is True
     assert domain.permissions.medical_exams_permission is False
 
-    # Educación: _no marcado -> False; ambos desmarcados -> None (default True en knows_write); _yes marcado -> True
+    # Educación: _no marcado -> False; ambos desmarcados -> None (D5: sin valor por defecto); _yes marcado -> True
     assert domain.education.knows_read is False
-    assert domain.education.knows_write is True
+    assert domain.education.knows_write is None
     assert domain.education.repeated_grade is True
 
     # Salud: allergy_others se incorpora a allergies, y los motivos activan el flag booleano
