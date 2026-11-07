@@ -17,7 +17,8 @@ class SingleDossierProcessor:
         # Inyectamos el procesador de documentos individuales
         self.single_doc_processor = single_doc_processor
 
-    async def execute(self, dossier: Dossier, activity: Activity, target_folder_id: str, user_email: str) -> int:
+    async def execute(self, dossier: Dossier, activity: Activity, target_folder_id: str, user_email: str,
+                      retry_failed: bool = False) -> int:
         """
         Ejecuta el pipeline para todos los archivos del expediente.
         Retorna la cantidad de documentos procesados.
@@ -42,8 +43,13 @@ class SingleDossierProcessor:
 
         for doc in dossier.documents:
             if doc.status == DocumentStatus.FAILED:
-                logger.debug(f"    Saltando documento {doc.file_name} (Fallo previo).")
-                continue
+                if not retry_failed:
+                    logger.debug(f"    Saltando documento {doc.file_name} (Fallo previo).")
+                    continue
+                # D6: en un reintento los documentos fallidos vuelven a procesarse.
+                logger.info(f"    Reintentando documento {doc.file_name} (fallo previo: {doc.failure_reason}).")
+                doc.status = DocumentStatus.PENDING
+                doc.failure_reason = None
             
             try:
                 model_id = activity.get_model_id_for_document(str(doc.document_code))
