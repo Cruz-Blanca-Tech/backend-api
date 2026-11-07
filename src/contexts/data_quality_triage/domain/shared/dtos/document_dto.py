@@ -9,3 +9,5 @@ class DocumentDTO:
     document_code: Optional[str]
     extracted_data: Dict[str, Any]
     confidence_score: Optional[float]
+    status: Optional[str] = None
+    failure_reason: Optional[str] = None
