@@ -26,3 +26,16 @@ def test_schema_respeta_valores_leidos():
     e = EducationSchema.model_validate({"knows_how_to_read": False, "knows_how_to_write": True})
     assert e.knows_read is False
     assert e.knows_write is True
+
+
+def test_regla_exige_elegir_cuando_no_hay_dato():
+    from types import SimpleNamespace
+    from src.contexts.data_quality_triage.domain.educa.rules.domain.education_rules import EducationRules
+
+    def issues(read, write):
+        edu = SimpleNamespace(school="Colegio X", grade="3RO_PRIMARIA", knows_read=read, knows_write=write)
+        return {i.field_name for i in EducationRules().evaluate(SimpleNamespace(education=edu)) if i.severity == "ERROR"}
+
+    assert issues(None, None) == {"education.knows_read", "education.knows_write"}
+    assert issues(True, None) == {"education.knows_write"}
+    assert issues(False, True) == set()
