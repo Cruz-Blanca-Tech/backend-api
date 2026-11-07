@@ -239,12 +239,21 @@ class DjFinsSignerCoherenceRule(DomainRule):
         fins_guardian = _as_str(getattr(domain_entity.related_adults, "fins_guardian_dni", None))
         dj_signer = _as_str(getattr(domain_entity.related_adults, "dj_signer_dni", None))
 
-        if fins_guardian and dj_signer and fins_guardian != dj_signer:
+        # D27: el firmante es valido si es el padre, la madre o el apoderado registrados.
+        # Solo se advierte cuando no coincide con ninguno de ellos.
+        valid_signers = {fins_guardian} if fins_guardian else set()
+        for adult in getattr(domain_entity.related_adults, "adults", None) or []:
+            if str(getattr(adult, "relationship", "")).upper() in ("FATHER", "MOTHER", "TUTOR", "GUARDIAN"):
+                adult_dni = _as_str(getattr(adult, "dni", None))
+                if adult_dni:
+                    valid_signers.add(adult_dni)
+
+        if fins_guardian and dj_signer and dj_signer not in valid_signers:
             issues.append(FieldDiscrepancy(
                 field_name="related_adults.dj_signer",
                 expected_pattern="Coincidencia entre FINS y DJ",
                 actual_value=f"DJ: {dj_signer} vs FINS: {fins_guardian}",
-                rule_description="El adulto que firma la Declaración Jurada (DJ) no coincide con el Apoderado registrado en la Ficha FINS. Revisa si esto es válido (ej. un padre firmó la DJ pero la madre es apoderada).",
+                rule_description="El adulto que firma la Declaración Jurada (DJ) no coincide con el padre, la madre ni el apoderado registrados en la Ficha FINS. Verifique quien firmo.",
                 severity="WARNING",
                 document_code="DOMINIO"
             ))
