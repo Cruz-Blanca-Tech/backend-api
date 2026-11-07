@@ -27,7 +27,7 @@ class BatchProcessingOrchestrator:
         self.single_dossier_processor = single_dossier_processor
         self.event_publisher = event_publisher
 
-    async def run_pipeline(self, batch_id: UUID, user_email: str) -> None:
+    async def run_pipeline(self, batch_id: UUID, user_email: str, retry_failed: bool = False) -> None:
         logger.info(f"[BATCH START] Iniciando pipeline asíncrono para Lote: {batch_id}")
         
         batch = await self.batch_repo.get_by_id(batch_id)
@@ -51,7 +51,8 @@ class BatchProcessingOrchestrator:
                     dossier=dossier,
                     activity=activity, # <--- Súper limpio 
                     target_folder_id=batch_target_folder_id, 
-                    user_email=user_email
+                    user_email=user_email,
+                    retry_failed=retry_failed
                 )
                 print(f"DEBUG: Expediente {dossier.dni_reference} tiene {len(dossier.documents)} documentos.")
                 total_procesados += procesados_en_dossier   
