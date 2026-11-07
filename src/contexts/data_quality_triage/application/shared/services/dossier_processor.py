@@ -125,6 +125,38 @@ def _build_group_dni_suggestion(group_dni, dossier_dni, b_first, b_last, master_
     )
 
 
+def _build_existing_adult_notice(adult_index, ad_name, master_row):
+    """Aviso de ADULTO DUPLICADO (D20): el DNI de este familiar ya esta en el maestro.
+
+    Al aprobar, el adulto se vincula con el existente y el maestro conserva su nombre.
+    Antes eso pasaba en silencio. Se emite un WARNING (no bloquea la aprobacion) para
+    que el revisor lo vea; si el nombre de la ficha no se parece al del maestro, se
+    indica que se conservara el del maestro.
+    """
+    master_name = f"{master_row.first_name or ''} {master_row.last_name or ''}".strip()
+    ficha_tokens = set(_normalize_name(ad_name).split())
+    master_tokens = set(_normalize_name(master_name).split())
+    names_differ = bool(ficha_tokens) and bool(master_tokens) and not (
+        ficha_tokens <= master_tokens or master_tokens <= ficha_tokens
+    )
+    description = (
+        f"El DNI {master_row.dni} ya esta registrado en el maestro como adulto "
+        f"{master_name}; al aprobar se vinculara con ese adulto."
+    )
+    if names_differ:
+        description += (
+            f" La ficha trae el nombre '{ad_name}', distinto del registrado: se conservara "
+            f"el nombre del maestro. Verifique que sea la misma persona."
+        )
+    return FieldDiscrepancy(
+        field_name=f"related_adults.adults[{adult_index}].dni",
+        expected_pattern=master_name,
+        actual_value=ad_name,
+        rule_description=description,
+        severity="WARNING",
+    )
+
+
 def _build_emergency_phone_suggestion(adult_index, is_emergency, dossier_phone, master_row):
     """Sugerencia de teléfono para el CONTACTO DE EMERGENCIA con DNI matcheado.
 
@@ -659,6 +691,9 @@ class ProcessDossierUseCase:
                     )
                     master_row = res_master.fetchone()
                     if master_row:
+                        case.discrepancies.append(
+                            _build_existing_adult_notice(idx, ad_name, master_row)
+                        )
                         phone_suggestion = _build_emergency_phone_suggestion(
                             idx, emergency_dni == ad_dni, ad_phone, master_row
                         )
