@@ -20,10 +20,21 @@ class BeneficiaryCompletenessRule(DomainRule):
                 rule_description="El DNI del beneficiario debe tener exactamente 8 dígitos numéricos.", severity="ERROR", document_code="DOMINIO"
             ))
 
-        if not domain_entity.beneficiary.first_name or not domain_entity.beneficiary.last_name:
+        # D22: un nombre o apellido en blanco ("   ") o de una sola letra no cuenta como dato;
+        # coincide con lo que exige el alta del maestro.
+        first_name = (domain_entity.beneficiary.first_name or "").strip()
+        last_name = (domain_entity.beneficiary.last_name or "").strip()
+        if not first_name or not last_name:
             issues.append(FieldDiscrepancy(
                 field_name="beneficiary.name", expected_pattern="Nombre y Apellido", actual_value="(vacío)",
                 rule_description="El nombre y apellido del beneficiario son obligatorios.", severity="ERROR", document_code="DOMINIO"
+            ))
+        elif len(first_name) < 2 or len(last_name) < 2:
+            issues.append(FieldDiscrepancy(
+                field_name="beneficiary.name", expected_pattern="Nombre y apellido de al menos 2 letras",
+                actual_value=f"{first_name} {last_name}".strip(),
+                rule_description="El nombre y el apellido del beneficiario deben tener al menos 2 letras.",
+                severity="ERROR", document_code="DOMINIO"
             ))
 
         if not domain_entity.beneficiary.birth_date:
