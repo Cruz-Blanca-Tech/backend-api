@@ -118,6 +118,7 @@ class AppendDocumentsUseCase:
                 if not getattr(request, 'skip_ocr', False):
                     existing_doc.status = DocumentStatus.PENDING
                     existing_doc.extracted_data = {}
+                    existing_doc.raw_extracted_data = None
                     existing_doc.failure_reason = None
                 added_docs.append(existing_doc)
             else:

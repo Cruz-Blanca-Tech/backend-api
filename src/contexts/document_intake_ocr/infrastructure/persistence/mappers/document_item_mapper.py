@@ -34,6 +34,7 @@ class DocumentItemMapper:
             document_type_config_id=entity.document_type_config_id,
             status=entity.status.value,
             extracted_data=jsonable_encoder(entity.extracted_data),            
+            raw_extracted_data=jsonable_encoder(entity.raw_extracted_data) if entity.raw_extracted_data is not None else None,
             confidence_score=entity.confidence_score,
             failure_reason=entity.failure_reason,
             processed_at=entity.processed_at
@@ -69,6 +70,7 @@ class DocumentItemMapper:
             document_type_config_id=model.document_type_config_id,
             status=DocumentStatus(model.status),
             extracted_data=model.extracted_data,
+            raw_extracted_data=getattr(model, "raw_extracted_data", None),
             confidence_score=model.confidence_score,
             failure_reason=model.failure_reason,
             processed_at=model.processed_at

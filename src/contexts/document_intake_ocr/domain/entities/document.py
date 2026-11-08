@@ -33,7 +33,8 @@ class DocumentItem:
         extracted_data: Optional[Dict[str, Any]] = None,
         confidence_score: Optional[float] = None,
         failure_reason: Optional[str] = None,
-        processed_at: Optional[datetime] = None
+        processed_at: Optional[datetime] = None,
+        raw_extracted_data: Optional[Dict[str, Any]] = None,
     ):
         self.id = id
         self.document_code = document_code
@@ -47,6 +48,8 @@ class DocumentItem:
         self.confidence_score = confidence_score
         self.failure_reason = failure_reason
         self.processed_at = processed_at
+        # D11: lo que devolvió Azure, antes de la normalización del LLM.
+        self.raw_extracted_data = raw_extracted_data
 
     # =========================================================
     # COMPORTAMIENTOS DEL DOMINIO (Rich Domain Model)
@@ -66,13 +69,14 @@ class DocumentItem:
         """
         self.status = DocumentStatus.PROCESSING_OCR
 
-    def mark_as_processed_successfully(self, data: Dict[str, Any], confidence: float) -> None:
+    def mark_as_processed_successfully(self, data: Dict[str, Any], confidence: float, raw_data: Optional[Dict[str, Any]] = None) -> None:
         """
         Llamado cuando la IA (Azure Document Intelligence) devuelve 
         los datos estructurados correctamente.
         """
         self.status = DocumentStatus.READY_FOR_REVIEW
         self.extracted_data = data
+        self.raw_extracted_data = raw_data
         self.confidence_score = confidence
         self.processed_at = datetime.utcnow()
         self.failure_reason = None  # Limpiamos errores previos por si fue un reintento
