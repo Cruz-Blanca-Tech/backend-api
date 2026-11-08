@@ -5,7 +5,7 @@ uno de los apellidos del beneficiario. Si no hay coincidencia, es
 un ERROR: el operador debe corregirlo (OCR mal leído, rol mal
 asignado, familiar equivocado). NO es una advertencia.
 
-La tolerancia de errores típicos de OCR (TAFOR/TAFUR) la aplica el
+La tolerancia de errores típicos de OCR (TAMOR/TAMUR) la aplica el
 `SurnameAutoCorrector` únicamente cuando el apellido del niño está corroborado
 por dos lecturas independientes (FINS + DNI). Sin esa corroboración, acá llega
 un ERROR para revisión obligatoria.
@@ -42,8 +42,8 @@ def _issues(entity: EducaInscriptionDossier):
 
 def test_apellidos_exactos_no_genera_error():
     entity = _dossier(
-        "YARELI ALEXANDRA", "TAFUR MEDRANO",
-        RelatedAdult(relationship="FATHER", full_name="JEFFER TIMOTEO TAFUR OBREGON"),
+        "YARELI ALEXANDRA", "TAMUR MEDRANO",
+        RelatedAdult(relationship="FATHER", full_name="LUIS MARTIN TAMUR OBREGON"),
         RelatedAdult(relationship="MOTHER", full_name="MARIA MEDRANO QUISPE"),
     )
     assert _issues(entity) == []
@@ -52,8 +52,8 @@ def test_apellidos_exactos_no_genera_error():
 def test_un_solo_apellido_coincide_no_genera_error():
     """El padre comparte el primer apellido; el materno no aplica sobre él."""
     entity = _dossier(
-        "YARELI ALEXANDRA", "TAFUR MEDRANO",
-        RelatedAdult(relationship="FATHER", full_name="JEFFER TIMOTEO TAFUR OBREGON"),
+        "YARELI ALEXANDRA", "TAMUR MEDRANO",
+        RelatedAdult(relationship="FATHER", full_name="LUIS MARTIN TAMUR OBREGON"),
     )
     assert _issues(entity) == []
 
@@ -61,8 +61,8 @@ def test_un_solo_apellido_coincide_no_genera_error():
 def test_madre_y_padre_sin_relacion_no_genera_error():
     """Ningún adulto con rol Padre/Madre → no se evalúa nada."""
     entity = _dossier(
-        "YARELI ALEXANDRA", "TAFUR MEDRANO",
-        RelatedAdult(relationship="OTHER", full_name="JUAN TAFOR OBREGON"),
+        "YARELI ALEXANDRA", "TAMUR MEDRANO",
+        RelatedAdult(relationship="OTHER", full_name="JUAN TAMOR OBREGON"),
     )
     assert _issues(entity) == []
 
@@ -71,8 +71,8 @@ def test_madre_y_padre_sin_relacion_no_genera_error():
 
 def test_apellidos_distintos_genera_error():
     entity = _dossier(
-        "YARELI ALEXANDRA", "TAFUR MEDRANO",
-        RelatedAdult(relationship="FATHER", full_name="JEFFER TIMOTEO CRUZ FLORES"),
+        "YARELI ALEXANDRA", "TAMUR MEDRANO",
+        RelatedAdult(relationship="FATHER", full_name="LUIS MARTIN CRUZ FLORES"),
     )
     issues = _issues(entity)
     assert len(issues) == 1
@@ -80,11 +80,11 @@ def test_apellidos_distintos_genera_error():
 
 
 def test_diferencia_de_una_vocal_sin_corroboracion_genera_error():
-    """TAFOR/TAFUR sin corroboración cruzada (solo la FINS): no puede afirmarse
+    """TAMOR/TAMUR sin corroboración cruzada (solo la FINS): no puede afirmarse
     que sea ruido de OCR → sigue el error."""
     entity = _dossier(
-        "YARELI ALEXANDRA", "TAFUR MEDRANO",
-        RelatedAdult(relationship="FATHER", full_name="JEFFER TIMOTEO TAFOR OBREGON"),
+        "YARELI ALEXANDRA", "TAMUR MEDRANO",
+        RelatedAdult(relationship="FATHER", full_name="LUIS MARTIN TAMOR OBREGON"),
     )
     issues = _issues(entity)
     assert len(issues) == 1
