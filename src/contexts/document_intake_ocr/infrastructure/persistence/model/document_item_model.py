@@ -30,6 +30,8 @@ class DocumentItemModel(Base):
     
     # SNAPSHOT PATTERN (JSONB): Aquí se escupe el resultado estructurado de Azure OCR
     extracted_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True) 
+    # D11: JSON crudo de Azure, antes de la normalización del LLM.
+    raw_extracted_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     
     # Recuerda: Si el archivo es rechazado, se guarda en la BD con este motivo, no en RAM.

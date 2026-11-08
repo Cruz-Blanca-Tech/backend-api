@@ -26,7 +26,11 @@ class SqlBeneficiaryRepository:
         )
         result = await self.session.execute(stmt)
         model = result.scalars().first()
-        return BeneficiaryMapper.to_domain(model) if model else None
+        if not model:
+            return None
+        beneficiary = BeneficiaryMapper.to_domain(model)
+        await self._apply_link_flags([beneficiary])
+        return beneficiary
 
     async def get_by_id(self, id: UUID) -> Optional[Beneficiary]:
         stmt = (
@@ -42,7 +46,11 @@ class SqlBeneficiaryRepository:
         )
         result = await self.session.execute(stmt)
         model = result.scalars().first()
-        return BeneficiaryMapper.to_domain(model) if model else None
+        if not model:
+            return None
+        beneficiary = BeneficiaryMapper.to_domain(model)
+        await self._apply_link_flags([beneficiary])
+        return beneficiary
 
     async def get_all(self, skip: int = 0, limit: int = 100) -> list[Beneficiary]:
         stmt = (
@@ -59,7 +67,9 @@ class SqlBeneficiaryRepository:
         )
         result = await self.session.execute(stmt)
         models = result.scalars().all()
-        return [BeneficiaryMapper.to_domain(m) for m in models if m is not None]
+        beneficiaries = [BeneficiaryMapper.to_domain(m) for m in models if m is not None]
+        await self._apply_link_flags(beneficiaries)
+        return beneficiaries
         
     async def count(self) -> int:
         from sqlalchemy import func
@@ -145,6 +155,61 @@ class SqlBeneficiaryRepository:
         # Merge is usually safer when we have complex detached graphs, or add if it's new
         # But if we just extracted from mapper, it is detached. Let's merge.
         merged_model = await self.session.merge(model)
+        await self.session.flush()
+        await self._write_link_flags(beneficiary)
         await self.session.commit()
         # Optional: update entity back? If we need generated IDs, but we use UUIDs.
 
+    async def _write_link_flags(self, beneficiary: Beneficiary) -> None:
+        """D19: guarda parentesco, apoderado y contacto de emergencia en el vínculo.
+
+        La relación ORM `relatives` solo escribe las llaves de `person_relationships`;
+        el resto del vínculo se completa aquí, por cada adulto de ESTE beneficiario.
+        """
+        from sqlalchemy import update
+        from src.contexts.core_beneficiary_management.infrastructure.persistence.model.person_relationship_model import PersonRelationshipModel
+
+        for adult in beneficiary.relatives:
+            if not adult.id:
+                continue
+            role = getattr(adult, "role", None)
+            await self.session.execute(
+                update(PersonRelationshipModel)
+                .where(PersonRelationshipModel.from_person_id == beneficiary.id)
+                .where(PersonRelationshipModel.to_person_id == adult.id)
+                .values(
+                    relationship_type=getattr(role, "value", role),
+                    is_guardian=bool(adult.is_guardian),
+                    is_emergency_contact=bool(adult.is_emergency_contact),
+                )
+            )
+
+    async def _apply_link_flags(self, beneficiaries: list) -> None:
+        """D19: al leer, apoderado y contacto de emergencia salen del vínculo.
+
+        Si el vínculo es anterior a la migración (valores NULL), se conserva la
+        marca guardada en el adulto, que era el comportamiento previo.
+        """
+        from src.contexts.core_beneficiary_management.infrastructure.persistence.model.person_relationship_model import PersonRelationshipModel
+
+        ids = [b.id for b in beneficiaries if b is not None and b.relatives]
+        if not ids:
+            return
+        res = await self.session.execute(
+            select(
+                PersonRelationshipModel.from_person_id,
+                PersonRelationshipModel.to_person_id,
+                PersonRelationshipModel.is_guardian,
+                PersonRelationshipModel.is_emergency_contact,
+            ).where(PersonRelationshipModel.from_person_id.in_(ids))
+        )
+        links = {(row[0], row[1]): (row[2], row[3]) for row in res.all()}
+        for b in beneficiaries:
+            if b is None:
+                continue
+            for adult in b.relatives:
+                guardian, emergency = links.get((b.id, adult.id), (None, None))
+                if guardian is not None:
+                    adult.is_guardian = guardian
+                if emergency is not None:
+                    adult.is_emergency_contact = emergency

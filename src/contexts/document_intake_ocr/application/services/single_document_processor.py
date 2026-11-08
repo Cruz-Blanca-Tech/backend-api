@@ -1,5 +1,6 @@
 # src/contexts/document_intake_ocr/application/services/single_document_processor.py
 
+import copy
 import logging
 from typing import Optional, Dict, Any
 from src.contexts.document_intake_ocr.domain.entities.document import DocumentItem
@@ -57,6 +58,8 @@ class SingleDocumentProcessor:
             ocr_result = await self.extractor.extract_data(file_bytes, model_id)
             
             final_data = ocr_result.get("fields", {})
+            # D11: copia de lo que leyó Azure; el LLM puede cambiar `final_data`.
+            raw_data = copy.deepcopy(final_data)
             
             ## --- FASE 4: NORMALIZACIÓN LLM (Opcional) ---
             if self.normalizer and final_data:
@@ -71,6 +74,7 @@ class SingleDocumentProcessor:
             ## Registrar éxito
             doc.mark_as_processed_successfully(
                 data=final_data, 
+                raw_data=raw_data,
                 confidence=ocr_result.get("confidence", 0.0)
             )
             logger.info(f"  -> [OK] Documento {doc.file_name} extraído y normalizado correctamente.")

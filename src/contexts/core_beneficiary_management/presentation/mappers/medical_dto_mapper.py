@@ -19,7 +19,8 @@ class MedicalDtoMapper:
             medications=domain_entity.medications,
             allergies=domain_entity.allergies,
             diseases=domain_entity.diseases,
-            insurance=domain_entity.insurance
+            insurance=domain_entity.insurance,
+            has_complete_vaccines=domain_entity.has_complete_vaccines
         )
 
     @staticmethod
@@ -62,6 +63,7 @@ class MedicalDtoMapper:
             medications=request.medications,
             allergies=request.allergies,
             diseases=request.diseases,
-            insurance=request.insurance
+            insurance=request.insurance,
+            has_complete_vaccines=request.has_complete_vaccines
         )
 

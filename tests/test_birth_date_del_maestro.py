@@ -77,6 +77,9 @@ class _FakeSession:
         self.merged = model
         return model
 
+    async def flush(self):
+        pass
+
     async def commit(self):
         pass
 

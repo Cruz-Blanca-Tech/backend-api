@@ -267,9 +267,12 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
             self.calls = 0
         async def execute(self, statement, params=None):
             self.calls += 1
-            return _FakeResult(self._results.pop(0))
+            # D19: tras el merge, save() actualiza cada vínculo; esas llamadas no tienen respuesta preparada.
+            return _FakeResult(self._results.pop(0) if self._results else [])
         async def merge(self, model):
             return model
+        async def flush(self):
+            pass
         async def commit(self):
             pass
 
@@ -329,9 +332,12 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
         def __init__(self, results):
             self._results = list(results)
         async def execute(self, statement, params=None):
-            return _FakeResult(self._results.pop(0))
+            # D19: tras el merge, save() actualiza cada vínculo; esas llamadas no tienen respuesta preparada.
+            return _FakeResult(self._results.pop(0) if self._results else [])
         async def merge(self, model):
             return model
+        async def flush(self):
+            pass
         async def commit(self):
             pass
 

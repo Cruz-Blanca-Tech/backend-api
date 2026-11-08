@@ -238,6 +238,27 @@ class TriageCase:
     def clear_events(self) -> None:
         self._pending_events.clear()
 
+    def hold_for_review(self, issue: FieldDiscrepancy) -> None:
+        """Deja el expediente para revisión humana con un error bloqueante (D21).
+
+        Si ya estaba aprobado y su aprobación todavía no se despachó, se retira
+        el evento: el beneficiario no debe llegar al maestro sin la verificación.
+        """
+        if self.status in (TriageStatus.REJECTED, TriageStatus.INCOMPLETE):
+            # Ya no se aprobaría solo: se agrega el error sin cambiar el estado.
+            self.discrepancies = list(self.discrepancies or []) + [issue]
+            self.updated_at = datetime.now(timezone.utc)
+            return
+        if self.status == TriageStatus.APPROVED:
+            self._pending_events = [e for e in self._pending_events if not isinstance(e, DossierApprovedEvent)]
+            self.resolved_by = None
+            self.resolved_at = None
+            self.completed_at = None
+        self.status = TriageStatus.PENDING_REVIEW
+        self.verdict = TriageVerdict.REQUIRES_TRIAGE
+        self.discrepancies = list(self.discrepancies or []) + [issue]
+        self.updated_at = datetime.now(timezone.utc)
+
     @property 
     def min_confidence_score(self) -> float:
         # D13: la DJ no se evalúa por confianza (OcrConfidenceRule.EXCLUDED_DOC_CODES),
