@@ -19,7 +19,8 @@ class MedicalRecordMapper:
             medications=model.medications,
             allergies=model.allergies,
             diseases=model.diseases,
-            insurance=model.insurance
+            insurance=model.insurance,
+            has_complete_vaccines=getattr(model, "has_complete_vaccines", None)
         )
 
     @staticmethod
@@ -38,5 +39,6 @@ class MedicalRecordMapper:
             medications=entity.medications,
             allergies=entity.allergies,
             diseases=entity.diseases,
-            insurance=entity.insurance
+            insurance=entity.insurance,
+            has_complete_vaccines=entity.has_complete_vaccines
         )
