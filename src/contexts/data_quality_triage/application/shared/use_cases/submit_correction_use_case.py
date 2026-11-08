@@ -20,6 +20,7 @@ from src.contexts.data_quality_triage.application.shared.use_cases.finalize_batc
 )
 from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
 from src.contexts.data_quality_triage.domain.educa.rules.document.guardian_dniap_rule import guardian_vs_dniap_issue
+from src.contexts.data_quality_triage.domain.educa.rules.domain.enrollment_rules import unverified_enrollment_issue
 from src.contexts.data_quality_triage.application.educa.dtos.raw.dni_raw import DniRaw
 from src.contexts.data_quality_triage.application.shared.normalizers.type.dni_normalizer import DniNormalizer
 
@@ -122,6 +123,13 @@ class SubmitCorrectionUseCase:
         if (is_complete and not missing_doc_discrepancies 
                 and case.activity_type == "EDUCA_INSCRIPTION" and dni):
             activity_id = await self._resolve_activity_id(case.batch_id)
+            if not activity_id:
+                # D21: sin la actividad del lote no se puede verificar la doble
+                # inscripción; aprobar igual podía duplicar la matrícula.
+                is_complete = False
+                domain_issues = list(domain_issues) + [unverified_enrollment_issue(dni)]
+        if (is_complete and not missing_doc_discrepancies
+                and case.activity_type == "EDUCA_INSCRIPTION" and dni):
             existing = await self.beneficiary_repo.get_by_dni(dni)
             if existing and any(e.activity_code == activity_id for e in existing.enrollments):
                 reject_detail = (
