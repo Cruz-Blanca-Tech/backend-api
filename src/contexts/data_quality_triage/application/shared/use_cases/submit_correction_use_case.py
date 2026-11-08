@@ -19,6 +19,9 @@ from src.contexts.data_quality_triage.application.shared.use_cases.finalize_batc
     FinalizeBatchIfCompleteUseCase,
 )
 from src.contexts.core_beneficiary_management.infrastructure.persistence.repositories.sql_beneficiary_repository import SqlBeneficiaryRepository
+from src.contexts.data_quality_triage.domain.educa.rules.document.guardian_dniap_rule import guardian_vs_dniap_issue
+from src.contexts.data_quality_triage.application.educa.dtos.raw.dni_raw import DniRaw
+from src.contexts.data_quality_triage.application.shared.normalizers.type.dni_normalizer import DniNormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +88,14 @@ class SubmitCorrectionUseCase:
                 )
             ]
             dni = None
+
+        # 1b. D3: el apoderado elegido debe ser la persona de la copia del DNI (DNIAP)
+        if case.activity_type == "EDUCA_INSCRIPTION" and isinstance(case.dossier_data, dict):
+            guardian_dni = (case.dossier_data.get("related_adults") or {}).get("guardian_dni")
+            dniap_issue = guardian_vs_dniap_issue(guardian_dni, await self._load_dniap_number(case))
+            if dniap_issue is not None:
+                domain_issues = list(domain_issues) + [dniap_issue]
+                is_complete = False
 
         # 2. Validar documentos obligatorios
         missing_doc_discrepancies = []
@@ -196,6 +207,25 @@ class SubmitCorrectionUseCase:
         await self.session.commit()
         
         return case
+
+    async def _load_dniap_number(self, case: TriageCase) -> Optional[str]:
+        """DNI leído en la copia del DNI del apoderado, normalizado, o None."""
+        doc_id = (case.document_ids or {}).get("DNIAP")
+        if not doc_id:
+            return None
+        from sqlalchemy import text
+        result = await self.session.execute(
+            text("SELECT extracted_data FROM document_items WHERE id = :id"),
+            {"id": str(doc_id)},
+        )
+        row = result.fetchone()
+        if not row or not isinstance(row[0], dict):
+            return None
+        try:
+            raw = DniRaw.from_dict(row[0])
+        except Exception:
+            return None
+        return DniNormalizer().normalize(raw.document_number)
 
     async def _resolve_activity_id(self, batch_id: UUID) -> str:
         """Devuelve el `activity_id` del lote, que es lo que se guarda en
