@@ -1,6 +1,7 @@
 import logging
 import re
 import unicodedata
+from src.contexts.data_quality_triage.domain.educa.rules.domain.enrollment_rules import unverified_enrollment_issue
 from uuid import UUID, uuid4
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -809,8 +810,14 @@ class ProcessDossierUseCase:
                     await self._maybe_finalize_batch(case)
                     await self.session.commit()
                     return case
+            else:
+                # D21: sin la actividad del lote no se puede verificar la doble
+                # inscripción, así que el expediente no se aprueba solo.
+                case.hold_for_review(unverified_enrollment_issue(b_dni))
         except Exception as e:
             logger.error(f"Error checking duplicate registration: {e}", exc_info=True)
+            # D21: si la verificación falla, el expediente no se aprueba solo.
+            case.hold_for_review(unverified_enrollment_issue(b_dni))
         # -------------------------------------
 
         # 4. Persistencia y Eventos
