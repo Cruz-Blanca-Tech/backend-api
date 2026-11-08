@@ -15,7 +15,7 @@ from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sq
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import _is_valid_phone
 from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import score_candidate
-from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
 from src.core.events.event_dispatcher import EventDispatcher
 from src.core.validators.exceptions import ConflictException, EntityNotFoundException, DomainValidationError
 
@@ -62,6 +62,27 @@ def _normalize_name(value) -> str:
         return ""
     text = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode("ascii")
     return re.sub(r"\s+", " ", text).strip().upper()
+
+
+def _all_documents_failed(docs) -> bool:
+    """D6: True si el expediente tiene documentos y todos quedaron FAILED en el OCR."""
+    return bool(docs) and all(str(getattr(d, "status", "") or "").upper() == "FAILED" for d in docs)
+
+
+def _build_no_readable_documents_issue(docs) -> FieldDiscrepancy:
+    reasons = sorted({(d.failure_reason or "").strip() for d in docs if (d.failure_reason or "").strip()})
+    detail = f" Motivo: {reasons[0]}" if reasons else ""
+    return FieldDiscrepancy(
+        field_name="documents.ALL",
+        expected_pattern="Al menos un documento legible",
+        actual_value=f"{len(docs)} documento(s) fallido(s)",
+        rule_description=(
+            "Ningun documento se pudo leer. Reintente el procesamiento del lote o suba de "
+            "nuevo los documentos del expediente." + detail
+        ),
+        severity="ERROR",
+        document_code="GLOBAL",
+    )
 
 
 def _dni_valid(value) -> bool:
@@ -502,6 +523,12 @@ class ProcessDossierUseCase:
             documents=docs,
             context=context
         )
+        if _all_documents_failed(docs):
+            # D6: sin documentos legibles no hay datos que revisar; el caso llega a la
+            # bandeja como INCOMPLETO con un unico error claro, en vez de perderse.
+            case.update_discrepancies([_build_no_readable_documents_issue(docs)])
+            case.status = TriageStatus.INCOMPLETE
+            case.verdict = TriageVerdict.REQUIRES_TRIAGE
         if existing_case:
             # `reassign_id()` y no `case.id = ...`: el caso recién construido pudo
             # quedar aprobado (touchless) y `approve()` ya registró el evento con

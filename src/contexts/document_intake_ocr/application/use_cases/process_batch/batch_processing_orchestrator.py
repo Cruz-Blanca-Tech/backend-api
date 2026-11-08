@@ -7,6 +7,7 @@ from src.contexts.document_intake_ocr.domain.repositories.activity_repository im
 from src.contexts.document_intake_ocr.domain.repositories.batch_repository import BatchRepository
 from src.contexts.document_intake_ocr.domain.ports.document_storage import DocumentStorage
 from src.contexts.document_intake_ocr.application.services.single_dossier_processor import SingleDossierProcessor
+from src.contexts.document_intake_ocr.domain.entities.extraction_batch import BatchStatus
 from src.core.validators.exceptions import ExternalServiceException
 from src.contexts.document_intake_ocr.application.event_publishers.dossier_event_publisher import DossierEventPublisher
 
@@ -72,8 +73,13 @@ class BatchProcessingOrchestrator:
             
             # 4. Detonar los eventos de Triaje AHORA que los datos OCR están guardados en la BD
             for dossier in batch.dossiers:
-                # Solo disparamos eventos para los expedientes que tengan al menos 1 documento extraído exitosamente
-                if any(doc.status.value != "FAILED" for doc in dossier.documents):
+                # Se dispara para los expedientes con al menos 1 documento extraído. D6: si el lote
+                # NO fallo por completo, tambien para los que quedaron con todos sus documentos
+                # fallidos, para que aparezcan en la bandeja como incompletos y no se pierdan.
+                batch_failed = batch.status == BatchStatus.FAILED
+                if any(doc.status.value != "FAILED" for doc in dossier.documents) or (
+                    not batch_failed and dossier.documents
+                ):
                     await self.event_publisher.publish_created(dossier, activity)
                     
             # 5. Detonar evento de fin de lote para automatización
