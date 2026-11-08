@@ -64,6 +64,7 @@ class ReprocessDossierUseCase:
         for doc in target_dossier.documents:
             doc.status = DocumentStatus.PENDING
             doc.extracted_data = {}
+            doc.raw_extracted_data = None
             doc.failure_reason = None
         
         target_dossier.update_status(activity.required_documents)
