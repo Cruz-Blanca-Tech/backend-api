@@ -120,7 +120,7 @@ class TestD7DiseaseWhenAndTreatmentMapping:
 # D28: has_complete_vaccines preservado en DTO y m.vaccines
 # ==============================================================================
 class TestD28CompleteVaccinesPreservation:
-    def test_d28_has_complete_vaccines_se_refleja_en_vaccines_al_mapear(self):
+    def test_d28_has_complete_vaccines_se_guarda_en_su_campo(self):
         dto = EducaDossierDTO(
             beneficiary=EducaBeneficiaryDTO(dni="10000001", first_name="JUAN", last_name="PEREZ LOPEZ"),
             medical=EducaMedicalDTO(
@@ -130,8 +130,8 @@ class TestD28CompleteVaccinesPreservation:
         )
         
         entity = EducaDossierMapper.map_to_entity(dto)
-        assert "Antitetánica" in entity.medical_record.vaccines
-        assert "COMPLETAS" in entity.medical_record.vaccines
+        assert entity.medical_record.vaccines == ["Antitetánica"]
+        assert entity.medical_record.has_complete_vaccines is True
 
     def test_d28_has_complete_vaccines_false_no_agrega_completas(self):
         dto = EducaDossierDTO(
@@ -145,6 +145,7 @@ class TestD28CompleteVaccinesPreservation:
         entity = EducaDossierMapper.map_to_entity(dto)
         assert "Antitetánica" in entity.medical_record.vaccines
         assert "COMPLETAS" not in entity.medical_record.vaccines
+        assert entity.medical_record.has_complete_vaccines is False
 
 
 # ==============================================================================

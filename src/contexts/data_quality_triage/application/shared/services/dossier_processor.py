@@ -1,6 +1,7 @@
 import logging
 import re
 import unicodedata
+from src.contexts.data_quality_triage.domain.educa.rules.domain.enrollment_rules import unverified_enrollment_issue
 from uuid import UUID, uuid4
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +16,7 @@ from src.contexts.data_quality_triage.infrastructure.persistence.repositories.sq
 from src.contexts.data_quality_triage.infrastructure.persistence.model.triage_audit_log_model import TriageAuditLogModel
 from src.contexts.data_quality_triage.domain.educa.rules.domain.family_rules import _is_valid_phone
 from src.contexts.data_quality_triage.application.shared.services.beneficiary_fuzzy_matcher import score_candidate
-from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus
+from src.contexts.data_quality_triage.domain.shared.value_objects.triage_status import TriageStatus, TriageVerdict
 from src.core.events.event_dispatcher import EventDispatcher
 from src.core.validators.exceptions import ConflictException, EntityNotFoundException, DomainValidationError
 
@@ -62,6 +63,27 @@ def _normalize_name(value) -> str:
         return ""
     text = unicodedata.normalize("NFKD", str(value)).encode("ascii", "ignore").decode("ascii")
     return re.sub(r"\s+", " ", text).strip().upper()
+
+
+def _all_documents_failed(docs) -> bool:
+    """D6: True si el expediente tiene documentos y todos quedaron FAILED en el OCR."""
+    return bool(docs) and all(str(getattr(d, "status", "") or "").upper() == "FAILED" for d in docs)
+
+
+def _build_no_readable_documents_issue(docs) -> FieldDiscrepancy:
+    reasons = sorted({(d.failure_reason or "").strip() for d in docs if (d.failure_reason or "").strip()})
+    detail = f" Motivo: {reasons[0]}" if reasons else ""
+    return FieldDiscrepancy(
+        field_name="documents.ALL",
+        expected_pattern="Al menos un documento legible",
+        actual_value=f"{len(docs)} documento(s) fallido(s)",
+        rule_description=(
+            "Ningun documento se pudo leer. Reintente el procesamiento del lote o suba de "
+            "nuevo los documentos del expediente." + detail
+        ),
+        severity="ERROR",
+        document_code="GLOBAL",
+    )
 
 
 def _dni_valid(value) -> bool:
@@ -122,6 +144,38 @@ def _build_group_dni_suggestion(group_dni, dossier_dni, b_first, b_last, master_
             f"de agrupación si corresponde."
         ),
         severity="AI_INSIGHT",
+    )
+
+
+def _build_existing_adult_notice(adult_index, ad_name, master_row):
+    """Aviso de ADULTO DUPLICADO (D20): el DNI de este familiar ya esta en el maestro.
+
+    Al aprobar, el adulto se vincula con el existente y el maestro conserva su nombre.
+    Antes eso pasaba en silencio. Se emite un WARNING (no bloquea la aprobacion) para
+    que el revisor lo vea; si el nombre de la ficha no se parece al del maestro, se
+    indica que se conservara el del maestro.
+    """
+    master_name = f"{master_row.first_name or ''} {master_row.last_name or ''}".strip()
+    ficha_tokens = set(_normalize_name(ad_name).split())
+    master_tokens = set(_normalize_name(master_name).split())
+    names_differ = bool(ficha_tokens) and bool(master_tokens) and not (
+        ficha_tokens <= master_tokens or master_tokens <= ficha_tokens
+    )
+    description = (
+        f"El DNI {master_row.dni} ya esta registrado en el maestro como adulto "
+        f"{master_name}; al aprobar se vinculara con ese adulto."
+    )
+    if names_differ:
+        description += (
+            f" La ficha trae el nombre '{ad_name}', distinto del registrado: se conservara "
+            f"el nombre del maestro. Verifique que sea la misma persona."
+        )
+    return FieldDiscrepancy(
+        field_name=f"related_adults.adults[{adult_index}].dni",
+        expected_pattern=master_name,
+        actual_value=ad_name,
+        rule_description=description,
+        severity="WARNING",
     )
 
 
@@ -470,6 +524,12 @@ class ProcessDossierUseCase:
             documents=docs,
             context=context
         )
+        if _all_documents_failed(docs):
+            # D6: sin documentos legibles no hay datos que revisar; el caso llega a la
+            # bandeja como INCOMPLETO con un unico error claro, en vez de perderse.
+            case.update_discrepancies([_build_no_readable_documents_issue(docs)])
+            case.status = TriageStatus.INCOMPLETE
+            case.verdict = TriageVerdict.REQUIRES_TRIAGE
         if existing_case:
             # `reassign_id()` y no `case.id = ...`: el caso recién construido pudo
             # quedar aprobado (touchless) y `approve()` ya registró el evento con
@@ -659,6 +719,9 @@ class ProcessDossierUseCase:
                     )
                     master_row = res_master.fetchone()
                     if master_row:
+                        case.discrepancies.append(
+                            _build_existing_adult_notice(idx, ad_name, master_row)
+                        )
                         phone_suggestion = _build_emergency_phone_suggestion(
                             idx, emergency_dni == ad_dni, ad_phone, master_row
                         )
@@ -809,8 +872,14 @@ class ProcessDossierUseCase:
                     await self._maybe_finalize_batch(case)
                     await self.session.commit()
                     return case
+            else:
+                # D21: sin la actividad del lote no se puede verificar la doble
+                # inscripción, así que el expediente no se aprueba solo.
+                case.hold_for_review(unverified_enrollment_issue(b_dni))
         except Exception as e:
             logger.error(f"Error checking duplicate registration: {e}", exc_info=True)
+            # D21: si la verificación falla, el expediente no se aprueba solo.
+            case.hold_for_review(unverified_enrollment_issue(b_dni))
         # -------------------------------------
 
         # 4. Persistencia y Eventos

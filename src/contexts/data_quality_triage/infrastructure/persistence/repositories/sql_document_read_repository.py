@@ -33,7 +33,9 @@ class SqlDocumentReadRepository(DocumentReadRepository):
                 file_name=r.file_name,
                 document_code=r.code,
                 extracted_data=r.extracted_data or {},
-                confidence_score=r.confidence_score
+                confidence_score=r.confidence_score,
+                status=r.status,
+                failure_reason=r.failure_reason,
             )
             for r in rows
         ]
