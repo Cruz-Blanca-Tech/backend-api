@@ -111,11 +111,10 @@ class EducaDossierMapper:
         m.hospitalization_reason = med_dto.hospitalization_reason
         m.has_been_operated = med_dto.has_been_operated
         m.operation_reason = med_dto.operation_reason
-        # D28: Si has_complete_vaccines es True, asegurar que 'COMPLETAS' se refleje en la lista de vacunas si no estaba
-        vac_list = list(med_dto.vaccines or [])
-        if med_dto.has_complete_vaccines and "COMPLETAS" not in [v.upper() for v in vac_list]:
-            vac_list.append("COMPLETAS")
-        m.vaccines = vac_list
+        m.vaccines = list(med_dto.vaccines or [])
+        # D28: «vacunas completas» tiene su propio campo en el maestro (antes se
+        # agregaba «COMPLETAS» a la lista de vacunas, que no es una vacuna).
+        m.has_complete_vaccines = med_dto.has_complete_vaccines
         m.medications = med_dto.medications
         m.allergies = med_dto.allergies
         m.diseases = med_dto.diseases
