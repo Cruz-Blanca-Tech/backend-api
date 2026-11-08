@@ -1,4 +1,6 @@
 import uuid
+from typing import Optional
+
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,3 +20,9 @@ class PersonRelationshipModel(Base):
     # From the perspective of 'from_person_id' -> 'to_person_id'
     # (e.g. Beneficiary A -> MOTHER -> Adult B)
     relationship_type: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    # D19: apoderado y contacto de emergencia son propiedades del VÍNCULO, no de
+    # la persona: un padre puede ser apoderado de un hijo y no del otro. NULL en
+    # vínculos anteriores a la migración (se usa entonces la marca del adulto).
+    is_guardian: Mapped[Optional[bool]] = mapped_column(nullable=True)
+    is_emergency_contact: Mapped[Optional[bool]] = mapped_column(nullable=True)
