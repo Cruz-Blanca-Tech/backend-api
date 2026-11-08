@@ -15,3 +15,5 @@ class MedicalRecord:
     allergies: List[str]
     diseases: List[str]
     insurance: List[str]
+    # D28: «vacunas completas» de la ficha. None = la ficha no lo indicó.
+    has_complete_vaccines: Optional[bool] = None

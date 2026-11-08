@@ -21,5 +21,7 @@ class MedicalRecordModel(Base):
     allergies: Mapped[list] = mapped_column(JSON, default=list)
     diseases: Mapped[list] = mapped_column(JSON, default=list)
     insurance: Mapped[list] = mapped_column(JSON, default=list)
+    # D28: «vacunas completas» de la ficha. NULL = la ficha no lo indicó.
+    has_complete_vaccines: Mapped[bool] = mapped_column(Boolean, nullable=True)
 
     beneficiary = relationship("BeneficiaryModel", back_populates="medical_record")

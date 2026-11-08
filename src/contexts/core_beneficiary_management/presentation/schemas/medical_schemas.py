@@ -11,6 +11,7 @@ class MedicalRecordResponse(BaseModel):
     allergies: List[str]
     diseases: List[str]
     insurance: List[str]
+    has_complete_vaccines: Optional[bool] = None
 
 class MedicalRecordPatchRequest(BaseModel):
     has_been_hospitalized: Optional[bool] = None
@@ -22,6 +23,7 @@ class MedicalRecordPatchRequest(BaseModel):
     allergies: Optional[List[str]] = None
     diseases: Optional[List[str]] = None
     insurance: Optional[List[str]] = None
+    has_complete_vaccines: Optional[bool] = None
 
 class MedicalRecordCreateRequest(BaseModel):
     has_been_hospitalized: bool = False
@@ -33,4 +35,5 @@ class MedicalRecordCreateRequest(BaseModel):
     allergies: List[str] = []
     diseases: List[str] = []
     insurance: List[str] = []
+    has_complete_vaccines: Optional[bool] = None
 

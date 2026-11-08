@@ -191,11 +191,12 @@ class TestRejectDuplicateEnrollment:
         assert case.status == TriageStatus.APPROVED
 
     @pytest.mark.asyncio
-    async def test_no_rechaza_si_no_se_puede_resolver_la_actividad(self):
-        """Si el lote no está, no se rechaza a nadie.
+    async def test_no_aprueba_ni_rechaza_si_no_se_puede_resolver_la_actividad(self):
+        """Si el lote no está, no se rechaza a nadie, pero tampoco se aprueba (D21).
 
         Inventar un activity_id haría matchear el beneficiario contra cualquier
-        otra actividad, que es peor que no rechazar.
+        otra actividad, y aprobar sin verificar podía duplicar la matrícula: el
+        expediente queda pendiente con un error que lo explica.
         """
         case = _make_pending_case()
         existing = _make_existing_beneficiary([str(ACTIVITY_ID)])
@@ -225,7 +226,9 @@ class TestRejectDuplicateEnrollment:
 
         await uc.execute(case.id, uuid4(), case.dossier_data)
 
-        assert case.status == TriageStatus.APPROVED
+        assert case.status == TriageStatus.PENDING_REVIEW
+        assert case.rejection_reason is None
+        assert any("No se pudo verificar" in d.rule_description for d in case.discrepancies)
 
 
 if __name__ == "__main__":
