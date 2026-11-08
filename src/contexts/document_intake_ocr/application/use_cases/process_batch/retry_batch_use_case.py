@@ -24,14 +24,22 @@ class RetryBatchUseCase:
         if not batch:
             raise EntityNotFoundException("El lote no existe")
 
-        if batch.status not in [BatchStatus.FAILED, BatchStatus.PENDING]:
-            raise DomainValidationError("Solo se pueden reintentar lotes que hayan fallado o esten atascados en pendiente")
+        # D6: un lote COMPLETED que tiene documentos fallidos tambien se puede reintentar.
+        has_failed_docs = any(d.status.value == "FAILED" for d in batch.get_all_documents())
+        retryable = batch.status in [BatchStatus.FAILED, BatchStatus.PENDING] or (
+            batch.status == BatchStatus.COMPLETED and has_failed_docs
+        )
+        if not retryable:
+            raise DomainValidationError(
+                "Solo se pueden reintentar lotes que hayan fallado, esten atascados en pendiente "
+                "o tengan documentos fallidos"
+            )
 
         # Cambiar el estado inmediatamente para reflejar que comenzo el reintento
         batch.status = BatchStatus.PROCESSING
         await self.batch_repo.save(batch)
 
         # Encolar la tarea asincrona reutilizando la logica existente
-        background_tasks.add_task(self.batch_orchestrator.run_pipeline, batch.id, user_email)
+        background_tasks.add_task(self.batch_orchestrator.run_pipeline, batch.id, user_email, True)
 
         return {"message": "Reintento de OCR iniciado correctamente", "batch_id": str(batch.id)}
