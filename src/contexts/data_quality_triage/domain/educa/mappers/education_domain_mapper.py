@@ -68,13 +68,10 @@ class EducationDomainMapper:
         if not grade or grade.lower() in ["no registrada", "no registrado", "unknown"] or len(grade) > 10:
             validation_issues.append("Debe registrar un grado valido (ej. 3er grado).")
             
+        # D5: si el OCR no lee la casilla se deja vacio (None); no se inventa un "si".
         knows_read = enriched_fins.education.knows_how_to_read.normalized_value
-        if knows_read is None:
-            knows_read = True
             
         knows_write = enriched_fins.education.knows_how_to_write.normalized_value
-        if knows_write is None:
-            knows_write = True
             
         repeated_grade = enriched_fins.education.has_repeated_grade.normalized_value
         if repeated_grade is None:
