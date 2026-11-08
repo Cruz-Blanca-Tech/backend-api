@@ -214,22 +214,39 @@ class EducaDossierMapper:
         return beneficiary
 
 
+_SURNAME_PARTICLES = {"de", "del", "la", "las", "los", "y", "san", "santa", "van", "von", "da", "di"}
+
+
+def split_adult_full_name(full_name):
+    """Separa «nombres» y «apellidos» de un nombre completo (convencion peruana:
+    nombres + paterno + materno). Las particulas («de la», «del», «san»...) se
+    pegan a la palabra que sigue, de modo que «de la Cruz» cuenta como un solo
+    apellido. Con 3 palabras el reparto es ambiguo (1 nombre + 2 apellidos o
+    2 nombres + 1 apellido) y se asume el primero; la solucion de fondo es usar
+    campos separados (D17/D18)."""
+    tokens = [t for t in (full_name or "").strip().split() if t]
+    units, pending = [], []
+    for i, tok in enumerate(tokens):
+        if tok.lower().strip(".") in _SURNAME_PARTICLES and i < len(tokens) - 1:
+            pending.append(tok)
+            continue
+        units.append(" ".join(pending + [tok]))
+        pending = []
+    if pending:  # nombre que termina en particula: no se pierde
+        units.append(" ".join(pending))
+    if len(units) >= 3:
+        return " ".join(units[:-2]), " ".join(units[-2:])
+    if len(units) == 2:
+        return units[0], units[1]
+    if len(units) == 1:
+        return units[0], ""
+    return "", ""
+
+
 def _build_adult(ad_dto, dto, ad_dni_raw: str):
     """Construye un Adult a partir de un EducaAdultDTO (lógica compartida entre
     la alta y el append de tutores). Devuelve None si el adulto no es válido."""
-    tokens = [t for t in (ad_dto.full_name or "").strip().split() if t]
-    if len(tokens) >= 3:
-        ad_first_name = " ".join(tokens[:-2])
-        ad_last_name = " ".join(tokens[-2:])
-    elif len(tokens) == 2:
-        ad_first_name = tokens[0]
-        ad_last_name = tokens[1]
-    elif len(tokens) == 1:
-        ad_first_name = tokens[0]
-        ad_last_name = ""
-    else:
-        ad_first_name = ""
-        ad_last_name = ""
+    ad_first_name, ad_last_name = split_adult_full_name(ad_dto.full_name)
 
     raw_rel = (ad_dto.relationship or "").upper()
     if raw_rel == "APODERADO":
