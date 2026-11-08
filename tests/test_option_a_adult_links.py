@@ -188,18 +188,18 @@ def test_emergency_contact_rechaza_telefono_invalido():
 
 
 def test_emergency_contact_acepta_telefono_valido():
-    issues = EmergencyContactRule().evaluate(_contact_dossier(phone="900000202"))
+    issues = EmergencyContactRule().evaluate(_contact_dossier(phone="900000011"))
     assert not any(i.severity == "ERROR" and "teléfono" in i.rule_description for i in issues)
 
 
 def test_emergency_contact_rechaza_telefono_concatenado_dual():
-    # Caso real Exp. 05: dos teléfonos unidos por guión ("900000200-900000201") no deben pasar
-    issues = EmergencyContactRule().evaluate(_contact_dossier(phone="900000200-900000201"))
+    # Caso: dos teléfonos unidos por guión ("900000021-900000022") no deben pasar
+    issues = EmergencyContactRule().evaluate(_contact_dossier(phone="900000021-900000022"))
     assert any(i.severity == "ERROR" and "teléfono" in i.rule_description for i in issues)
 
 
 def test_emergency_contact_acepta_telefono_con_prefijo_pais():
-    for phone in ["+51 925 917 655", "+51900000202", "51900000202", "925-917-655"]:
+    for phone in ["+51 900 000 011", "+51900000011", "51900000011", "900-000-011"]:
         issues = EmergencyContactRule().evaluate(_contact_dossier(phone=phone))
         assert not any(i.severity == "ERROR" and "teléfono" in i.rule_description for i in issues)
 
@@ -210,21 +210,21 @@ def test_is_valid_phone_helper_cobertura_completa():
     from src.contexts.core_beneficiary_management.domain.value_objects.phone import Phone
 
     valid_phones = [
-        "900000200",
+        "900000021",
         "918 158 048",
         "918-158-048",
         "+51 918 158 048",
-        "+51900000200",
-        "51900000200",
-        "(+51) 900000200",
+        "+51900000021",
+        "51900000021",
+        "(+51) 900000021",
     ]
     invalid_phones = [
-        "900000200-900000201",
+        "900000021-900000022",
         "123",
         "530045",
         "47000001",
         "91815804",
-        "9000002000",
+        "9000000210",
         "",
         None,
     ]
@@ -278,7 +278,7 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
 
     session = _SeqSession([
         [_Row(id=person_id, dni="12345678", first_name="MARIA ELENA", last_name="ROJAS TORRES")],  # personas existentes por DNI
-        [_Row(id=person_id, phone="900000202", role="MOTHER")],  # adults: phone, role
+        [_Row(id=person_id, phone="900000011", role="MOTHER")],  # adults: phone, role
     ])
 
     # La ficha del hermano menor trae a la mamá SIN teléfono, SIN rol específico
@@ -311,7 +311,7 @@ async def test_save_preserva_telefono_y_rol_del_maestro_en_reuso(monkeypatch):
 
     # El adulto reusó el id del maestro y conservó su TELÉFONO, su ROL y su NOMBRE.
     assert adult.id == person_id
-    assert adult.phone is not None and adult.phone.value == "900000202"
+    assert adult.phone is not None and adult.phone.value == "900000011"
     assert adult.role == RelationshipRole.MOTHER
     assert adult.first_name == "MARIA ELENA"
     assert adult.last_name == "ROJAS TORRES"
@@ -343,7 +343,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
 
     session = _SeqSession([
         [_Row(id=person_id, dni="12345678", first_name="MARIA ELENA", last_name="ROJAS TORRES")],
-        [_Row(id=person_id, phone="900000202", role="MOTHER")],
+        [_Row(id=person_id, phone="900000011", role="MOTHER")],
     ])
 
     # La ficha SÍ aporta un teléfono válido (actualización de contacto).
@@ -353,7 +353,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
         first_name="MARIA",
         last_name="ROJAS",
     )
-    adult.phone = Phone("900000203")
+    adult.phone = Phone("900000031")
     ben = Beneficiary(
         id=uuid4(),
         dni=DNI("87654321"),
@@ -371,7 +371,7 @@ async def test_save_actualiza_telefono_valido_de_la_ficha(monkeypatch):
     repo = SqlBeneficiaryRepository(session=session)
     await repo.save(ben)
 
-    assert adult.phone.value == "900000203"
+    assert adult.phone.value == "900000031"
     # El nombre siempre viene del maestro en reuso.
     assert adult.first_name == "MARIA ELENA"
     assert adult.last_name == "ROJAS TORRES"
@@ -403,7 +403,7 @@ def test_normalize_name_y_dni_valid():
 def test_sibling_suggestions_completa_dni_y_telefono():
     index = {
         "MARIA ROJAS": [
-            {"dni": "00123456", "phone": "900000202",
+            {"dni": "00123456", "phone": "900000011",
              "child_dni": "11111111", "child_name": "LUIS ROJAS"},
         ]
     }
@@ -417,13 +417,13 @@ def test_sibling_suggestions_completa_dni_y_telefono():
     assert dni_s.expected_pattern == "00123456"
     assert "LUIS ROJAS" in dni_s.rule_description
     assert phone_s.field_name == "related_adults.adults[0].phone"
-    assert phone_s.expected_pattern == "900000202"
+    assert phone_s.expected_pattern == "900000011"
 
 
 def test_sibling_suggestions_respeta_telefono_valido_existente():
     index = {
         "MARIA ROJAS": [
-            {"dni": "00123456", "phone": "900000202",
+            {"dni": "00123456", "phone": "900000011",
              "child_dni": "11111111", "child_name": "LUIS ROJAS"},
         ]
     }
@@ -449,9 +449,9 @@ def test_sibling_suggestions_sin_dni_legible_en_hermanos_no_sugiere():
 def test_sibling_suggestions_dnis_conflictivos_emite_warning():
     index = {
         "MARIA ROJAS": [
-            {"dni": "00123456", "phone": "900000202",
+            {"dni": "00123456", "phone": "900000011",
              "child_dni": "11111111", "child_name": "LUIS ROJAS"},
-            {"dni": "00123458", "phone": "900000202",
+            {"dni": "00123458", "phone": "900000011",
              "child_dni": "22222222", "child_name": "ANA ROJAS"},
         ]
     }
@@ -472,14 +472,14 @@ def test_sibling_suggestions_nombre_desconocido_no_emite_nada():
 
 
 def test_emergency_phone_suggestion_desde_maestro():
-    master = _Row(dni="00123456", first_name="MARIA", last_name="ROJAS", phone="900000202")
+    master = _Row(dni="00123456", first_name="MARIA", last_name="ROJAS", phone="900000011")
     out = _build_emergency_phone_suggestion(
         adult_index=1, is_emergency=True, dossier_phone="", master_row=master
     )
     assert out is not None
     assert out.severity == "AI_INSIGHT"
     assert out.field_name == "related_adults.adults[1].phone"
-    assert out.expected_pattern == "900000202"
+    assert out.expected_pattern == "900000011"
     assert "contacto de emergencia" in out.rule_description
 
     # No es el contacto de emergencia → nada (no se toca el teléfono de otro adulto).
@@ -511,7 +511,7 @@ def test_load_sibling_adults_indexa_y_excluye_ficha_actual():
             _SiblingCase("11111111", {
                 "beneficiary": {"dni": "11111111", "first_name": "LUIS", "last_name": "ROJAS"},
                 "related_adults": {
-                    "adults": [{"full_name": "Maria Elena Rojas Torres", "dni": "00123456", "phone": "900000202"}],
+                    "adults": [{"full_name": "Maria Elena Rojas Torres", "dni": "00123456", "phone": "900000011"}],
                 },
             }),
             _SiblingCase("33333333", {  # la ficha ACTUAL — debe excluirse
@@ -530,7 +530,7 @@ def test_load_sibling_adults_indexa_y_excluye_ficha_actual():
     # Solo la ficha del hermano (LUIS) queda indexada; la actual se excluye.
     assert index == {
         "MARIA ELENA ROJAS TORRES": [
-            {"dni": "00123456", "phone": "900000202",
+            {"dni": "00123456", "phone": "900000011",
              "child_dni": "11111111", "child_name": "LUIS ROJAS"},
         ]
     }
