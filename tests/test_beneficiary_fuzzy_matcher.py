@@ -92,7 +92,7 @@ def test_homonym_same_name_different_dni_is_suggested():
 def test_accents_are_normalized():
     suggestions = _run(
         [("JOSÉ", "DELGADO GÓMEZ", "70123456")],
-        first_name="JOSE", last_name="DELGADO GOMEZ", dni="90000101",
+        first_name="JOSE", last_name="DELGADO GOMEZ", dni="90000071",
     )
     assert len(suggestions) == 1
     assert suggestions[0].dni == "70123456"
@@ -150,7 +150,7 @@ def test_dni_proximity_alone_does_not_trigger():
 def test_ranking_prefers_best_match():
     suggestions = _run([
         ("PEDRO", "DELGADO NAVARRO", "99999999"),   # solo apellido
-        ("ANA", "CIFUENTES", "90000102"),          # apellido parecido, nombre otro
+        ("ANA", "CIFUENTES", "90000072"),          # apellido parecido, nombre otro
         ("MATEO CI", "DELGADO NAVARRO", "81000034"),  # el mejor: nombre idéntico
     ])
     assert len(suggestions) >= 1

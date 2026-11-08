@@ -4,7 +4,7 @@ Cuando el apellido del beneficiario aparece IDÉNTICO en dos lecturas
 independientes del OCR — la FINS (`child_last_name`) y el DNI del propio niño
 (DNIBE: `last_name`) — la confianza de que esa escritura sea la correcta es
 altísima. Si además un adulto (Padre/Madre) trae ese apellido con un error
-típico de lectura (tamor por tamur: una vocal, s/z, b/v, i/y, o una letra de
+típico de lectura (TAMOR por TAMUR: una vocal, s/z, b/v, i/y, o una letra de
 más/menos), se corrige automáticamente en el dossier y se emite una discrepancia
 informativa para que el revisor lo vea y sepa qué se cambió.
 
@@ -59,7 +59,7 @@ def _ocr_similar(a: str, b: str) -> bool:
 
     Iguales, o a una sola diferencia de distancia de edición:
     - Sustitución de una letra: solo si el par es una confusión típica
-      (vocales entre sí, s/z/c, b/v, i/y) — tamur/tamor, PEREZ/PERES.
+      (vocales entre sí, s/z/c, b/v, i/y) — TAMUR/TAMOR, PEREZ/PERES.
     - Una letra de más o de menos (truncamiento) — QUISPES/QUISPE.
 
     La primera letra debe coincidir, para no casar apellidos distintos que
