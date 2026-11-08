@@ -61,7 +61,7 @@ class TestD29PhoneValidation:
         "47000001",            # 8 dígitos (DNI, no teléfono)
         "98765432",            # 8 dígitos celular incompleto
         "9876543210",          # 10 dígitos celular
-        "918158048-967552092", # Dos teléfonos concatenados
+        "900000021-900000022", # Dos teléfonos concatenados
     ])
     def test_d29_telefonos_invalidos_rechazados(self, invalid_phone):
         assert _is_valid_phone(invalid_phone) is False

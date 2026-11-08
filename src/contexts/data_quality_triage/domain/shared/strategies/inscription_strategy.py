@@ -79,7 +79,7 @@ class InscriptionTriageStrategy(TriageStrategy):
             # AUTO-CORRECCIÓN de apellidos de Padre/Madre corroborada por doble
             # lectura: si el apellido del niño sale idéntico en la FINS y en su
             # DNI (DNIBE), y un adulto trae una variante con error típico de OCR
-            # (TAFOR/TAFUR), se corrige el nombre en el dossier y se agrega una
+            # (TAMOR/TAMUR), se corrige el nombre en el dossier y se agrega una
             # nota informativa. Corre ANTES de validate_completeness: la regla de
             # coherencia de apellidos ya ve el apellido unificado y no advierte
             # (falso positivo). Sin corroboración no se corrige nada y la regla
