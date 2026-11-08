@@ -115,7 +115,7 @@ REGLAS DE NEGOCIO PERUANAS (estrictas):
 - DNI único por persona (8 dígitos)
 - Apellidos compuestos existen: "DE LA CRUZ", "SANCHEZ PEREZ", "DEL AGUILA"
 - Errores OCR comunes en DNI/FINS: 
-  * Vocales: a↔e, o↔u, i↔e (ej: BIR ↔ RIVERA, tamor ↔ tamur)
+  * Vocales: a↔e, o↔u, i↔e (ej: BIR ↔ RIVERA, TAMOR ↔ TAMUR)
   * Consonantes: b↔v, c↔s, r↔n, l↔i, m↔n
   * Tildes perdidas: JULIA ↔ JULÍA
   * Espacios/guiones: "DELAROSA" vs "DE LA ROSA"

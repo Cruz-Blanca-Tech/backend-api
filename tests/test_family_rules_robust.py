@@ -110,12 +110,12 @@ def test_parent_presence_rule_advierte_solo_si_no_hay_padre_ni_madre():
 def test_guardian_sin_nombre_emite_un_solo_error_unificado():
     entity = _dossier(
         FamilyData(
-            adults=[RelatedAdult(relationship="OTHER", dni="90000100", full_name="")],
-            guardian_dni="90000100",
+            adults=[RelatedAdult(relationship="OTHER", dni="90000081", full_name="")],
+            guardian_dni="90000081",
         )
     )
     issues = GuardianPresenceRule().evaluate(entity) + AdultsDniFormatRule().evaluate(entity)
     assert len(issues) == 1
     assert issues[0].severity == "ERROR"
-    assert "90000100" in issues[0].rule_description
+    assert "90000081" in issues[0].rule_description
     assert "Apoderado" in issues[0].rule_description
