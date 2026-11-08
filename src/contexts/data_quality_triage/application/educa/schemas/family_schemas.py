@@ -1,5 +1,6 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field, model_validator
+from src.contexts.data_quality_triage.domain.shared.utils.string_utils import name_match_key
 
 class RelatedAdultSchema(BaseModel):
     relationship: str
@@ -28,8 +29,8 @@ class FamilySchema(BaseModel):
             return "OTHER"
 
         def is_same_person(a1: RelatedAdultSchema, a2_dni: Optional[str], a2_name: Optional[str]) -> bool:
-            n1 = (a1.full_name or "").strip().lower()
-            n2 = (a2_name or "").strip().lower()
+            n1 = name_match_key(a1.full_name)  # D9: comparar sin tildes
+            n2 = name_match_key(a2_name)
             # Nombre completo explícito e idéntico → misma persona (aunque el DNI varíe).
             if n1 and n2 and n1 == n2:
                 return True
