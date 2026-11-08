@@ -5,8 +5,8 @@ from typing import Optional
 class EducationData:
     school: Optional[str] = None
     grade: Optional[str] = None
-    knows_read: bool = True
-    knows_write: bool = True
+    knows_read: Optional[bool] = None
+    knows_write: Optional[bool] = None
     repeated_grade: bool = False
     learning_difficulties: Optional[bool] = None
     validation_issues: list = field(default_factory=list)

@@ -24,6 +24,16 @@ class EducationRules(DomainRule):
                 severity="ERROR", document_code="DOMINIO"
             ))
 
+        # D5: sabe leer / sabe escribir sin dato (el OCR no leyo la casilla) no se aprueban solos;
+        # el revisor debe elegir sí o no, para no guardar un valor que nadie confirmo.
+        for attr, label in (("knows_read", "¿Sabe leer?"), ("knows_write", "¿Sabe escribir?")):
+            if getattr(domain_entity.education, attr, None) is None:
+                issues.append(FieldDiscrepancy(
+                    field_name=f"education.{attr}", expected_pattern="Sí o No", actual_value="(vacío)",
+                    rule_description=f"{label} no se pudo leer del documento. Indique Sí o No.",
+                    severity="ERROR", document_code="DOMINIO"
+                ))
+
         if domain_entity.education.knows_read and not domain_entity.education.grade:
             issues.append(FieldDiscrepancy(
                 field_name="education.grade", expected_pattern="Grado escolar", actual_value="(vacío)",
