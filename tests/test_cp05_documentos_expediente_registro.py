@@ -30,6 +30,7 @@ Datos ficticios. `openai` no está instalado en el venv de pruebas: si falta, se
 registra un módulo sustituto vacío (el LLM no se invoca: `llm_client` es None).
 """
 
+import io
 import sys
 import types
 import copy
@@ -45,7 +46,9 @@ except ImportError:  # el LLM no se usa en estas pruebas
     _openai.AsyncAzureOpenAI = type("AsyncAzureOpenAI", (), {})
     sys.modules["openai"] = _openai
 
+from PIL import Image
 from sqlalchemy import create_engine
+from sqlalchemy.sql.dml import Update
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -68,6 +71,10 @@ from src.contexts.core_beneficiary_management.infrastructure.persistence.reposit
     SqlBeneficiaryRepository,
 )
 from src.contexts.shared.events.dossier_approved_event import DossierApprovedEvent
+from src.contexts.shared.events.batch_triage_completed_event import BatchTriageCompletedEvent
+from src.contexts.core_beneficiary_management.domain.events.beneficiary_events import DossierPdfArchivedEvent
+from src.contexts.core_beneficiary_management.infrastructure.events import beneficiary_event_handlers
+from src.contexts.document_intake_ocr.application.event_handlers import intake_event_handlers
 from src.core.events.event_dispatcher import EventDispatcher
 from src.contexts.document_intake_ocr.application.use_cases.get_documents_by_dossier_use_case import (
     GetDocumentsByDossierUseCase,
@@ -195,6 +202,9 @@ class _SesionSqlite:
     async def commit(self):
         self._s.commit()
 
+    async def flush(self):
+        self._s.flush()
+
 
 class _ActivitySession:
     """Reemplaza `async_session_maker()` del handler del MDM: devuelve el
@@ -210,6 +220,93 @@ class _ActivitySession:
         res = MagicMock()
         res.fetchone.return_value = (str(ACTIVITY_ID),)
         return res
+
+
+class _SesionMdm:
+    """Reemplaza `async_session_maker()` del manejador del MDM: abre una sesion
+    sobre la base maestra local y la entrega con la interfaz async."""
+
+    def __init__(self, engine):
+        self._engine = engine
+
+    async def __aenter__(self):
+        self._s = Session(self._engine)
+        return _SesionSqlite(self._s)
+
+    async def __aexit__(self, *exc):
+        self._s.close()
+        return False
+
+
+def _png():
+    buf = io.BytesIO()
+    Image.new("RGB", (20, 20), "white").save(buf, "PNG")
+    return buf.getvalue()
+
+
+class _DriveFalso:
+    """Drive simulado con la misma interfaz que `GoogleDriveStorageAdapter`. Como el
+    adaptador real, el archivo se identifica por nombre dentro de la carpeta del
+    beneficiario: si ya existe, se actualiza en lugar de duplicarse."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    archivos = {}  # (carpeta, nombre) -> id; se reinicia en cada prueba
+    subidas = []
+
+    def download_file_to_memory(self, custody_id):
+        return _png()
+
+    async def ensure_beneficiary_directory(self, dni):
+        return f"carpeta-{dni}"
+
+    async def upload_file_to_folder(self, folder_id, file_bytes, filename, mime_type="application/pdf"):
+        assert file_bytes.startswith(b"%PDF"), "lo que se sube a Drive debe ser un PDF"
+        clave = (folder_id, filename)
+        fid = _DriveFalso.archivos.setdefault(clave, f"pdf-{len(_DriveFalso.archivos) + 1}")
+        _DriveFalso.subidas.append(clave)
+        return fid
+
+
+class _SesionLote:
+    """Reemplaza `async_session_maker()` del manejador del lote: las consultas de
+    documentos devuelven `filas` y los UPDATE no tocan ninguna base."""
+
+    def __init__(self, filas):
+        self._filas = filas
+
+    def __call__(self):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def execute(self, statement, params=None):
+        res = MagicMock()
+        if isinstance(statement, Update):
+            res.rowcount = 1
+        else:
+            res.scalars.return_value.all.return_value = self._filas
+        return res
+
+    async def commit(self):
+        pass
+
+    async def rollback(self):
+        pass
+
+
+@pytest.fixture
+def drive_falso(monkeypatch):
+    """Cambia el adaptador real de Google Drive por uno simulado."""
+    _DriveFalso.archivos = {}
+    _DriveFalso.subidas = []
+    monkeypatch.setattr(intake_event_handlers, "GoogleDriveStorageAdapter", _DriveFalso)
+    return _DriveFalso
 
 
 @pytest.fixture
@@ -255,12 +352,16 @@ def bus_con_mdm(monkeypatch, mdm_engine):
                 handler = ProcessApprovedTriageCaseUseCase(SqlBeneficiaryRepository(_SesionSqlite(s)))
                 await handler.execute(event)
             casos[event.triage_case_id].sync_status = "SYNCED"
+        elif isinstance(event, DossierPdfArchivedEvent):
+            # Manejador real del MDM: enlaza el PDF archivado al registro del menor.
+            await beneficiary_event_handlers.handle_dossier_pdf_archived_event(event)
 
     def _despachar_en_segundo_plano(event):
         publicados.append(event)
 
     monkeypatch.setattr(EventDispatcher, "dispatch", _despachar)
     monkeypatch.setattr(EventDispatcher, "dispatch_background", _despachar_en_segundo_plano)
+    monkeypatch.setattr(beneficiary_event_handlers, "async_session_maker", lambda: _SesionMdm(mdm_engine))
     return publicados, casos
 
 
@@ -309,6 +410,20 @@ async def _aprobar_y_cerrar_lote(case, casos):
     return session
 
 
+async def _generar_pdf_del_lote(evento, case, monkeypatch):
+    """Ejecuta el manejador real del lote completado (`handle_batch_triage_completed`):
+    marca FINALIZED, genera el PDF con las imágenes del expediente y lo sube a Drive.
+    Solo se simulan la base del lote y el adaptador de Drive."""
+    filas = [
+        DocumentItemModel(id=doc_id, batch_id=evento.batch_id, code=codigo, custody_id=f"custodia-{codigo}",
+                          dni_reference=DNI_MENOR, file_name=f"{DNI_MENOR}_{codigo}.jpg",
+                          source_id=f"drive-{codigo}", status="APPROVED")
+        for codigo, doc_id in case.document_ids.items()
+    ]
+    monkeypatch.setattr(intake_event_handlers, "async_session_maker", _SesionLote(filas))
+    await intake_event_handlers.handle_batch_triage_completed(evento)
+
+
 class TestCP05DocumentosDelExpediente:
 
     @pytest.mark.asyncio
@@ -339,9 +454,10 @@ class TestCP05DocumentosDelExpediente:
             f"HALLAZGO (CA-003-01): la consulta del expediente no lista los 4 documentos del menor: {listados}"
         )
 
-    @pytest.mark.xfail(strict=True, reason="D30 abierto: el cierre automático del lote no enlaza los documentos al registro del menor")
     @pytest.mark.asyncio
-    async def test_los_documentos_se_consultan_desde_el_registro_del_menor(self, bus_con_mdm, sin_conexion, mdm_engine):
+    async def test_los_documentos_se_consultan_desde_el_registro_del_menor(
+        self, bus_con_mdm, sin_conexion, mdm_engine, drive_falso, monkeypatch
+    ):
         publicados, casos = bus_con_mdm
         case = await _procesar_ocr(uuid4())
         assert case.status == TriageStatus.PENDING_REVIEW, f"Precondición: revisión humana, quedó {case.status}"
@@ -353,20 +469,52 @@ class TestCP05DocumentosDelExpediente:
             f"Precondición: el lote debía cerrarse solo; estados escritos = {_estados_del_lote(session)}"
         )
 
+        # El cierre automático publica BatchTriageCompletedEvent (D30). Se ejecuta el manejador real:
+        # genera el PDF con los documentos, lo sube a un Drive simulado y avisa al maestro.
+        evento = next((e for e in publicados if isinstance(e, BatchTriageCompletedEvent)), None)
+        assert evento is not None, (
+            "HALLAZGO (CA-003-01, D30): el cierre automático del lote no publicó BatchTriageCompletedEvent; "
+            f"eventos publicados: {sorted({type(e).__name__ for e in publicados})}"
+        )
+        await _generar_pdf_del_lote(evento, case, monkeypatch)
+
         with Session(mdm_engine) as s:
             guardado = await SqlBeneficiaryRepository(_SesionSqlite(s)).get_by_dni(DNI_MENOR)
         assert guardado is not None, f"Precondición: el menor {DNI_MENOR} debía estar en el maestro."
         registro = await _registro(mdm_engine, guardado.id)
 
-        eventos = sorted({type(e).__name__ for e in publicados})
         assert registro.historical_documents, (
             "HALLAZGO (CA-003-01, D30): con el expediente aprobado y el lote cerrado (FINALIZED), el "
             f"registro del menor {DNI_MENOR} no tiene ningún documento para consultar "
             f"(historical_documents = {registro.historical_documents}); el expediente tenía "
-            f"{sorted(case.document_ids)}. Eventos publicados: {eventos}. El PDF del expediente solo se "
-            "genera y enlaza con BatchTriageCompletedEvent (verify-completion / retry-sync del lote), "
-            "que el cierre automático del lote no publica."
+            f"{sorted(case.document_ids)}."
         )
+        assert len(registro.historical_documents) == 1
+        assert len(drive_falso.archivos) == 1, "debía subirse un solo PDF consolidado por expediente"
+        (carpeta, nombre), file_id = next(iter(drive_falso.archivos.items()))
+        assert nombre.startswith(f"Dossier_Inscripcion_{DNI_MENOR}_") and nombre.endswith(".pdf")
+        assert registro.historical_documents[0].file_id == file_id
+
+    @pytest.mark.asyncio
+    async def test_reintentar_la_generacion_no_duplica_el_pdf_ni_el_enlace(
+        self, bus_con_mdm, sin_conexion, mdm_engine, drive_falso, monkeypatch
+    ):
+        """Un reintento reemplaza el archivo de Drive (mismo nombre en la carpeta del
+        menor) y el enlace del registro; no queda un segundo documento."""
+        publicados, casos = bus_con_mdm
+        case = await _procesar_ocr(uuid4())
+        await _aprobar_y_cerrar_lote(case, casos)
+        evento = next(e for e in publicados if isinstance(e, BatchTriageCompletedEvent))
+
+        await _generar_pdf_del_lote(evento, case, monkeypatch)
+        await _generar_pdf_del_lote(evento, case, monkeypatch)
+
+        assert len(drive_falso.subidas) == 2, "se esperaban dos intentos de subida"
+        assert len(drive_falso.archivos) == 1, f"el reintento duplicó el PDF en Drive: {drive_falso.archivos}"
+        with Session(mdm_engine) as s:
+            guardado = await SqlBeneficiaryRepository(_SesionSqlite(s)).get_by_dni(DNI_MENOR)
+        registro = await _registro(mdm_engine, guardado.id)
+        assert len(registro.historical_documents) == 1, "el reintento duplicó el enlace en el registro del menor"
 
 
 if __name__ == "__main__":

@@ -37,6 +37,8 @@ def _uc(case, dniap_number):
     beneficiary_repo = MagicMock()
     beneficiary_repo.get_by_dni = AsyncMock(return_value=None)
     session = AsyncMock()
+    session.add = MagicMock()  # add/expire_all son sincronos en SQLAlchemy
+    session.expire_all = MagicMock()
     resultado = MagicMock()
     resultado.fetchone.return_value = (str(uuid4()),)
     session.execute = AsyncMock(return_value=resultado)

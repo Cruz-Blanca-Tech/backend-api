@@ -216,14 +216,10 @@ class EducaDossierMapper:
 _SURNAME_PARTICLES = {"de", "del", "la", "las", "los", "y", "san", "santa", "van", "von", "da", "di"}
 
 
-def split_adult_full_name(full_name):
-    """Separa «nombres» y «apellidos» de un nombre completo (convencion peruana:
-    nombres + paterno + materno). Las particulas («de la», «del», «san»...) se
-    pegan a la palabra que sigue, de modo que «de la Cruz» cuenta como un solo
-    apellido. Con 3 palabras el reparto es ambiguo (1 nombre + 2 apellidos o
-    2 nombres + 1 apellido) y se asume el primero; la solucion de fondo es usar
-    campos separados (D17/D18)."""
-    tokens = [t for t in (full_name or "").strip().split() if t]
+def _name_units(text):
+    """Agrupa las particulas con la palabra que sigue: «de la Cruz Huaman» ->
+    [«de la Cruz», «Huaman»]."""
+    tokens = [t for t in (text or "").strip().split() if t]
     units, pending = [], []
     for i, tok in enumerate(tokens):
         if tok.lower().strip(".") in _SURNAME_PARTICLES and i < len(tokens) - 1:
@@ -233,6 +229,47 @@ def split_adult_full_name(full_name):
         pending = []
     if pending:  # nombre que termina en particula: no se pierde
         units.append(" ".join(pending))
+    return units
+
+
+def _unit_key(unit):
+    """Clave de comparacion exacta de una unidad de apellido: sin tildes y en mayusculas."""
+    return " ".join(_normalize_name(unit).upper().split())
+
+
+def _anchor_on_child_surnames(units, child_last_name, is_parent):
+    """D17: decide entre 1 y 2 apellidos anclando en los apellidos del menor.
+
+    La coincidencia es exacta por unidad (sin tildes ni mayusculas; las
+    particulas van dentro de la unidad). Como maximo 2 unidades de apellido y
+    al menos 1 de nombre. La penultima unidad vale para cualquier adulto; la
+    ultima, solo para padre/madre (un pariente que lleva el apellido del menor
+    como materno no debe quedar con un solo apellido). Devuelve None si no hay
+    ancla: se usa la regla de respaldo."""
+    if len(units) < 3 or not isinstance(child_last_name, str):
+        return None
+    child_keys = {_unit_key(u) for u in _name_units(child_last_name)} - {""}
+    if not child_keys:
+        return None
+    candidates = [len(units) - 2] + ([len(units) - 1] if is_parent else [])
+    for i in candidates:
+        if _unit_key(units[i]) in child_keys:
+            return " ".join(units[:i]), " ".join(units[i:])
+    return None
+
+
+def split_adult_full_name(full_name, child_last_name=None, is_parent=False):
+    """Separa «nombres» y «apellidos» de un nombre completo (convencion peruana:
+    nombres + paterno + materno). Las particulas («de la», «del», «san»...) se
+    pegan a la palabra que sigue, de modo que «de la Cruz» cuenta como un solo
+    apellido. Con 3 unidades el reparto es ambiguo (1 nombre + 2 apellidos o
+    2 nombres + 1 apellido): si se reciben los apellidos del menor, se anclan
+    en ellos (ver _anchor_on_child_surnames). Sin ancla, regla de respaldo:
+    las dos ultimas unidades son los apellidos (D17)."""
+    units = _name_units(full_name)
+    anchored = _anchor_on_child_surnames(units, child_last_name, is_parent)
+    if anchored:
+        return anchored
     if len(units) >= 3:
         return " ".join(units[:-2]), " ".join(units[-2:])
     if len(units) == 2:
@@ -245,9 +282,14 @@ def split_adult_full_name(full_name):
 def _build_adult(ad_dto, dto, ad_dni_raw: str):
     """Construye un Adult a partir de un EducaAdultDTO (lógica compartida entre
     la alta y el append de tutores). Devuelve None si el adulto no es válido."""
-    ad_first_name, ad_last_name = split_adult_full_name(ad_dto.full_name)
-
     raw_rel = (ad_dto.relationship or "").upper()
+    # D17: los apellidos del menor (campo separado) sirven de ancla; el
+    # parentesco (no el rol de apoderado/contacto) decide si es padre/madre.
+    child_last_name = getattr(getattr(dto, "beneficiary", None), "last_name", None)
+    ad_first_name, ad_last_name = split_adult_full_name(
+        ad_dto.full_name, child_last_name, is_parent=raw_rel in ("FATHER", "MOTHER")
+    )
+
     if raw_rel == "APODERADO":
         role_enum = RelationshipRole.TUTOR
     else:

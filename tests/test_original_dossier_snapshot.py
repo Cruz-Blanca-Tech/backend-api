@@ -77,6 +77,8 @@ async def test_submit_correction_use_case_captures_original_when_missing():
     # El cierre de lote lee los casos del lote para ver si ya se cerrará solo.
     repo.get_all_by_batch_id = AsyncMock(return_value=[case])
     session = AsyncMock()
+    session.add = MagicMock()  # add/expire_all son sincronos en SQLAlchemy
+    session.expire_all = MagicMock()
     session.get = AsyncMock(return_value=None)
     validator = MagicMock()
     validator.validate_can_be_corrected = AsyncMock()
