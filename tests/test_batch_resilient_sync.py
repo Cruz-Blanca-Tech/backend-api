@@ -103,6 +103,7 @@ async def test_dead_letter_service_record_and_resolve():
     )
 
     mock_session = AsyncMock()
+    mock_session.add = MagicMock()  # `add` es sincrono en SQLAlchemy
     mock_res = MagicMock()
     mock_res.scalars.return_value.first.return_value = None
     mock_session.execute = AsyncMock(return_value=mock_res)
