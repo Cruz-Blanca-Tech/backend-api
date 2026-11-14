@@ -103,6 +103,10 @@ def _make_session(activity_id=ACTIVITY_ID):
     resultado = MagicMock()
     resultado.fetchone.return_value = (str(activity_id),)
     session.execute = AsyncMock(return_value=resultado)
+    # En SQLAlchemy `add` y `expire_all` son sincronos: con AsyncMock devolverian una
+    # corrutina que nadie espera (RuntimeWarning).
+    session.add = MagicMock()
+    session.expire_all = MagicMock()
     return session
 
 
@@ -207,6 +211,8 @@ class TestRejectDuplicateEnrollment:
         repo.get_all_by_batch_id = AsyncMock(return_value=[case])
 
         session = AsyncMock()
+        session.add = MagicMock()
+        session.expire_all = MagicMock()
         resultado = MagicMock()
         resultado.fetchone.return_value = (None,)
         session.execute = AsyncMock(return_value=resultado)

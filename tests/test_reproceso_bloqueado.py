@@ -90,7 +90,7 @@ def _make_uc(existing_case, documentos=None):
 
     session = MagicMock()
     session.add = MagicMock()
-    session.execute = AsyncMock()
+    session.execute = AsyncMock(return_value=MagicMock())  # fetchall() es sincrono
     session.commit = AsyncMock()
 
     return ProcessDossierUseCase(
