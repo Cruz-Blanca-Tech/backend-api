@@ -61,7 +61,7 @@ class GenerateBatchPdfsUseCase:
                     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
                     images.append(img)
                 except Exception as e:
-                    logger.error(f"Error downloading doc {doc.id} (custody_id={doc.custody_id}) for DNI {dni}: {e}")
+                    logger.error(f"Error downloading doc {doc.id} (custody_id={doc.custody_id}) for DNI {corrected_dni}: {e}")
 
             if not images:
                 logger.warning(f"No valid images downloaded for DNI {corrected_dni}")
