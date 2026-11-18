@@ -46,7 +46,7 @@ class Settings(BaseSettings):
             )
 
         # Fallback para local
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:***@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # Security & Access (OAuth2 & RBAC)
     # Valor solo apto para desarrollo local; en producción se exige uno propio
