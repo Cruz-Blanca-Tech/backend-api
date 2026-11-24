@@ -257,3 +257,8 @@ __marimo__/
 # Contienen datos de personas reales del maestro.
 thesis_export.json
 thesis_export.xlsx
+
+# Database dumps / backups
+backups/
+*.dump
+*.sql
