@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 from uuid import UUID, uuid4
@@ -14,7 +14,7 @@ class User:
     role: Role
     picture_url: Optional[str] = None
     is_active: bool = True
-    last_login: datetime = datetime.utcnow()
+    last_login: datetime = field(default_factory=datetime.utcnow)
 
     @classmethod
     def create_new_user(cls, auth_data: ExternalUserIdentity) -> 'User':
