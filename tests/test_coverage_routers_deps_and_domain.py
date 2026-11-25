@@ -607,18 +607,26 @@ async def test_remaining_unimported_and_demographics():
 
     bus = InMemoryEventBus()
     act_pub = ActivityEventPublisher(bus)
-    await act_pub.publish_created(
-        SimpleNamespace(
-            id=uuid4(),
-            program_id=uuid4(),
-            required_documents=[SimpleNamespace(code_str="FINS")],
+    with patch(
+        "src.contexts.document_intake_ocr.application.event_publishers.activity_event_publisher.ActivityRequirementsConfiguredEvent",
+        return_value=SimpleNamespace(),
+    ):
+        await act_pub.publish_created(
+            SimpleNamespace(
+                id=uuid4(),
+                program_id=uuid4(),
+                required_documents=[SimpleNamespace(code_str="FINS")],
+            )
         )
-    )
 
     doc_pub = DocumentTypeConfigEventPublisher(bus)
-    await doc_pub.publish_created(
-        SimpleNamespace(id=uuid4(), name="Ficha", version="v1")
-    )
+    with patch(
+        "src.contexts.document_intake_ocr.application.event_publishers.document_type_config_event_publisher.DocumentTypeConfigCreatedEvent",
+        return_value=SimpleNamespace(),
+    ):
+        await doc_pub.publish_created(
+            SimpleNamespace(id=uuid4(), name="Ficha", version="v1")
+        )
 
     pol = ActivityPolicy(required_document_codes=["FINS", "DJ"])
     res_pol = pol.evaluate(SimpleNamespace(document_ids={"FINS": uuid4()}))
